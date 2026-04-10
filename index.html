@@ -1,16 +1,194 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2575.7">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Northstar AI Directory</title>
+  <meta
+    name="description"
+    content="A Western-facing AI tools and navigation portal inspired by faxianai, curated from Futurepedia and Toolify with stronger traffic filtering and an Apple-like interface."
+  >
+  <meta name="theme-color" content="#f3f4f6">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<p class="p1">Hello world</p>
+  <div class="page-glow glow-a"></div>
+  <div class="page-glow glow-b"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-badge">N</div>
+      <div class="brand-copy">
+        <strong>Northstar AI</strong>
+        <span>WESTERN AI NAVIGATOR</span>
+      </div>
+    </div>
+
+    <nav class="topnav" aria-label="Primary">
+      <a class="is-active" href="index.html">Home</a>
+      <a href="#hot-tools">Live Tools</a>
+      <a href="featured.html">Today's Hot</a>
+      <a href="rankings.html">AI Rankings</a>
+      <div class="nav-item nav-item-with-panel">
+        <a class="nav-trigger" href="prompt-library.html?track=deepseek">
+          <span class="nav-mini-icon" aria-hidden="true">&#9711;</span>
+          <span>AI Prompt Library</span>
+        </a>
+        <div class="nav-flyout" id="prompt-nav-flyout"></div>
+      </div>
+      <a href="directory.html">Pro Directory</a>
+      <a href="#search-hub">Batch Search</a>
+    </nav>
+
+    <button class="icon-button" type="button" aria-label="Search">
+      <span>&#8981;</span>
+    </button>
+  </header>
+
+  <main class="portal" id="home">
+    <aside class="sidebar glass">
+      <div class="sidebar-section">
+        <h2>Browse</h2>
+        <div id="sidebar-nav" class="sidebar-nav"></div>
+      </div>
+    </aside>
+
+    <section class="content">
+      <section class="search-hero glass" id="search-hub">
+        <div class="hero-copy">
+          <p class="kicker">Discover Faster</p>
+          <h1>
+            Discover The Best
+            <span class="hero-keyword hero-keyword-ai">AI</span>
+            <span class="hero-keyword hero-keyword-web">Websites</span>
+            &amp;
+            <span class="hero-keyword hero-keyword-tools">Tools</span>
+          </h1>
+          <p class="hero-subtitle">
+            <strong id="hero-tools-copy">--</strong> curated AI tools across
+            <strong id="hero-category-copy">--</strong> categories for Western teams.
+          </p>
+        </div>
+
+        <div class="search-panel">
+          <label class="search-shell" for="search-input">
+            <input id="search-input" type="search" placeholder="Search by AI tool, workflow, vendor, or category">
+            <button id="search-button" class="search-button" type="button" aria-label="Search">
+              <span>Search</span>
+              <span class="search-button-icon">&#8981;</span>
+            </button>
+          </label>
+        </div>
+      </section>
+
+      <section class="section-card" id="hot-tools">
+        <div class="section-header">
+          <div>
+            <p class="kicker">Hot AI</p>
+            <h2>Trending AI picks</h2>
+          </div>
+          <a class="link-button" href="directory.html">more+</a>
+        </div>
+
+        <div class="section-filter-row" id="hot-filters"></div>
+        <div class="tool-portal-grid" id="hot-grid" aria-live="polite"></div>
+      </section>
+
+      <section class="section-card feature-stream-shell" id="rankings">
+        <div class="section-header">
+          <div>
+            <p class="kicker">Featured Flow</p>
+            <h2>Fresh picks, editor signals, and useful stacks</h2>
+          </div>
+          <a class="link-button" href="featured.html">more+</a>
+        </div>
+        <div class="feature-stream">
+          <section class="feature-panel" id="today-hot">
+            <div class="section-header compact-header">
+              <div>
+                <p class="kicker">Today Hot</p>
+                <h3>Most clicked right now</h3>
+              </div>
+            </div>
+            <div class="mini-list" id="today-list"></div>
+          </section>
+
+          <section class="feature-panel" id="editor-picks">
+            <div class="section-header compact-header">
+              <div>
+                <p class="kicker">Editor Picks</p>
+                <h3>High-conviction recommendations</h3>
+              </div>
+            </div>
+            <div class="mini-list" id="editor-list"></div>
+          </section>
+
+          <section class="feature-panel" id="operator-stack">
+            <div class="section-header compact-header">
+              <div>
+                <p class="kicker">Operator Stack</p>
+                <h3>Useful combinations</h3>
+              </div>
+            </div>
+            <div class="stack-list" id="stack-list"></div>
+          </section>
+
+          <section class="feature-panel" id="new-notable">
+            <div class="section-header compact-header">
+              <div>
+                <p class="kicker">New &amp; Notable</p>
+                <h3>Fresh additions worth watching</h3>
+              </div>
+            </div>
+            <div class="mini-list" id="new-list"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="section-card" id="top10">
+        <div class="section-header">
+          <div>
+            <p class="kicker">Top 10</p>
+            <h2>Category leaders</h2>
+          </div>
+          <a class="link-button" href="rankings.html">more+</a>
+        </div>
+
+        <div class="rank-tabs" id="rank-tabs"></div>
+        <div class="rank-grid" id="rank-grid"></div>
+      </section>
+
+      <section class="section-card" id="lane-rankings">
+        <div class="section-header">
+          <div>
+            <p class="kicker">Lane Rankings</p>
+            <h2>Top tools by workflow lane</h2>
+          </div>
+          <a class="link-button" href="rankings.html#lane-rankings">more+</a>
+        </div>
+        <div class="lane-wall" id="lane-wall"></div>
+      </section>
+
+      <section class="section-card" id="usecase-boards">
+        <div class="section-header">
+          <div>
+            <p class="kicker">Use Cases</p>
+            <h2>Start from the job to be done</h2>
+          </div>
+          <a class="link-button" href="usecases.html">more+</a>
+        </div>
+        <div class="usecase-wall" id="usecase-wall"></div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Northstar AI Directory</p>
+    <p>Structured like a portal, curated like a product, and filtered for higher-traction AI tools.</p>
+  </footer>
+
+  <script src="catalog.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

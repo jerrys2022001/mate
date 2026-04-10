@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Directory - Northstar AI</title>
+  <meta name="description" content="Filtered AI directory for Western users with curated tools and stronger traffic signals.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-glow glow-a"></div>
+  <div class="page-glow glow-b"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-badge">N</div>
+      <div class="brand-copy">
+        <strong>Northstar AI</strong>
+        <span>WESTERN AI NAVIGATOR</span>
+      </div>
+    </div>
+
+    <nav class="topnav" aria-label="Primary">
+      <a href="index.html">Home</a>
+      <a href="featured.html">Featured</a>
+      <a href="rankings.html">AI Rankings</a>
+      <a href="prompt-library.html?track=deepseek">AI Prompt Library</a>
+      <a class="is-active" href="directory.html">Pro Directory</a>
+    </nav>
+
+    <a class="icon-button" href="index.html" aria-label="Back to home">
+      <span>&#8962;</span>
+    </a>
+  </header>
+
+  <main class="portal">
+    <aside class="sidebar glass">
+      <div class="sidebar-section">
+        <h2>Browse</h2>
+        <div id="sidebar-nav" class="sidebar-nav"></div>
+      </div>
+    </aside>
+
+    <section class="content">
+      <section class="section-card directory-card" id="directory">
+        <div class="section-header">
+          <div>
+            <p class="kicker">AI Directory</p>
+            <h2>Filtered directory for Western users</h2>
+          </div>
+          <div class="results-inline">
+            <span id="results-count">Loading directory...</span>
+            <button id="reset-filters" class="link-button" type="button">Reset</button>
+          </div>
+        </div>
+        <div class="directory-toolbar">
+          <div id="category-filters" class="pill-row"></div>
+          <div id="pricing-filters" class="pill-row"></div>
+        </div>
+        <div class="directory-grid" id="directory-grid"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="catalog.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

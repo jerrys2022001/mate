@@ -1,0 +1,310 @@
+{
+  "adobefirefly": {
+    "fallback": "adobefirefly.svg",
+    "tool_url": "https://www.adobe.com/products/firefly.html"
+  },
+  "airtable": {
+    "content_type": "image/vnd.microsoft.icon",
+    "fallback": "airtable.svg",
+    "file": "airtable.ico",
+    "source": "head-icon",
+    "tool_url": "https://www.airtable.com/platform/ai",
+    "url": "https://www.airtable.com/favicon.ico"
+  },
+  "capcut": {
+    "content_type": "image/vnd.microsoft.icon",
+    "fallback": "capcut.svg",
+    "file": "capcut.ico",
+    "source": "head-icon",
+    "tool_url": "https://www.capcut.com/",
+    "url": "https://lf3-s.vlabstatic.com/obj/vilab-static/ies/ulike/web/resource/fe_official/assets/imgs/lv/favicon.ico"
+  },
+  "chatgpt": {
+    "fallback": "chatgpt.svg",
+    "tool_url": "https://chatgpt.com/"
+  },
+  "claude": {
+    "content_type": "image/png",
+    "fallback": "claude.svg",
+    "file": "claude.png",
+    "source": "root-default",
+    "tool_url": "https://claude.ai/",
+    "url": "https://claude.ai/apple-touch-icon.png"
+  },
+  "consensus": {
+    "content_type": "image/png",
+    "fallback": "consensus.svg",
+    "file": "consensus.png",
+    "source": "head-apple-touch",
+    "tool_url": "https://consensus.app/",
+    "url": "https://consensus.app/images/icon-384.png"
+  },
+  "cursor": {
+    "content_type": "image/png",
+    "fallback": "cursor.svg",
+    "file": "cursor.png",
+    "source": "head-apple-touch",
+    "tool_url": "https://cursor.com/",
+    "url": "https://cursor.com/marketing-static/apple-touch-icon.png"
+  },
+  "deepl": {
+    "content_type": "image/png",
+    "fallback": "deepl.svg",
+    "file": "deepl.png",
+    "source": "head-apple-touch",
+    "tool_url": "https://www.deepl.com/",
+    "url": "https://www.deepl.com/img/apple-touch-icon.png"
+  },
+  "deepseek": {
+    "content_type": "image/png",
+    "fallback": "deepseek.svg",
+    "file": "deepseek.png",
+    "source": "head-apple-touch",
+    "tool_url": "https://chat.deepseek.com/",
+    "url": "https://cdn.deepseek.com/chat/icon.png"
+  },
+  "elevenlabs": {
+    "fallback": "elevenlabs.svg",
+    "tool_url": "https://elevenlabs.io/"
+  },
+  "fireflies": {
+    "content_type": "image/x-icon",
+    "fallback": "fireflies.svg",
+    "file": "fireflies.ico",
+    "source": "brand-override",
+    "tool_url": "https://fireflies.ai/",
+    "url": "https://fireflies.ai/favicon.ico"
+  },
+  "framer": {
+    "content_type": "image/png",
+    "fallback": "framer.svg",
+    "file": "framer.png",
+    "source": "head-apple-touch",
+    "tool_url": "https://www.framer.com/ai/",
+    "url": "https://framerusercontent.com/images/aXvo6HfUhqvR7oFjFL8b4AcyGfg.png"
+  },
+  "freepik": {
+    "content_type": "image/vnd.microsoft.icon",
+    "fallback": "freepik.svg",
+    "file": "freepik.ico",
+    "source": "brand-override",
+    "tool_url": "https://www.freepik.com/ai",
+    "url": "https://www.freepik.com/favicon.ico"
+  },
+  "gamma": {
+    "fallback": "gamma.svg",
+    "tool_url": "https://gamma.app/"
+  },
+  "gemini": {
+    "content_type": "image/png",
+    "fallback": "gemini.svg",
+    "file": "gemini.png",
+    "source": "head-apple-touch",
+    "tool_url": "https://gemini.google.com/",
+    "url": "https://www.gstatic.com/lamda/images/gemini_sparkle_4g_512_lt_f94943af3be039176192d.png"
+  },
+  "genspark": {
+    "content_type": "image/vnd.microsoft.icon",
+    "fallback": "genspark.svg",
+    "file": "genspark.ico",
+    "source": "head-icon",
+    "tool_url": "https://www.genspark.ai/",
+    "url": "https://www.genspark.ai/favicon.ico"
+  },
+  "glean": {
+    "fallback": "glean.svg",
+    "tool_url": "https://www.glean.com/"
+  },
+  "goodnotes": {
+    "content_type": "image/png",
+    "fallback": "goodnotes.svg",
+    "file": "goodnotes.png",
+    "source": "head-apple-touch",
+    "tool_url": "https://www.goodnotes.com/ai",
+    "url": "https://cdn.prod.website-files.com/622072bb155784c16fe8ef39/68dff59f6dde021933bb00b3_Goodnotes-icon-256.png"
+  },
+  "googleaistudio": {
+    "content_type": "image/png",
+    "fallback": "googleaistudio.svg",
+    "file": "googleaistudio.png",
+    "source": "head-icon",
+    "tool_url": "https://aistudio.google.com/",
+    "url": "https://www.gstatic.com/aistudio/ai_studio_favicon_2_256x256.png"
+  },
+  "grammarly": {
+    "content_type": "image/png",
+    "fallback": "grammarly.svg",
+    "file": "grammarly.png",
+    "source": "head-icon",
+    "tool_url": "https://www.grammarly.com/",
+    "url": "https://static-web.grammarly.com/cms/master/public/favicon-32x32.png"
+  },
+  "grok": {
+    "content_type": "image/png",
+    "fallback": "grok.svg",
+    "file": "grok.png",
+    "source": "head-apple-touch",
+    "tool_url": "https://grok.com/",
+    "url": "https://grok.com/images/apple-touch-icon.png"
+  },
+  "heygen": {
+    "fallback": "heygen.svg",
+    "tool_url": "https://www.heygen.com/"
+  },
+  "hubspot": {
+    "content_type": "image/png",
+    "fallback": "hubspot.svg",
+    "file": "hubspot.png",
+    "source": "head-icon",
+    "tool_url": "https://www.hubspot.com/artificial-intelligence",
+    "url": "https://www.hubspot.com/hubfs/HubSpot_Logos/HubSpot-Inversed-Favicon.png"
+  },
+  "huggingface": {
+    "content_type": "image/svg+xml",
+    "fallback": "huggingface.svg",
+    "file": "huggingface.svg",
+    "source": "brand-override",
+    "tool_url": "https://huggingface.co/",
+    "url": "https://huggingface.co/front/assets/huggingface_logo-noborder.svg"
+  },
+  "jotform": {
+    "content_type": "image/x-icon",
+    "fallback": "jotform.svg",
+    "file": "jotform.ico",
+    "source": "brand-override",
+    "tool_url": "https://www.jotform.com/ai/agents/",
+    "url": "https://www.jotform.com/favicon.ico"
+  },
+  "kapwing": {
+    "fallback": "kapwing.svg",
+    "tool_url": "https://www.kapwing.com/ai"
+  },
+  "lovable": {
+    "content_type": "image/png",
+    "fallback": "lovable.svg",
+    "file": "lovable.png",
+    "source": "head-apple-touch",
+    "tool_url": "https://lovable.dev/",
+    "url": "https://lovable.dev/apple-touch-icon.png"
+  },
+  "midjourney": {
+    "content_type": "text/html",
+    "fallback": "midjourney.svg",
+    "file": "midjourney.png",
+    "source": "root-default",
+    "tool_url": "https://www.midjourney.com/",
+    "url": "https://www.midjourney.com/apple-touch-icon-precomposed.png"
+  },
+  "miro": {
+    "content_type": "image/png",
+    "fallback": "miro.svg",
+    "file": "miro.png",
+    "source": "head-icon",
+    "tool_url": "https://miro.com/ai/",
+    "url": "https://framerusercontent.com/images/CngrKQAhWIUZypqshrbjfRU1X6g.png"
+  },
+  "notion": {
+    "content_type": "image/png",
+    "fallback": "notion.svg",
+    "file": "notion.png",
+    "source": "head-apple-touch",
+    "tool_url": "https://www.notion.so/product/ai",
+    "url": "https://www.notion.so/front-static/logo-ios.png"
+  },
+  "openrouter": {
+    "content_type": "image/x-icon",
+    "fallback": "openrouter.svg",
+    "file": "openrouter.ico",
+    "source": "head-icon",
+    "tool_url": "https://openrouter.ai/",
+    "url": "https://openrouter.ai/favicon.ico"
+  },
+  "otter": {
+    "content_type": "image/x-icon",
+    "fallback": "otter.svg",
+    "file": "otter.ico",
+    "source": "brand-override",
+    "tool_url": "https://otter.ai/",
+    "url": "https://otter.ai/favicon.ico"
+  },
+  "perplexity": {
+    "content_type": "image/png",
+    "fallback": "perplexity.svg",
+    "file": "perplexity.png",
+    "source": "root-default",
+    "tool_url": "https://www.perplexity.ai/",
+    "url": "https://www.perplexity.ai/apple-touch-icon.png"
+  },
+  "photoroom": {
+    "fallback": "photoroom.svg",
+    "tool_url": "https://www.photoroom.com/"
+  },
+  "quillbot": {
+    "content_type": "image/png",
+    "fallback": "quillbot.svg",
+    "file": "quillbot.png",
+    "source": "root-default",
+    "tool_url": "https://quillbot.com/",
+    "url": "https://quillbot.com/apple-touch-icon.png"
+  },
+  "replit": {
+    "content_type": "image/png",
+    "fallback": "replit.svg",
+    "file": "replit.png",
+    "source": "head-icon",
+    "tool_url": "https://replit.com/ai",
+    "url": "https://cdn.replit.com/dotcom/favicon-rb-48.png"
+  },
+  "runway": {
+    "content_type": "image/png",
+    "fallback": "runway.svg",
+    "file": "runway.png",
+    "source": "head-icon",
+    "tool_url": "https://runwayml.com/",
+    "url": "https://runwayml.com/icon.png?icon.0jyqwm2y10pec.png"
+  },
+  "semanticscholar": {
+    "content_type": "image/png",
+    "fallback": "semanticscholar.svg",
+    "file": "semanticscholar.png",
+    "source": "head-icon",
+    "tool_url": "https://www.semanticscholar.org/",
+    "url": "https://cdn.semanticscholar.org/66a06cfaa38ae7fd/img/apple-touch-icon-152x152.png"
+  },
+  "stitch": {
+    "content_type": "image/png",
+    "fallback": "stitch.svg",
+    "file": "stitch.png",
+    "source": "head-icon",
+    "tool_url": "https://stitch.withgoogle.com/",
+    "url": "https://www.gstatic.com/labs-code/favicon-512x512.png"
+  },
+  "suno": {
+    "fallback": "suno.svg",
+    "tool_url": "https://suno.com/"
+  },
+  "synthesia": {
+    "fallback": "synthesia.svg",
+    "tool_url": "https://www.synthesia.io/"
+  },
+  "veed": {
+    "fallback": "veed.svg",
+    "tool_url": "https://www.veed.io/"
+  },
+  "windsurf": {
+    "content_type": "image/png",
+    "fallback": "windsurf.svg",
+    "file": "windsurf.png",
+    "source": "head-apple-touch",
+    "tool_url": "https://windsurf.com/",
+    "url": "https://windsurf.com/favicon_512.png"
+  },
+  "zapier": {
+    "content_type": "image/png",
+    "fallback": "zapier.svg",
+    "file": "zapier.png",
+    "source": "head-icon",
+    "tool_url": "https://zapier.com/ai",
+    "url": "https://framerusercontent.com/images/F0p1OYJhm4LaPzZZoDW2IdGjdt0.png"
+  }
+}

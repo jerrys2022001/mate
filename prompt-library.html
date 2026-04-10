@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prompt Library - Northstar AI</title>
+  <meta name="description" content="High-signal prompt packs for ChatGPT, Claude, DeepSeek, Midjourney, marketing, and coding.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-glow glow-a"></div>
+  <div class="page-glow glow-b"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-badge">N</div>
+      <div class="brand-copy">
+        <strong>Northstar AI</strong>
+        <span>WESTERN AI NAVIGATOR</span>
+      </div>
+    </div>
+
+    <nav class="topnav" aria-label="Primary">
+      <a href="index.html">Home</a>
+      <a href="featured.html">Featured</a>
+      <a href="rankings.html">AI Rankings</a>
+      <a class="is-active" href="prompt-library.html?track=deepseek">AI Prompt Library</a>
+      <a href="directory.html">Pro Directory</a>
+    </nav>
+
+    <a class="icon-button" href="index.html" aria-label="Back to home">
+      <span>&#8962;</span>
+    </a>
+  </header>
+
+  <main class="portal">
+    <aside class="sidebar glass">
+      <div class="sidebar-section">
+        <h2>Browse</h2>
+        <div id="sidebar-nav" class="sidebar-nav"></div>
+      </div>
+    </aside>
+
+    <section class="content">
+      <section class="section-card prompt-page-hero">
+        <div id="prompt-hero-intro" class="prompt-hero-intro"></div>
+      </section>
+
+      <section class="section-card" id="prompt-zone">
+        <div class="section-header">
+          <div>
+            <p class="kicker">AI Prompt Library</p>
+            <h2>Model-specific prompt playbooks</h2>
+          </div>
+        </div>
+        <div class="prompt-filter-row" id="prompt-tabs"></div>
+        <div class="prompt-hero-grid" id="prompt-feature-grid"></div>
+        <div class="prompt-list prompt-library-grid" id="prompt-library-grid"></div>
+      </section>
+
+      <section class="section-card" id="prompt-guide-zone">
+        <div class="section-header">
+          <div>
+            <p class="kicker">Prompt Guide</p>
+            <h2>How to structure better inputs</h2>
+          </div>
+        </div>
+        <div class="prompt-guide-grid" id="prompt-guide-grid"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="catalog.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

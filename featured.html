@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Featured Flow - Northstar AI</title>
+  <meta name="description" content="Explore today's hot AI tools, editor picks, and useful operator stacks.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-glow glow-a"></div>
+  <div class="page-glow glow-b"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-badge">N</div>
+      <div class="brand-copy">
+        <strong>Northstar AI</strong>
+        <span>WESTERN AI NAVIGATOR</span>
+      </div>
+    </div>
+
+    <nav class="topnav" aria-label="Primary">
+      <a href="index.html">Home</a>
+      <a class="is-active" href="featured.html">Featured</a>
+      <a href="rankings.html">AI Rankings</a>
+      <a href="prompt-library.html?track=deepseek">AI Prompt Library</a>
+      <a href="directory.html">Pro Directory</a>
+    </nav>
+
+    <a class="icon-button" href="index.html" aria-label="Back to home">
+      <span>&#8962;</span>
+    </a>
+  </header>
+
+  <main class="portal">
+    <aside class="sidebar glass">
+      <div class="sidebar-section">
+        <h2>Browse</h2>
+        <div id="sidebar-nav" class="sidebar-nav"></div>
+      </div>
+    </aside>
+
+    <section class="content">
+      <section class="section-card feature-stream-shell">
+        <div class="section-header">
+          <div>
+            <p class="kicker">Featured Flow</p>
+            <h2>Fresh picks, editor signals, and useful stacks</h2>
+          </div>
+        </div>
+        <div class="feature-stream">
+          <section class="feature-panel" id="today-hot">
+            <div class="section-header compact-header">
+              <div>
+                <p class="kicker">Today Hot</p>
+                <h3>Most clicked right now</h3>
+              </div>
+            </div>
+            <div class="mini-list" id="today-list"></div>
+          </section>
+
+          <section class="feature-panel" id="editor-picks">
+            <div class="section-header compact-header">
+              <div>
+                <p class="kicker">Editor Picks</p>
+                <h3>High-conviction recommendations</h3>
+              </div>
+            </div>
+            <div class="mini-list" id="editor-list"></div>
+          </section>
+
+          <section class="feature-panel" id="operator-stack">
+            <div class="section-header compact-header">
+              <div>
+                <p class="kicker">Operator Stack</p>
+                <h3>Useful combinations</h3>
+              </div>
+            </div>
+            <div class="stack-list" id="stack-list"></div>
+          </section>
+
+          <section class="feature-panel" id="new-notable">
+            <div class="section-header compact-header">
+              <div>
+                <p class="kicker">New &amp; Notable</p>
+                <h3>Fresh additions worth watching</h3>
+              </div>
+            </div>
+            <div class="mini-list" id="new-list"></div>
+          </section>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="catalog.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
