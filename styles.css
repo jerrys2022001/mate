@@ -148,6 +148,10 @@ h6 {
   letter-spacing: -0.05em;
 }
 
+.brand-copy span {
+  display: none;
+}
+
 .brand-copy span,
 .kicker {
   font-size: 0.74rem;
@@ -2057,6 +2061,7 @@ h6 {
   justify-content: space-between;
   gap: 16px;
   color: var(--muted);
+  display: none;
 }
 
 .footer p {
