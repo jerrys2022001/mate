@@ -11,6 +11,14 @@
     "tool_url": "https://www.airtable.com/platform/ai",
     "url": "https://www.airtable.com/favicon.ico"
   },
+  "bolt": {
+    "content_type": "image/png",
+    "fallback": "bolt.svg",
+    "file": "bolt.png",
+    "source": "local-fallback",
+    "tool_url": "https://bolt.new/",
+    "url": "local://assets/tool-icons/bolt.png"
+  },
   "capcut": {
     "content_type": "image/vnd.microsoft.icon",
     "fallback": "capcut.svg",
@@ -20,8 +28,12 @@
     "url": "https://lf3-s.vlabstatic.com/obj/vilab-static/ies/ulike/web/resource/fe_official/assets/imgs/lv/favicon.ico"
   },
   "chatgpt": {
+    "content_type": "image/png",
     "fallback": "chatgpt.svg",
-    "tool_url": "https://chatgpt.com/"
+    "file": "chatgpt.png",
+    "source": "local-fallback",
+    "tool_url": "https://chatgpt.com/",
+    "url": "local://assets/tool-icons/chatgpt.png"
   },
   "claude": {
     "content_type": "image/png",
@@ -188,12 +200,12 @@
     "url": "https://lovable.dev/apple-touch-icon.png"
   },
   "midjourney": {
-    "content_type": "text/html",
+    "content_type": "image/png",
     "fallback": "midjourney.svg",
     "file": "midjourney.png",
-    "source": "root-default",
+    "source": "brand-override",
     "tool_url": "https://www.midjourney.com/",
-    "url": "https://www.midjourney.com/apple-touch-icon-precomposed.png"
+    "url": "https://www.midjourney.com/public/apple-touch-icon.png"
   },
   "miro": {
     "content_type": "image/png",
@@ -202,6 +214,14 @@
     "source": "head-icon",
     "tool_url": "https://miro.com/ai/",
     "url": "https://framerusercontent.com/images/CngrKQAhWIUZypqshrbjfRU1X6g.png"
+  },
+  "notebooklm": {
+    "content_type": "image/png",
+    "fallback": "notebooklm.svg",
+    "file": "notebooklm.png",
+    "source": "local-fallback",
+    "tool_url": "https://notebooklm.google.com/",
+    "url": "local://assets/tool-icons/notebooklm.png"
   },
   "notion": {
     "content_type": "image/png",
