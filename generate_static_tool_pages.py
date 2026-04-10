@@ -47,11 +47,34 @@ def render_page(tool_id: str, tool_name: str) -> str:
 
     <nav class="topnav" aria-label="Primary">
       <a href="../index.html">Home</a>
-      <a href="../index.html#search-hub">Search Hub</a>
-      <a href="../index.html#hot-tools">Live Tools</a>
-      <a href="../index.html#today-hot">Today's Hot</a>
-      <a href="../index.html#prompt-zone">Prompt Library</a>
-      <a href="../index.html#directory">Directory</a>
+      <div class="nav-item nav-item-with-panel">
+        <a class="nav-trigger" href="../featured.html">
+          <span>Featured Flow</span>
+        </a>
+        <div class="nav-flyout">
+          <a class="nav-flyout-link" href="../featured.html"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">FF</span></span><span class="nav-flyout-label">Featured Overview</span></a>
+          <a class="nav-flyout-link" href="../featured.html#today-hot"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">TH</span></span><span class="nav-flyout-label">Today Hot</span></a>
+          <a class="nav-flyout-link" href="../featured.html#editor-picks"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">EP</span></span><span class="nav-flyout-label">Editor Picks</span></a>
+          <a class="nav-flyout-link" href="../featured.html#operator-stack"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">OS</span></span><span class="nav-flyout-label">Operator Stack</span></a>
+          <a class="nav-flyout-link" href="../featured.html#new-notable"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">NN</span></span><span class="nav-flyout-label">New &amp; Notable</span></a>
+        </div>
+      </div>
+      <a href="../rankings.html">AI Rankings</a>
+      <div class="nav-item nav-item-with-panel">
+        <a class="nav-trigger" href="../prompt-library.html?track=deepseek">
+          <span class="nav-mini-icon" aria-hidden="true">&#9711;</span>
+          <span>AI Prompt Library</span>
+        </a>
+        <div class="nav-flyout">
+          <a class="nav-flyout-link" href="../prompt-library.html?track=chatgpt"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">C</span></span><span class="nav-flyout-label">ChatGPT Prompts</span></a>
+          <a class="nav-flyout-link" href="../prompt-library.html?track=claude"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">CL</span></span><span class="nav-flyout-label">Claude Prompts</span></a>
+          <a class="nav-flyout-link" href="../prompt-library.html?track=deepseek"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">DS</span></span><span class="nav-flyout-label">DeepSeek Prompts</span></a>
+          <a class="nav-flyout-link" href="../prompt-library.html?track=midjourney"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">MJ</span></span><span class="nav-flyout-label">Midjourney Prompts</span></a>
+          <a class="nav-flyout-link" href="../prompt-library.html?track=marketing"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">Mk</span></span><span class="nav-flyout-label">Marketing Prompts</span></a>
+          <a class="nav-flyout-link" href="../prompt-library.html?track=coding"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">&lt;/&gt;</span></span><span class="nav-flyout-label">Coding Prompts</span></a>
+        </div>
+      </div>
+      <a href="../directory.html">Pro Directory</a>
     </nav>
 
     <a class="icon-button detail-home-button" href="../index.html" aria-label="Back to home">&#8962;</a>
@@ -84,6 +107,7 @@ def render_page(tool_id: str, tool_name: str) -> str:
   </footer>
 
   <script src="../catalog.js"></script>
+  <script src="../app.js"></script>
   <script src="../detail.js"></script>
 </body>
 </html>
