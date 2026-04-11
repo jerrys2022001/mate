@@ -18,7 +18,9 @@
 
   <header class="topbar">
     <div class="brand">
-      <div class="brand-badge">N</div>
+      <div class="brand-badge">
+        <img src="assets/brand-mark.png" alt="Northstar AI logo">
+      </div>
       <div class="brand-copy">
         <strong>Northstar AI</strong>
         <span>WESTERN AI NAVIGATOR</span>
@@ -76,37 +78,47 @@
 
     <section class="content">
       <section class="search-hero glass" id="search-hub">
-        <div class="hero-copy">
-          <p class="kicker">Discover Faster</p>
-          <h1>
-            Discover The Best
-            <span class="hero-keyword hero-keyword-ai">AI</span>
-            <span class="hero-keyword hero-keyword-web">Websites</span>
-            &amp;
-            <span class="hero-keyword hero-keyword-tools">Tools</span>
-          </h1>
-          <p class="hero-subtitle">
-            <strong id="hero-tools-copy">--</strong> curated AI tools across
-            <strong id="hero-category-copy">--</strong> categories for Western teams.
-          </p>
-        </div>
+        <div class="hero-layout">
+          <div class="hero-main">
+            <div class="hero-copy">
+              <p class="kicker">Discover Faster</p>
+              <h1>
+                Discover The Best
+                <span class="hero-keyword hero-keyword-ai">AI</span>
+                <span class="hero-keyword hero-keyword-web">Websites</span>
+                &amp;
+                <span class="hero-keyword hero-keyword-tools">Tools</span>
+              </h1>
+              <p class="hero-subtitle">
+                <strong id="hero-tools-copy">--</strong> curated AI tools across
+                <strong id="hero-category-copy">--</strong> categories for Western teams.
+              </p>
+            </div>
 
-        <div class="search-panel">
-          <label class="search-shell" for="search-input">
-            <input id="search-input" type="search" placeholder="Search by AI tool, workflow, vendor, or category">
-            <button id="search-button" class="search-button" type="button" aria-label="Search">
-              <span>Search</span>
-              <span class="search-button-icon">&#8981;</span>
-            </button>
-          </label>
+            <div class="search-panel">
+              <label class="search-shell" for="search-input">
+                <input id="search-input" type="search" placeholder="Search by AI tool, workflow, vendor, or category">
+                <button id="search-button" class="search-button" type="button" aria-label="Search">
+                  <span>Search</span>
+                  <span class="search-button-icon">&#8981;</span>
+                </button>
+              </label>
+            </div>
+
+            <div class="hero-quick-links">
+              <a class="hero-quick-link" href="#hot-tools">Trending picks</a>
+              <a class="hero-quick-link" href="#usecase-boards">Use Cases</a>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section class="section-card" id="hot-tools">
+      <section class="section-card section-shell" id="hot-tools">
         <div class="section-header">
-          <div>
+          <div class="section-header-copy">
             <p class="kicker">Hot AI</p>
             <h2>Trending AI picks</h2>
+            <p class="section-lead">The fastest way to see what is drawing attention across the current catalog.</p>
           </div>
           <a class="link-button" href="directory.html">more+</a>
         </div>
@@ -115,86 +127,12 @@
         <div class="tool-portal-grid" id="hot-grid" aria-live="polite"></div>
       </section>
 
-      <section class="section-card feature-stream-shell" id="rankings">
+      <section class="section-card section-shell" id="usecase-boards">
         <div class="section-header">
-          <div>
-            <p class="kicker">Featured Flow</p>
-            <h2>Fresh picks, editor signals, and useful stacks</h2>
-          </div>
-          <a class="link-button" href="featured.html">more+</a>
-        </div>
-        <div class="feature-stream">
-          <section class="feature-panel" id="today-hot">
-            <div class="section-header compact-header">
-              <div>
-                <p class="kicker">Today Hot</p>
-                <h3>Most clicked right now</h3>
-              </div>
-            </div>
-            <div class="mini-list" id="today-list"></div>
-          </section>
-
-          <section class="feature-panel" id="editor-picks">
-            <div class="section-header compact-header">
-              <div>
-                <p class="kicker">Editor Picks</p>
-                <h3>High-conviction recommendations</h3>
-              </div>
-            </div>
-            <div class="mini-list" id="editor-list"></div>
-          </section>
-
-          <section class="feature-panel" id="operator-stack">
-            <div class="section-header compact-header">
-              <div>
-                <p class="kicker">Operator Stack</p>
-                <h3>Useful combinations</h3>
-              </div>
-            </div>
-            <div class="stack-list" id="stack-list"></div>
-          </section>
-
-          <section class="feature-panel" id="new-notable">
-            <div class="section-header compact-header">
-              <div>
-                <p class="kicker">New &amp; Notable</p>
-                <h3>Fresh additions worth watching</h3>
-              </div>
-            </div>
-            <div class="mini-list" id="new-list"></div>
-          </section>
-        </div>
-      </section>
-
-      <section class="section-card" id="top10">
-        <div class="section-header">
-          <div>
-            <p class="kicker">Top 10</p>
-            <h2>Category leaders</h2>
-          </div>
-          <a class="link-button" href="rankings.html">more+</a>
-        </div>
-
-        <div class="rank-tabs" id="rank-tabs"></div>
-        <div class="rank-grid" id="rank-grid"></div>
-      </section>
-
-      <section class="section-card" id="lane-rankings">
-        <div class="section-header">
-          <div>
-            <p class="kicker">Lane Rankings</p>
-            <h2>Top tools by workflow lane</h2>
-          </div>
-          <a class="link-button" href="rankings.html#lane-rankings">more+</a>
-        </div>
-        <div class="lane-wall" id="lane-wall"></div>
-      </section>
-
-      <section class="section-card" id="usecase-boards">
-        <div class="section-header">
-          <div>
+          <div class="section-header-copy">
             <p class="kicker">Use Cases</p>
             <h2>Start from the job to be done</h2>
+            <p class="section-lead">Browse from workflow intent when users care more about outcomes than tool brands.</p>
           </div>
           <a class="link-button" href="usecases.html">more+</a>
         </div>
@@ -208,7 +146,10 @@
     <p>Structured like a portal, curated like a product, and filtered for higher-traction AI tools.</p>
   </footer>
 
-  <script src="catalog.js"></script>
-  <script src="app.js"></script>
+    <script src="catalog.js"></script>
+    <script src="catalog_extra_1.js"></script>
+    <script src="catalog_extra_2.js"></script>
+    <script src="catalog_extra_3.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>

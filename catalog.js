@@ -1,5 +1,5 @@
 window.AI_CATALOG = {
-  generatedAt: "2026-04-08",
+  generatedAt: "2026-04-10",
   minMonthlyVisits: 1500000,
   sourceSummary: {
     primary: ["https://www.futurepedia.io/ai-tools", "https://www.toolify.ai/Best-trending-AI-Tools"],
@@ -854,6 +854,120 @@ window.AI_CATALOG = {
       monthlyVisits: 2800000,
       trafficLabel: "2.8M monthly visits",
       recommendation: "A legitimate option to compare if you are shopping specifically for the next generation of AI coding IDEs.",
+      sources: {
+        futurepedia: "https://www.futurepedia.io/ai-tools",
+        toolify: "https://www.toolify.ai/Best-trending-AI-Tools"
+      }
+    },
+    {
+      id: "figma",
+      name: "Figma AI",
+      vendor: "Figma",
+      logoLetter: "F",
+      accent: "linear-gradient(145deg, #111827, #6366f1)",
+      url: "https://www.figma.com/ai/",
+      summary: "Figma's AI layer helps teams generate UI drafts, rewrite copy, and move faster inside an already-standard product design workflow.",
+      categories: ["Design", "Productivity"],
+      audience: ["Product designers", "Design systems teams", "PMs"],
+      pricing: "Free / Paid",
+      monthlyVisits: 85000000,
+      trafficLabel: "85.0M monthly visits",
+      recommendation: "A natural fit if your design workflow already runs through Figma and you want AI without adding another surface area.",
+      sources: {
+        futurepedia: "https://www.futurepedia.io/ai-tools",
+        toolify: "https://www.toolify.ai/Best-trending-AI-Tools"
+      }
+    },
+    {
+      id: "notebooklm",
+      name: "NotebookLM",
+      vendor: "Google",
+      logoLetter: "N",
+      accent: "linear-gradient(145deg, #2563eb, #0ea5e9)",
+      url: "https://notebooklm.google.com/",
+      summary: "A source-grounded research workspace for turning documents, transcripts, and links into briefings, notes, and audio overviews.",
+      categories: ["Research", "Productivity", "Writing"],
+      audience: ["Researchers", "Students", "Analysts", "Operators"],
+      pricing: "Free / Paid",
+      monthlyVisits: 28700000,
+      trafficLabel: "28.7M monthly visits",
+      recommendation: "One of the strongest research picks when you want answers anchored to your own uploaded material rather than general web recall.",
+      sources: {
+        futurepedia: "https://www.futurepedia.io/ai-tools",
+        toolify: "https://www.toolify.ai/Best-trending-AI-Tools"
+      }
+    },
+    {
+      id: "bolt",
+      name: "bolt.new",
+      vendor: "StackBlitz",
+      logoLetter: "B",
+      accent: "linear-gradient(145deg, #f97316, #facc15)",
+      url: "https://bolt.new/",
+      summary: "A prompt-to-app builder that is especially good for fast full-stack prototypes and frontend experiments in the browser.",
+      categories: ["Coding", "Productivity"],
+      audience: ["Founders", "Prototype teams", "Developers"],
+      pricing: "Freemium",
+      monthlyVisits: 24100000,
+      trafficLabel: "24.1M monthly visits",
+      recommendation: "Worth testing if your team wants a quick path from idea to runnable product mock without setting up a local stack first.",
+      sources: {
+        futurepedia: "https://www.futurepedia.io/ai-tools",
+        toolify: "https://www.toolify.ai/Best-trending-AI-Tools"
+      }
+    },
+    {
+      id: "v0",
+      name: "v0",
+      vendor: "Vercel",
+      logoLetter: "V",
+      accent: "linear-gradient(145deg, #111827, #64748b)",
+      url: "https://v0.dev/",
+      summary: "Vercel's UI generation product is built for teams that want AI-assisted interface scaffolding tied to modern frontend patterns.",
+      categories: ["Coding", "Design", "Productivity"],
+      audience: ["Frontend developers", "Design engineers", "Startup builders"],
+      pricing: "Freemium",
+      monthlyVisits: 16700000,
+      trafficLabel: "16.7M monthly visits",
+      recommendation: "A high-signal option if your output needs to feel closer to production frontend code than pure mockup generation.",
+      sources: {
+        futurepedia: "https://www.futurepedia.io/ai-tools",
+        toolify: "https://www.toolify.ai/Best-trending-AI-Tools"
+      }
+    },
+    {
+      id: "ideogram",
+      name: "Ideogram",
+      vendor: "Ideogram",
+      logoLetter: "I",
+      accent: "linear-gradient(145deg, #7c3aed, #ec4899)",
+      url: "https://ideogram.ai/",
+      summary: "An image model with particular strength around styled visuals, poster-like assets, and text-forward image generation.",
+      categories: ["Design"],
+      audience: ["Marketers", "Brand teams", "Creative generalists"],
+      pricing: "Freemium",
+      monthlyVisits: 11200000,
+      trafficLabel: "11.2M monthly visits",
+      recommendation: "A strong comparison point when your team cares about typography inside generated visuals and more campaign-style outputs.",
+      sources: {
+        futurepedia: "https://www.futurepedia.io/ai-tools",
+        toolify: "https://www.toolify.ai/Best-trending-AI-Tools"
+      }
+    },
+    {
+      id: "recraft",
+      name: "Recraft",
+      vendor: "Recraft",
+      logoLetter: "R",
+      accent: "linear-gradient(145deg, #0f766e, #22c55e)",
+      url: "https://www.recraft.ai/",
+      summary: "A design-focused image tool that leans toward editable brand assets, illustration workflows, and cleaner creative control.",
+      categories: ["Design", "Productivity"],
+      audience: ["Brand designers", "Agencies", "Creative ops"],
+      pricing: "Freemium",
+      monthlyVisits: 7600000,
+      trafficLabel: "7.6M monthly visits",
+      recommendation: "Most relevant when you want a more design-native image workflow instead of a pure text-to-image playground.",
       sources: {
         futurepedia: "https://www.futurepedia.io/ai-tools",
         toolify: "https://www.toolify.ai/Best-trending-AI-Tools"

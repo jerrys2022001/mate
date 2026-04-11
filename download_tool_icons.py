@@ -22,7 +22,12 @@ from urllib.request import Request, urlopen
 
 
 ROOT = Path(__file__).resolve().parent
-DATA_FILE = ROOT / "catalog.js"
+DATA_FILES = [
+    ROOT / "catalog.js",
+    ROOT / "catalog_extra_1.js",
+    ROOT / "catalog_extra_2.js",
+    ROOT / "catalog_extra_3.js",
+]
 OUTPUT_DIR = ROOT / "assets" / "tool-icons"
 MANIFEST_FILE = OUTPUT_DIR / "manifest.json"
 USER_AGENT = (
@@ -63,6 +68,10 @@ BRAND_ICON_OVERRIDES: dict[str, list[str]] = {
         "https://www.framer.com/favicon.ico",
         "https://framer.com/favicon.ico",
     ],
+    "figma": [
+        "https://www.figma.com/favicon.ico",
+        "https://static.figma.com/app/icon/1/favicon.ico",
+    ],
     "freepik": [
         "https://www.freepik.com/favicon.ico",
     ],
@@ -90,14 +99,185 @@ BRAND_ICON_OVERRIDES: dict[str, list[str]] = {
         "https://www.kapwing.com/favicon.ico",
     ],
     "midjourney": [
+        "https://www.midjourney.com/public/apple-touch-icon.png",
         "https://www.midjourney.com/favicon.ico",
+    ],
+    "notebooklm": [
+        "https://notebooklm.google.com/favicon.ico",
+        "https://www.google.com/favicon.ico",
     ],
     "otter": [
         "https://otter.ai/favicon.ico",
         "https://otter.ai/apple-touch-icon.png",
     ],
+    "bolt": [
+        "https://bolt.new/favicon.ico",
+    ],
+    "v0": [
+        "https://v0.dev/favicon.ico",
+    ],
+    "ideogram": [
+        "https://ideogram.ai/favicon.ico",
+    ],
+    "recraft": [
+        "https://www.recraft.ai/favicon.ico",
+        "https://recraft.ai/favicon.ico",
+    ],
     "photoroom": [
         "https://www.photoroom.com/favicon.ico",
+    ],
+    "canva": [
+        "https://www.canva.com/favicon.ico",
+    ],
+    "jasper": [
+        "https://www.jasper.ai/favicon.ico",
+    ],
+    "copyai": [
+        "https://www.copy.ai/favicon.ico",
+    ],
+    "leonardo": [
+        "https://leonardo.ai/favicon.ico",
+    ],
+    "pika": [
+        "https://pika.art/favicon.ico",
+    ],
+    "invideo": [
+        "https://invideo.io/favicon.ico",
+    ],
+    "descript": [
+        "https://www.descript.com/favicon.ico",
+    ],
+    "murf": [
+        "https://murf.ai/favicon.ico",
+    ],
+    "luma": [
+        "https://lumalabs.ai/favicon.ico",
+    ],
+    "openart": [
+        "https://openart.ai/favicon.ico",
+    ],
+    "clipchamp": [
+        "https://clipchamp.com/favicon.ico",
+    ],
+    "vidnoz": [
+        "https://www.vidnoz.com/favicon.ico",
+    ],
+    "beautifulai": [
+        "https://www.beautiful.ai/favicon.ico",
+    ],
+    "tome": [
+        "https://tome.app/favicon.ico",
+    ],
+    "pitch": [
+        "https://pitch.com/favicon.ico",
+    ],
+    "githubcopilot": [
+        "https://github.com/favicon.ico",
+    ],
+    "codeium": [
+        "https://codeium.com/favicon.ico",
+    ],
+    "tabnine": [
+        "https://www.tabnine.com/favicon.ico",
+    ],
+    "sourcegraph": [
+        "https://sourcegraph.com/favicon.ico",
+    ],
+    "continue": [
+        "https://www.continue.dev/favicon.ico",
+    ],
+    "intercom": [
+        "https://www.intercom.com/favicon.ico",
+    ],
+    "granola": [
+        "https://www.granola.ai/favicon.ico",
+    ],
+    "lindy": [
+        "https://www.lindy.ai/favicon.ico",
+    ],
+    "make": [
+        "https://www.make.com/favicon.ico",
+    ],
+    "n8n": [
+        "https://n8n.io/favicon.ico",
+    ],
+    "readai": [
+        "https://www.read.ai/favicon.ico",
+    ],
+    "tldv": [
+        "https://tldv.io/favicon.ico",
+    ],
+    "fellow": [
+        "https://fellow.app/favicon.ico",
+    ],
+    "superhuman": [
+        "https://superhuman.com/favicon.ico",
+    ],
+    "characterai": [
+        "https://character.ai/favicon.ico",
+    ],
+    "poe": [
+        "https://poe.com/favicon.ico",
+    ],
+    "qwen": [
+        "https://chat.qwen.ai/favicon.ico",
+    ],
+    "monica": [
+        "https://monica.im/favicon.ico",
+    ],
+    "youcom": [
+        "https://you.com/favicon.ico",
+    ],
+    "scite": [
+        "https://scite.ai/favicon.ico",
+    ],
+    "elicit": [
+        "https://elicit.com/favicon.ico",
+    ],
+    "scispace": [
+        "https://typeset.io/favicon.ico",
+    ],
+    "gptzero": [
+        "https://gptzero.me/favicon.ico",
+    ],
+    "mem": [
+        "https://mem.ai/favicon.ico",
+    ],
+    "taskade": [
+        "https://www.taskade.com/favicon.ico",
+    ],
+    "coda": [
+        "https://coda.io/favicon.ico",
+    ],
+    "clickup": [
+        "https://clickup.com/favicon.ico",
+    ],
+    "krea": [
+        "https://www.krea.ai/favicon.ico",
+    ],
+    "clipdrop": [
+        "https://clipdrop.co/favicon.ico",
+    ],
+    "removebg": [
+        "https://www.remove.bg/favicon.ico",
+    ],
+    "pixlr": [
+        "https://pixlr.com/favicon.ico",
+    ],
+    "cutoutpro": [
+        "https://www.cutout.pro/favicon.ico",
+    ],
+    "opusclip": [
+        "https://www.opus.pro/favicon.ico",
+    ],
+    "filmora": [
+        "https://filmora.wondershare.com/favicon.ico",
+    ],
+    "speechify": [
+        "https://speechify.com/favicon.ico",
+    ],
+    "adobeexpress": [
+        "https://www.adobe.com/favicon.ico",
     ],
     "suno": [
         "https://suno.com/favicon.ico",
@@ -162,7 +342,7 @@ class HeadAssetParser(HTMLParser):
 
 
 def load_tools() -> list[tuple[str, str, str, str]]:
-    raw = DATA_FILE.read_text(encoding="utf-8")
+    raw = "\n".join(path.read_text(encoding="utf-8") for path in DATA_FILES)
     return [
         (match.group("id"), match.group("logo"), match.group("accent"), match.group("url"))
         for match in ENTRY_PATTERN.finditer(raw)

@@ -14,7 +14,9 @@
 
   <header class="topbar">
     <div class="brand">
-      <div class="brand-badge">N</div>
+      <div class="brand-badge">
+        <img src="assets/brand-mark.png" alt="Northstar AI logo">
+      </div>
       <div class="brand-copy">
         <strong>Northstar AI</strong>
         <span>WESTERN AI NAVIGATOR</span>
@@ -70,11 +72,52 @@
     </aside>
 
     <section class="content">
+      <section class="section-card page-intro-shell" id="rankings-overview">
+        <div class="section-header">
+          <div>
+            <p class="kicker">Rankings Overview</p>
+            <h2>Three ranking views, ordered exactly like the navigation dropdown</h2>
+          </div>
+        </div>
+        <p class="overview-copy">Users should be able to move from the cleanest shortlist to broader comparison views without guessing where the next step lives.</p>
+        <div class="quick-jump-row">
+          <a class="jump-pill" href="#top10">Top 10</a>
+          <a class="jump-pill" href="#lane-rankings">Lane Rankings</a>
+          <a class="jump-pill" href="#deep-rankings">Deep Rankings</a>
+        </div>
+        <div class="overview-grid rankings-overview-grid">
+          <article class="overview-card">
+            <div class="overview-card-head">
+            <p class="kicker">Top 10</p>
+            <h3>Best first decision view</h3>
+            </div>
+            <p class="overview-copy">A quick shortlist for users who want the leaders in a category without scrolling through the full catalog.</p>
+            <a class="link-button" href="#top10">Open Top 10</a>
+          </article>
+          <article class="overview-card">
+            <div class="overview-card-head">
+              <p class="kicker">Lane Rankings</p>
+              <h3>Compare by workflow lane</h3>
+            </div>
+            <p class="overview-copy">Use this when the visitor already knows the job-to-be-done and wants the strongest options in that lane.</p>
+            <a class="link-button" href="#lane-rankings">Open lanes</a>
+          </article>
+          <article class="overview-card">
+            <div class="overview-card-head">
+              <p class="kicker">Deep Rankings</p>
+              <h3>Explore broader category depth</h3>
+            </div>
+            <p class="overview-copy">This is the deeper browse surface for people comparing more than just the obvious leaders.</p>
+            <a class="link-button" href="#deep-rankings">Open deep view</a>
+          </article>
+        </div>
+      </section>
+
       <section class="section-card" id="top10">
         <div class="section-header">
           <div>
             <p class="kicker">Top 10</p>
-            <h2>Category leaders</h2>
+            <h2>Category leaders with the least noise</h2>
           </div>
         </div>
         <div class="rank-tabs" id="rank-tabs"></div>
@@ -103,7 +146,10 @@
     </section>
   </main>
 
-  <script src="catalog.js"></script>
-  <script src="app.js"></script>
+    <script src="catalog.js"></script>
+    <script src="catalog_extra_1.js"></script>
+    <script src="catalog_extra_2.js"></script>
+    <script src="catalog_extra_3.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>

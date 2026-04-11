@@ -18,8 +18,86 @@
     "Meetings",
     "Sales"
   ];
-  const editorPickIds = ["chatgpt", "claude", "perplexity", "gamma", "cursor", "deepl"];
-  const newAndNotableIds = ["deepseek", "grok", "lovable", "stitch", "cursor", "windsurf"];
+  const editorPickIds = [
+    "chatgpt", "claude", "perplexity", "cursor",
+    "notion", "gamma", "canva", "figma",
+    "runway", "elevenlabs", "deepl", "githubcopilot",
+    "n8n", "notebooklm"
+  ];
+  const newAndNotableIds = [
+    "deepseek", "lovable", "stitch", "windsurf",
+    "bolt", "v0", "genspark", "googleaistudio",
+    "ideogram", "recraft", "pika", "krea",
+    "luma", "continue", "granola", "lindy"
+  ];
+  const operatorStackFlows = [
+    {
+      title: "Research -> Brief -> Deck",
+      description: "A clean founder workflow for market scanning, synthesis, and presenting the story.",
+      toolIds: ["perplexity", "notebooklm", "chatgpt", "gamma"],
+      stepNotes: [
+        "Scan the market and collect live signal fast.",
+        "Digest sources into structured notes and evidence.",
+        "Turn findings into an executive-ready brief.",
+        "Package the narrative into a clean presentation."
+      ]
+    },
+    {
+      title: "Write -> Edit -> Translate",
+      description: "Produce readable copy, tighten tone, and ship multilingual output without context loss.",
+      toolIds: ["claude", "grammarly", "deepl", "notion"],
+      stepNotes: [
+        "Draft the first high-quality version of the content.",
+        "Tighten clarity, tone, and grammar before release.",
+        "Translate while preserving nuance and intent.",
+        "Organize the final copy for team publishing."
+      ]
+    },
+    {
+      title: "Design -> Motion -> Avatar",
+      description: "Turn visual direction into assets, motion, and spokesperson video for campaigns.",
+      toolIds: ["figma", "canva", "runway", "heygen"],
+      stepNotes: [
+        "Shape the core interface or visual system.",
+        "Produce campaign assets and fast creative variations.",
+        "Add motion, effects, and scene polish.",
+        "Create presenter-led video for delivery."
+      ]
+    },
+    {
+      title: "Code -> Ship -> Automate",
+      description: "Plan product work, generate code faster, and connect follow-up ops into automation.",
+      toolIds: ["cursor", "githubcopilot", "replit", "n8n"],
+      stepNotes: [
+        "Drive implementation inside the main coding workflow.",
+        "Accelerate code generation and inline suggestions.",
+        "Prototype, test, and demo quickly in the browser.",
+        "Wire the shipped flow into backend automations."
+      ]
+    },
+    {
+      title: "Meet -> Capture -> Follow Up",
+      description: "Record calls, summarize decisions, and push next steps into the team workflow.",
+      toolIds: ["tldv", "fireflies", "otter", "airtable"],
+      stepNotes: [
+        "Capture the meeting with searchable highlights.",
+        "Generate follow-up summaries and action extraction.",
+        "Keep a readable transcript and note record.",
+        "Track owners, status, and next steps."
+      ]
+    },
+    {
+      title: "Script -> Voice -> Edit",
+      description: "Draft scripts, create voiceover, and clean up final media for publishing.",
+      toolIds: ["chatgpt", "elevenlabs", "descript", "capcut"],
+      stepNotes: [
+        "Write the script and rough creative direction.",
+        "Generate natural voiceover from the approved script.",
+        "Edit dialogue, timing, and spoken delivery.",
+        "Assemble and export the final social cut."
+      ]
+    }
+  ];
   const sidebarIconMap = {
     All: `
       <svg viewBox="0 0 24 24" fill="none">
@@ -167,6 +245,7 @@
       id: "marketing",
       label: "Marketing",
       icon: "Mk",
+      toolId: "jasper",
       description: "Campaign, landing page, and positioning prompt patterns.",
       headline: "Positioning, copy, and campaign prompts for growth teams",
       bestFor: ["Positioning", "Landing pages", "ICP work", "Campaign planning"],
@@ -177,6 +256,7 @@
       id: "coding",
       label: "Coding",
       icon: "</>",
+      toolId: "githubcopilot",
       description: "Prompt starters for shipping features, fixing bugs, and planning builds.",
       headline: "Engineering prompts for planning, debugging, and delivery",
       bestFor: ["Feature planning", "Bug triage", "Refactoring", "Rollout checklists"],
@@ -309,7 +389,8 @@
     activeCategory: "All",
     activePricing: "All",
     activeRanking: "Assistants",
-    activePromptTrack: promptTrackIds.has(promptQuery.get("track")) ? promptQuery.get("track") : "deepseek"
+    activePromptTrack: promptTrackIds.has(promptQuery.get("track")) ? promptQuery.get("track") : "deepseek",
+    featuredVisibleCounts: {}
   };
 
   const promptGuideCards = [
@@ -338,11 +419,12 @@
       body: "Tell the model what to avoid such as generic copy, unsupported claims, missing citations, or skipping edge cases."
     }
   ];
+  const assetPrefix = document.body?.dataset?.assetPrefix || "";
 
   function loadIconManifest() {
     try {
       const request = new XMLHttpRequest();
-      request.open("GET", "assets/tool-icons/manifest.json", false);
+      request.open("GET", `${assetPrefix}assets/tool-icons/manifest.json`, false);
       request.send();
       if (request.status >= 200 && request.status < 300) {
         return JSON.parse(request.responseText);
@@ -360,7 +442,7 @@
   }
 
   function localIconPath(filename) {
-    return `assets/tool-icons/${filename}`;
+    return `${assetPrefix}assets/tool-icons/${filename}`;
   }
 
   function primaryIconPath(tool) {
@@ -452,8 +534,8 @@
       <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
         <defs>
           <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-            <stop stop-color="#2563eb" offset="0%"/>
-            <stop stop-color="#22d3ee" offset="100%"/>
+            <stop stop-color="#fb923c" offset="0%"/>
+            <stop stop-color="#16335f" offset="100%"/>
           </linearGradient>
         </defs>
         <rect width="96" height="96" rx="28" fill="url(#g)"/>
@@ -678,13 +760,21 @@
   }
 
   function promptTrackHref(trackId) {
-    return `prompt-library.html?track=${encodeURIComponent(trackId)}`;
+    return `${assetPrefix}prompt-library.html?track=${encodeURIComponent(trackId)}`;
   }
 
   function topToolsByCategory(category, limit) {
     return tools
       .filter((tool) => tool.categories.includes(category))
       .slice(0, limit);
+  }
+
+  function getFeaturedVisibleCount(key) {
+    return state.featuredVisibleCounts[key] || 20;
+  }
+
+  function increaseFeaturedVisibleCount(key) {
+    state.featuredVisibleCounts[key] = getFeaturedVisibleCount(key) + 20;
   }
 
   function toolCard(tool, options) {
@@ -723,7 +813,7 @@
     ui.sidebarNav.innerHTML = categories
       .map((category) => `
         <button class="sidebar-link ${state.activeCategory === category ? "is-active" : ""}" data-category="${category}" type="button">
-          <span class="sidebar-glyph" aria-hidden="true">${sidebarIcon(category)}</span>
+          <span class="sidebar-glyph" data-sidebar-tone="${category}" aria-hidden="true">${sidebarIcon(category)}</span>
           <span>${category}</span>
         </button>
       `)
@@ -798,59 +888,140 @@
     });
   }
 
+  function toolChip(tool, roleText) {
+    const note = roleText || tool.summary;
+    return `
+      <a class="stack-tool-chip" href="${detailUrl(tool)}">
+        <span class="stack-tool-chip-head">
+          ${iconShell(tool, "is-compact-chip")}
+          <span class="stack-tool-chip-text">
+            <strong>${tool.name}</strong>
+            <span>${tool.vendor}</span>
+          </span>
+        </span>
+        <span class="stack-tool-chip-note tool-summary" data-tip="${escapeAttribute(note)}">
+          <span class="tool-summary-text">${note}</span>
+        </span>
+      </a>
+    `;
+  }
+
+  function operatorFlowCard(flow) {
+    const flowTools = pickTools(flow.toolIds);
+    return `
+      <article class="stack-flow-card">
+        <div class="stack-flow-head">
+          <p class="kicker">Workflow Chain</p>
+          <h4>${flow.title}</h4>
+          <p>${flow.description}</p>
+        </div>
+        <div class="stack-flow-steps">
+          ${flowTools
+            .map(
+              (tool, index) => `
+                <div class="stack-flow-step">
+                  <span class="stack-flow-step-index">${index + 1}</span>
+                  ${toolChip(tool, flow.stepNotes?.[index])}
+                </div>
+              `
+            )
+            .join("")}
+        </div>
+      </article>
+    `;
+  }
+
+  function featuredBoardMarkup(items, options) {
+    const settings = options || {};
+    const key = settings.key;
+    const visibleCount = Math.min(items.length, getFeaturedVisibleCount(key));
+    const detailedItems = items.slice(0, Math.min(20, items.length));
+    const compactItems = items.slice(20, visibleCount);
+
+    const detailedMarkup = detailedItems.length
+      ? `
+        <div class="featured-card-grid">
+          ${detailedItems
+            .map((tool, index) =>
+              toolCard(tool, {
+                className: "tool-tile feature-tool-tile",
+                meta: settings.meta ? settings.meta(tool, index, false) : "",
+                summary: settings.summary ? settings.summary(tool, index, false) : tool.summary,
+                summaryLength: settings.summaryLength || 110
+              })
+            )
+            .join("")}
+        </div>
+      `
+      : "";
+
+    const compactMarkup = compactItems.length
+      ? `
+        <div class="featured-card-grid featured-card-grid-compact">
+          ${compactItems
+            .map((tool, index) =>
+              toolCard(tool, {
+                className: "tool-tile feature-tool-tile is-compact",
+                meta: settings.meta ? settings.meta(tool, index + 20, true) : "",
+                summary: settings.summary ? settings.summary(tool, index + 20, true) : tool.summary,
+                summaryLength: settings.compactSummaryLength || 82
+              })
+            )
+            .join("")}
+        </div>
+      `
+      : "";
+
+    const moreMarkup = visibleCount < items.length
+      ? `
+        <div class="load-more-row">
+          <button class="load-more-button" type="button" data-featured-more="${key}">More +</button>
+        </div>
+      `
+      : "";
+
+    return `${detailedMarkup}${compactMarkup}${moreMarkup}`;
+  }
+
   function renderTodayBoards() {
+    const todayHotTools = tools.filter((tool) => tool.monthlyVisits >= 30000000);
+
     if (ui.todayList) {
-      ui.todayList.innerHTML = tools
-        .slice(0, 3)
-        .map((tool) => miniTool(tool, `${tool.trafficLabel} | ${tool.categories.join(" | ")}`))
-        .join("");
+      ui.todayList.innerHTML = featuredBoardMarkup(todayHotTools, {
+        key: "today",
+        meta: (tool) => tool.pricing === "Free" ? "Free" : formatVisits(tool.monthlyVisits),
+        summary: (tool, index, isCompact) => isCompact ? tool.summary : `${tool.trafficLabel} | ${tool.categories.join(" | ")}`,
+        summaryLength: 116,
+        compactSummaryLength: 84
+      });
     }
 
     const editorTools = pickTools(editorPickIds);
 
     if (ui.editorList) {
-      ui.editorList.innerHTML = editorTools
-        .slice(0, 3)
-        .map((tool) => miniTool(tool, tool.recommendation))
-        .join("");
+      ui.editorList.innerHTML = featuredBoardMarkup(editorTools, {
+        key: "editor",
+        meta: () => "Editor",
+        summary: (tool, index, isCompact) => isCompact ? tool.summary : tool.recommendation,
+        summaryLength: 116,
+        compactSummaryLength: 84
+      });
     }
 
-    const stackCards = [
-      {
-        title: "Research stack",
-        body: "Perplexity + ChatGPT for sourcing, synthesis, and strategic follow-up.",
-        tags: ["Research", "Assistants"]
-      },
-      {
-        title: "Content stack",
-        body: "Claude + Grammarly + Gamma for cleaner writing, editing, and polished delivery.",
-        tags: ["Writing", "Productivity"]
-      },
-      {
-        title: "Launch stack",
-        body: "Midjourney + HeyGen + ElevenLabs for campaign visuals, avatar video, and voice.",
-        tags: ["Design", "Video", "Audio"]
-      },
-      {
-        title: "Builder stack",
-        body: "Cursor + Lovable + OpenRouter for coding, product scaffolding, and model flexibility.",
-        tags: ["Coding", "Automation"]
-      }
-    ];
-
     if (ui.stackList) {
-      ui.stackList.innerHTML = stackCards
-        .slice(0, 3)
-        .map((card) => `
-          <article class="stack-card">
-            <h3>${card.title}</h3>
-            <p>${card.body}</p>
-            <div class="directory-tags">
-              ${card.tags.map((tag) => `<span class="tag">${tag}</span>`).join("")}
-            </div>
-          </article>
-        `)
-        .join("");
+      ui.stackList.innerHTML = operatorStackFlows.map((flow) => operatorFlowCard(flow)).join("");
+    }
+
+    const newest = pickTools(newAndNotableIds);
+
+    if (ui.newList) {
+      ui.newList.innerHTML = featuredBoardMarkup(newest, {
+        key: "new",
+        meta: () => "New",
+        summary: (tool, index, isCompact) => isCompact ? tool.summary : tool.recommendation,
+        summaryLength: 116,
+        compactSummaryLength: 84
+      });
     }
   }
 
@@ -875,7 +1046,7 @@
     if (!ui.rankGrid) {
       return;
     }
-    const leaders = topToolsByCategory(state.activeRanking, 8);
+    const leaders = topToolsByCategory(state.activeRanking, 10);
     ui.rankGrid.innerHTML = leaders
       .map((tool, index) =>
         toolCard(tool, {
@@ -1046,16 +1217,7 @@
     ui.deepRankingWall.innerHTML = groups.map((group) => deepRankingBlock(group)).join("");
   }
 
-  function renderNewList() {
-    if (!ui.newList) {
-      return;
-    }
-    const newest = pickTools(newAndNotableIds);
-    ui.newList.innerHTML = newest
-      .slice(0, 3)
-      .map((tool) => miniTool(tool, tool.recommendation))
-      .join("");
-  }
+  function renderNewList() {}
 
   function renderPromptLibrary() {
     if (!ui.promptTabs || !ui.promptFeatureGrid || !ui.promptLibraryGrid) {
@@ -1293,7 +1455,7 @@
   }
 
   function tooltipBoundaryRect(summary) {
-    const scopedBoundary = summary.closest(".mini-item, .tool-tile, .rank-item, .directory-item, .lane-item, .usecase-tool, .deep-ranking-item, .stack-card");
+      const scopedBoundary = summary.closest(".mini-item, .tool-tile, .rank-item, .directory-item, .lane-item, .usecase-tool, .deep-ranking-item, .stack-card, .stack-tool-chip");
     const panelBoundary = summary.closest(".feature-panel, .section-card");
     const boundary = scopedBoundary || panelBoundary;
     return boundary ? boundary.getBoundingClientRect() : null;
@@ -1556,6 +1718,15 @@
           target.scrollIntoView({ behavior: "smooth", block: "start" });
         }
       });
+    });
+
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-featured-more]");
+      if (!button) {
+        return;
+      }
+      increaseFeaturedVisibleCount(button.dataset.featuredMore);
+      renderTodayBoards();
     });
   }
 

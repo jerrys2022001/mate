@@ -7,14 +7,19 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
-DATA_FILE = ROOT / "catalog.js"
+DATA_FILES = [
+    ROOT / "catalog.js",
+    ROOT / "catalog_extra_1.js",
+    ROOT / "catalog_extra_2.js",
+    ROOT / "catalog_extra_3.js",
+]
 OUTPUT_DIR = ROOT / "tools"
 
 TOOL_PATTERN = re.compile(r'\{\s*id:\s*"([^"]+)",\s*name:\s*"([^"]+)"', re.MULTILINE)
 
 
 def load_tools() -> list[tuple[str, str]]:
-    raw = DATA_FILE.read_text(encoding="utf-8")
+    raw = "\n".join(path.read_text(encoding="utf-8") for path in DATA_FILES)
     return TOOL_PATTERN.findall(raw)
 
 
@@ -38,7 +43,9 @@ def render_page(tool_id: str, tool_name: str) -> str:
 
   <header class="topbar detail-topbar">
     <div class="brand">
-      <div class="brand-badge">N</div>
+      <div class="brand-badge">
+        <img src="../assets/brand-mark.png" alt="Northstar AI logo">
+      </div>
       <div class="brand-copy">
         <strong>Northstar AI</strong>
         <span>WESTERN AI NAVIGATOR</span>
@@ -117,6 +124,9 @@ def render_page(tool_id: str, tool_name: str) -> str:
   </footer>
 
   <script src="../catalog.js"></script>
+  <script src="../catalog_extra_1.js"></script>
+  <script src="../catalog_extra_2.js"></script>
+  <script src="../catalog_extra_3.js"></script>
   <script src="../app.js"></script>
   <script src="../detail.js"></script>
 </body>
