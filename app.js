@@ -18,18 +18,6 @@
     "Meetings",
     "Sales"
   ];
-  const iconExtensionMap = {
-    adobefirefly: "ico",
-    airtable: "ico",
-    capcut: "ico",
-    fireflies: "ico",
-    freepik: "ico",
-    genspark: "ico",
-    huggingface: "ico",
-    openrouter: "ico",
-    otter: "ico",
-    kapwing: "svg"
-  };
   const editorPickIds = ["chatgpt", "claude", "perplexity", "gamma", "cursor", "deepl"];
   const newAndNotableIds = ["deepseek", "grok", "lovable", "stitch", "cursor", "windsurf"];
   const sidebarIconMap = {
@@ -351,10 +339,65 @@
     }
   ];
 
+  function loadIconManifest() {
+    try {
+      const request = new XMLHttpRequest();
+      request.open("GET", "assets/tool-icons/manifest.json", false);
+      request.send();
+      if (request.status >= 200 && request.status < 300) {
+        return JSON.parse(request.responseText);
+      }
+    } catch (error) {
+      return {};
+    }
+    return {};
+  }
+
+  const iconManifest = loadIconManifest();
+
+  function manifestEntry(tool) {
+    return iconManifest[tool.id] || null;
+  }
+
+  function localIconPath(filename) {
+    return `assets/tool-icons/${filename}`;
+  }
+
+  function primaryIconPath(tool) {
+    const entry = manifestEntry(tool);
+    if (entry && entry.file && entry.content_type !== "text/html") {
+      return localIconPath(entry.file);
+    }
+    return localIconPath(`${tool.id}.png`);
+  }
+
+  function escapeJsString(value) {
+    return String(value).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  }
+
+  function iconFallbackSources(tool) {
+    const entry = manifestEntry(tool);
+    const sources = [];
+    if (entry && entry.fallback) {
+      sources.push(localIconPath(entry.fallback));
+    }
+    sources.push(localIconPath(`${tool.id}.ico`));
+    sources.push(localIconPath(`${tool.id}.svg`));
+    sources.push(fallbackIcon(tool));
+    return sources.filter((source, index) => source && !sources.slice(0, index).includes(source) && source !== primaryIconPath(tool));
+  }
+
+  function iconOnErrorHandler(tool) {
+    return iconFallbackSources(tool).reduceRight(
+      (script, source) => `this.onerror=function(){${script}};this.src='${escapeJsString(source)}';`,
+      "this.onerror=null;"
+    );
+  }
+
   const tools = [...catalog.tools]
     .map((tool) => ({
       ...tool,
-      iconUrl: `assets/tool-icons/${tool.id}.${iconExtensionMap[tool.id] || "png"}`
+      iconUrl: primaryIconPath(tool)
     }))
     .sort((left, right) => right.monthlyVisits - left.monthlyVisits);
 
@@ -421,7 +464,7 @@
   }
 
   function iconImage(tool) {
-    return `<img src="${tool.iconUrl}" alt="${tool.name} icon" loading="lazy" onerror="this.onerror=null;this.src='assets/tool-icons/${tool.id}.ico';this.onerror=function(){this.onerror=null;this.src='assets/tool-icons/${tool.id}.svg';this.onerror=function(){this.onerror=null;this.src='${fallbackIcon(tool)}';};}">`;
+    return `<img src="${tool.iconUrl}" alt="${tool.name} icon" loading="lazy" onerror="${iconOnErrorHandler(tool)}">`;
   }
 
   function promptTrackTool(track) {
@@ -468,7 +511,7 @@
     if (tool) {
       return `
         <span class="${classes}" aria-hidden="true">
-          <img src="${tool.iconUrl}" alt="" loading="lazy" onerror="this.onerror=null;this.src='assets/tool-icons/${tool.id}.ico';this.onerror=function(){this.onerror=null;this.src='assets/tool-icons/${tool.id}.svg';this.onerror=function(){this.onerror=null;this.src='${fallbackIcon(tool)}';};}">
+          <img src="${tool.iconUrl}" alt="" loading="lazy" onerror="${iconOnErrorHandler(tool)}">
         </span>
       `;
     }
@@ -1356,6 +1399,91 @@
     });
   }
 
+  function bindNavFlyouts() {
+    const navItems = Array.from(document.querySelectorAll(".nav-item-with-panel"));
+    if (!navItems.length) {
+      return;
+    }
+
+    const openDelay = 70;
+    const closeDelay = 220;
+
+    navItems.forEach((item) => {
+      let openTimer = null;
+      let closeTimer = null;
+
+      const clearTimers = () => {
+        if (openTimer) {
+          window.clearTimeout(openTimer);
+          openTimer = null;
+        }
+        if (closeTimer) {
+          window.clearTimeout(closeTimer);
+          closeTimer = null;
+        }
+      };
+
+      const openMenu = () => {
+        clearTimers();
+        navItems.forEach((navItem) => {
+          if (navItem !== item) {
+            navItem.classList.remove("is-open");
+          }
+        });
+        item.classList.add("is-open");
+      };
+
+      const closeMenu = () => {
+        clearTimers();
+        item.classList.remove("is-open");
+      };
+
+      const scheduleOpen = () => {
+        if (closeTimer) {
+          window.clearTimeout(closeTimer);
+          closeTimer = null;
+        }
+        if (item.classList.contains("is-open")) {
+          return;
+        }
+        openTimer = window.setTimeout(openMenu, openDelay);
+      };
+
+      const scheduleClose = () => {
+        if (openTimer) {
+          window.clearTimeout(openTimer);
+          openTimer = null;
+        }
+        closeTimer = window.setTimeout(closeMenu, closeDelay);
+      };
+
+      item.addEventListener("pointerenter", scheduleOpen);
+      item.addEventListener("pointerleave", scheduleClose);
+      item.addEventListener("focusin", openMenu);
+      item.addEventListener("focusout", () => {
+        window.setTimeout(() => {
+          if (!item.contains(document.activeElement)) {
+            scheduleClose();
+          }
+        }, 0);
+      });
+    });
+
+    document.addEventListener("pointerdown", (event) => {
+      if (event.target.closest(".nav-item-with-panel")) {
+        return;
+      }
+      navItems.forEach((item) => item.classList.remove("is-open"));
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      navItems.forEach((item) => item.classList.remove("is-open"));
+    });
+  }
+
   function handleSearchSubmit() {
     if (!ui.searchInput) {
       return;
@@ -1371,6 +1499,7 @@
 
   function bindStaticEvents() {
     bindSidebarWheelScroll();
+    bindNavFlyouts();
 
     document.addEventListener("mouseenter", (event) => {
       const summary = event.target.closest(".tool-summary[data-tip]");

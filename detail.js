@@ -4,19 +4,6 @@
     return;
   }
 
-  const iconExtensionMap = {
-    adobefirefly: "ico",
-    airtable: "ico",
-    capcut: "ico",
-    fireflies: "ico",
-    freepik: "ico",
-    genspark: "ico",
-    huggingface: "ico",
-    openrouter: "ico",
-    otter: "ico",
-    kapwing: "svg"
-  };
-
   const toolProfiles = {
     chatgpt: {
       why: [
@@ -166,6 +153,27 @@
     directoryHref: document.body.dataset.directoryHref || "index.html#directory",
     assetPrefix: document.body.dataset.assetPrefix || ""
   };
+
+  function loadIconManifest() {
+    try {
+      const request = new XMLHttpRequest();
+      request.open("GET", `${pageConfig.assetPrefix}assets/tool-icons/manifest.json`, false);
+      request.send();
+      if (request.status >= 200 && request.status < 300) {
+        return JSON.parse(request.responseText);
+      }
+    } catch (error) {
+      return {};
+    }
+    return {};
+  }
+
+  const iconManifest = loadIconManifest();
+
+  function manifestEntry(item) {
+    return iconManifest[item.id] || null;
+  }
+
   const tools = [...catalog.tools];
   const tool = tools.find((item) => item.id === pageConfig.toolId) || tools[0];
   const profile = toolProfiles[tool.id] || buildFallbackProfile(tool);
@@ -181,7 +189,11 @@
   const similar = document.getElementById("detail-similar");
 
   function localIconFor(item) {
-    return `${pageConfig.assetPrefix}assets/tool-icons/${item.id}.${iconExtensionMap[item.id] || "png"}`;
+    const entry = manifestEntry(item);
+    if (entry && entry.file && entry.content_type !== "text/html") {
+      return `${pageConfig.assetPrefix}assets/tool-icons/${entry.file}`;
+    }
+    return `${pageConfig.assetPrefix}assets/tool-icons/${item.id}.png`;
   }
 
   function localIcoFor(item) {
@@ -214,6 +226,29 @@
       </svg>
     `;
     return `data:image/svg+xml;utf8,${svg.replace(/\n+/g, "").replace(/#/g, "%23").replace(/"/g, "'")}`;
+  }
+
+  function escapeJsString(value) {
+    return String(value).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  }
+
+  function iconFallbackSources(item) {
+    const entry = manifestEntry(item);
+    const sources = [];
+    if (entry && entry.fallback) {
+      sources.push(`${pageConfig.assetPrefix}assets/tool-icons/${entry.fallback}`);
+    }
+    sources.push(localIcoFor(item));
+    sources.push(localSvgFor(item));
+    sources.push(fallbackIcon(item));
+    return sources.filter((source, index) => source && !sources.slice(0, index).includes(source) && source !== localIconFor(item));
+  }
+
+  function iconOnErrorHandler(item) {
+    return iconFallbackSources(item).reduceRight(
+      (script, source) => `this.onerror=function(){${script}};this.src='${escapeJsString(source)}';`,
+      "this.onerror=null;"
+    );
   }
 
   function formatVisits(visitCount) {
@@ -299,7 +334,7 @@
 
       <div class="detail-title-row">
         <span class="detail-icon-shell">
-          <img src="${localIconFor(tool)}" alt="${tool.name} icon" onerror="this.onerror=null;this.src='${localIcoFor(tool)}';this.onerror=function(){this.onerror=null;this.src='${localSvgFor(tool)}';this.onerror=function(){this.onerror=null;this.src='${fallbackIcon(tool)}';};}">
+          <img src="${localIconFor(tool)}" alt="${tool.name} icon" onerror="${iconOnErrorHandler(tool)}">
         </span>
         <div>
           <p class="kicker">${tool.vendor}</p>
@@ -404,7 +439,7 @@
           (item) => `
             <a class="detail-similar-card" href="${detailUrl(item)}">
               <span class="tool-icon-shell">
-                <img src="${localIconFor(item)}" alt="${item.name} icon" onerror="this.onerror=null;this.src='${localIcoFor(item)}';this.onerror=function(){this.onerror=null;this.src='${localSvgFor(item)}';this.onerror=function(){this.onerror=null;this.src='${fallbackIcon(item)}';};}">
+                <img src="${localIconFor(item)}" alt="${item.name} icon" onerror="${iconOnErrorHandler(item)}">
               </span>
               <div class="tool-text">
                 <h3>${item.name}</h3>
@@ -483,7 +518,7 @@
           (item) => `
             <a class="detail-related-item" href="${detailUrl(item)}">
               <span class="tool-icon-shell">
-                <img src="${localIconFor(item)}" alt="${item.name} icon" onerror="this.onerror=null;this.src='${localIcoFor(item)}';this.onerror=function(){this.onerror=null;this.src='${localSvgFor(item)}';this.onerror=function(){this.onerror=null;this.src='${fallbackIcon(item)}';};}">
+                <img src="${localIconFor(item)}" alt="${item.name} icon" onerror="${iconOnErrorHandler(item)}">
               </span>
               <div class="tool-text">
                 <h3>${item.name}</h3>
