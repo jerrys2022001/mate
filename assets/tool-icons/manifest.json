@@ -4,7 +4,7 @@
     "tool_url": "https://www.adobe.com/express/",
     "file": "adobeexpress.svg",
     "content_type": "image/svg+xml",
-    "source": "local-fallback",
+    "source": "local",
     "url": "local://assets/tool-icons/adobeexpress.svg"
   },
   "adobefirefly": {
@@ -683,7 +683,7 @@
     "content_type": "image/svg+xml",
     "fallback": "sourcegraph.svg",
     "file": "sourcegraph.svg",
-    "source": "local-fallback",
+    "source": "local",
     "tool_url": "https://sourcegraph.com/cody",
     "url": "local://assets/tool-icons/sourcegraph.svg"
   },
@@ -692,7 +692,7 @@
     "tool_url": "https://speechify.com/",
     "file": "speechify.svg",
     "content_type": "image/svg+xml",
-    "source": "local-fallback",
+    "source": "local",
     "url": "local://assets/tool-icons/speechify.svg"
   },
   "stitch": {
@@ -732,7 +732,7 @@
     "tool_url": "https://www.tabnine.com/",
     "file": "tabnine.svg",
     "content_type": "image/svg+xml",
-    "source": "local-fallback",
+    "source": "local",
     "url": "local://assets/tool-icons/tabnine.svg"
   },
   "taskade": {
