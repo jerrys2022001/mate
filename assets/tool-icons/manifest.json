@@ -154,10 +154,10 @@
   "cutoutpro": {
     "fallback": "cutoutpro.svg",
     "tool_url": "https://www.cutout.pro/",
-    "file": "cutoutpro.svg",
-    "content_type": "image/svg+xml",
-    "source": "local-fallback",
-    "url": "local://assets/tool-icons/cutoutpro.svg"
+    "file": "cutoutpro.png",
+    "content_type": "image/png",
+    "source": "local",
+    "url": "local://assets/tool-icons/cutoutpro.png"
   },
   "deepl": {
     "content_type": "image/png",
@@ -180,7 +180,7 @@
     "tool_url": "https://www.descript.com/",
     "file": "descript.svg",
     "content_type": "image/svg+xml",
-    "source": "local-fallback",
+    "source": "local",
     "url": "local://assets/tool-icons/descript.svg"
   },
   "elevenlabs": {
