@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mate Study Chat | Rewrite, Fix, Polish</title>
+  <meta
+    name="description"
+    content="Use Mate Study Chat to rewrite essays, fix grammar, and polish email."
+  >
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="chat">
+  <div class="site-bg">
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+    <div class="bg-orb orb-c"></div>
+    <div class="grid-wash"></div>
+  </div>
+
+  <div class="site-shell">
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Mate home">
+        <span class="brand-mark">M</span>
+        <span class="brand-copy">
+          <strong>Mate</strong>
+          <span>English Growth Studio</span>
+        </span>
+      </a>
+
+      <nav class="site-nav" aria-label="Primary">
+        <a href="index.html">Get started</a>
+        <a class="is-active" href="chat.html">Study Chat</a>
+        <a href="knowledge-base.html">Knowledge Base</a>
+        <a href="quiz.html">Practice</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="header-cta" href="quiz.html">Practice</a>
+        <div class="account-shell" id="account-shell">
+          <span class="status-chip is-file">Checking session</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="app-hero app-hero-flat app-hero-compact">
+      <div class="reveal">
+        <p class="eyebrow">Study Chat</p>
+        <h1>Rewrite, fix, and polish in one place.</h1>
+        <p class="hero-lead">Paste a draft. Revise fast.</p>
+        <div class="hero-actions">
+          <span class="status-chip" id="chat-runtime">Checking BFF</span>
+        </div>
+      </div>
+    </section>
+
+    <main class="app-shell workspace-shell">
+      <section class="chat-layout workspace-layout">
+        <section class="chat-main">
+          <article class="chat-topline reveal">
+            <h3>Pick a mode</h3>
+            <div class="quick-chip-row">
+              <button class="quick-chip is-active" type="button" data-chat-scenario="essay">Essay Coach</button>
+              <button class="quick-chip" type="button" data-chat-scenario="email">Email Coach</button>
+              <button class="quick-chip" type="button" data-chat-scenario="grammar">Grammar Coach</button>
+              <button class="quick-chip" type="button" data-chat-scenario="upgrade">Upgrade Tone</button>
+            </div>
+            <div class="starter-list" id="chat-starter-list"></div>
+          </article>
+
+          <article class="chat-card reveal">
+            <h2 id="chat-scenario-title">IELTS Task 2 feedback</h2>
+            <p class="chat-subcopy" id="chat-goal">Raise the essay from Band 6.0 to Band 7.5</p>
+            <div class="chat-thread" id="chat-thread" aria-live="polite"></div>
+          </article>
+
+          <form class="composer-card reveal" id="chat-composer">
+            <div class="composer-top">
+              <h3>Paste a draft</h3>
+            </div>
+            <textarea id="chat-input" placeholder="Paste your sentence, essay paragraph, or email draft here..."></textarea>
+            <button class="primary-button" type="submit">Send to Mate</button>
+          </form>
+
+          <article class="analysis-card reveal">
+            <h3>Outputs</h3>
+            <div class="deliverable-list" id="chat-deliverables"></div>
+          </article>
+        </section>
+
+        <aside class="utility-column">
+          <article class="analysis-card reveal">
+            <h3>Next steps</h3>
+            <ul class="analysis-list" id="chat-suggestions"></ul>
+            <div class="rail-summary">
+              <div class="score-grid score-grid-compact" id="chat-score-grid"></div>
+            </div>
+          </article>
+        </aside>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <strong>Mate</strong>
+      </div>
+      <div>
+        <span>Study Chat</span>
+        <span>Rewrite</span>
+        <span>Polish</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

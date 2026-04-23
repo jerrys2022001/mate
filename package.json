@@ -1,0 +1,14 @@
+{
+  "name": "mate-site",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Mate English learning frontend plus BFF scaffold for DeepTutor-backed workflows.",
+  "scripts": {
+    "check": "node --check app.js && node --check server.js",
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

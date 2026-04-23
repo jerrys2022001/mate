@@ -8,11 +8,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
+$node = (Get-Command node -ErrorAction SilentlyContinue).Source
 $python = "C:\Python314\python.exe"
 $maxPortAttempts = 12
-$siteMarker = "Northstar AI Directory"
-if (-not (Test-Path $python)) {
-  throw "Python not found at $python"
+$siteMarker = "Mate | English Support for Students"
+if (-not $node -and -not (Test-Path $python)) {
+  throw "Neither Node.js nor Python preview runtime was found."
 }
 
 function Test-PreviewContent {
@@ -72,13 +73,21 @@ for ($attempt = 0; $attempt -lt $maxPortAttempts; $attempt++) {
     continue
   }
 
-  $serverArgs = @("-m", "http.server", "$candidatePort", "--bind", "127.0.0.1")
-  $server = Start-Process `
-    -FilePath $python `
-    -ArgumentList $serverArgs `
-    -WorkingDirectory $repoRoot `
-    -WindowStyle Hidden `
-    -PassThru
+  if ($node) {
+    $serverArgs = @("server.js", "--port", "$candidatePort")
+    $server = Start-Process `
+      -FilePath $node `
+      -ArgumentList $serverArgs `
+      -WorkingDirectory $repoRoot `
+      -PassThru
+  } else {
+    $serverArgs = @("-m", "http.server", "$candidatePort", "--bind", "127.0.0.1")
+    $server = Start-Process `
+      -FilePath $python `
+      -ArgumentList $serverArgs `
+      -WorkingDirectory $repoRoot `
+      -PassThru
+  }
 
   if (Wait-PreviewReady -TestPort $candidatePort) {
     $resolvedPort = $candidatePort
@@ -98,7 +107,7 @@ if (-not $finalReady) {
 }
 
 $path = if ($PromptLibrary) {
-  "prompt-library.html?track=deepseek"
+  "chat.html"
 } else {
   "index.html"
 }

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mate Knowledge Base | Files, Notes, Sources</title>
+  <meta
+    name="description"
+    content="Upload files, save notes, and search your writing sources in Mate."
+  >
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="kb">
+  <div class="site-bg">
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+    <div class="bg-orb orb-c"></div>
+    <div class="grid-wash"></div>
+  </div>
+
+  <div class="site-shell">
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Mate home">
+        <span class="brand-mark">M</span>
+        <span class="brand-copy">
+          <strong>Mate</strong>
+          <span>English Growth Studio</span>
+        </span>
+      </a>
+
+      <nav class="site-nav" aria-label="Primary">
+        <a href="index.html">Get started</a>
+        <a href="chat.html">Study Chat</a>
+        <a class="is-active" href="knowledge-base.html">Knowledge Base</a>
+        <a href="quiz.html">Practice</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="header-cta" href="chat.html">Open chat</a>
+        <div class="account-shell" id="account-shell">
+          <span class="status-chip is-file">Checking session</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="app-hero app-hero-flat app-hero-compact">
+      <div class="reveal">
+        <p class="eyebrow">Knowledge Base</p>
+        <h1>Keep your writing sources in one place.</h1>
+        <p class="hero-lead">Upload. Save. Search.</p>
+        <div class="hero-actions">
+          <span class="status-chip" id="kb-runtime">Checking BFF</span>
+        </div>
+      </div>
+    </section>
+
+    <main class="app-shell workspace-shell">
+      <section class="kb-layout workspace-layout">
+        <section class="kb-main">
+          <article class="dropzone reveal" id="kb-dropzone" tabindex="0">
+            <h3>Add files</h3>
+            <input
+              id="kb-file-input"
+              type="file"
+              accept=".pdf,.doc,.docx,.txt,.md,.csv,.ppt,.pptx"
+              multiple
+              hidden
+            >
+            <div class="drop-panel">
+              <div>
+                <strong>PDF, DOCX, TXT, MD, CSV, PPT</strong>
+                <p class="meta-text">Rubrics, notes, drafts.</p>
+              </div>
+              <div class="inline-actions">
+                <button class="primary-button" id="kb-file-picker" type="button">Choose files</button>
+                <button class="secondary-button" id="kb-upload-submit" type="button">Upload selected files</button>
+                <span class="status-chip" id="kb-upload-status">No files selected</span>
+              </div>
+            </div>
+            <div class="upload-progress is-hidden" id="kb-upload-progress">
+              <div class="upload-progress-bar">
+                <span id="kb-upload-progress-fill"></span>
+              </div>
+              <div class="upload-progress-meta">
+                <span id="kb-upload-progress-text">0%</span>
+                <span id="kb-upload-progress-detail">Waiting for upload</span>
+              </div>
+            </div>
+            <ul class="upload-queue" id="kb-upload-queue">
+              <li>No files in queue yet.</li>
+            </ul>
+            <div class="drop-actions">
+              <button class="primary-button" type="button" data-kb-add="rubric">Add rubric sample</button>
+              <button class="secondary-button" type="button" data-kb-add="emails">Add email guide</button>
+              <button class="secondary-button" type="button" data-kb-add="essay-bank">Add essay bank</button>
+            </div>
+          </article>
+
+          <article class="kb-card reveal">
+            <h3>Save a note</h3>
+            <form class="kb-entry-form" id="kb-entry-form">
+              <div class="field-row">
+                <label class="field-block">
+                  <span>Title</span>
+                  <input id="kb-entry-title" type="text" placeholder="SAT argumentative writing rubric">
+                </label>
+                <label class="field-block">
+                  <span>Type</span>
+                  <select id="kb-entry-type">
+                    <option>Rubric</option>
+                    <option>Class note</option>
+                    <option>Business email guide</option>
+                    <option>Essay example</option>
+                    <option>Grammar note</option>
+                  </select>
+                </label>
+              </div>
+
+              <label class="field-block">
+                <span>Summary</span>
+                <input id="kb-entry-summary" type="text" placeholder="What should Mate remember from this document?">
+              </label>
+
+              <label class="field-block">
+                <span>Tags</span>
+                <input id="kb-entry-tags" type="text" placeholder="grammar, email, exam, thesis">
+              </label>
+
+              <label class="field-block">
+                <span>Knowledge text</span>
+                <textarea id="kb-entry-text" placeholder="Paste rubric criteria, email guidance, sample phrases, or class notes here..."></textarea>
+              </label>
+
+              <div class="inline-actions">
+                <button class="primary-button" id="kb-entry-submit" type="submit">Save to knowledge base</button>
+                <span class="status-chip" id="kb-entry-status">Waiting for input</span>
+              </div>
+            </form>
+          </article>
+
+          <article class="kb-card reveal">
+            <div class="kb-library-head">
+              <h3>Library</h3>
+            </div>
+            <div class="filter-chip-row" id="kb-filter-row">
+              <button class="quick-chip is-active" type="button" data-kb-filter="all">All docs</button>
+              <button class="quick-chip" type="button" data-kb-filter="personal">My uploads</button>
+              <button class="quick-chip" type="button" data-kb-filter="starter">Starter docs</button>
+              <button class="quick-chip" type="button" data-kb-filter="files">Files</button>
+              <button class="quick-chip" type="button" data-kb-filter="notes">Notes</button>
+            </div>
+            <div class="kb-search">
+              <input id="kb-search" type="search" placeholder="Search by topic, source type, or use case">
+            </div>
+            <div class="source-grid" id="kb-source-grid"></div>
+          </article>
+        </section>
+
+        <aside class="kb-side">
+          <article class="doc-list reveal">
+            <div class="doc-list-head">
+              <h3>Recent files</h3>
+            </div>
+            <ul class="doc-feed" id="kb-doc-feed"></ul>
+          </article>
+
+        </aside>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <strong>Mate</strong>
+      </div>
+      <div>
+        <span>Knowledge Base</span>
+        <span>Upload</span>
+        <span>Search</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,1755 +1,2290 @@
-﻿(function () {
-  const catalog = window.AI_CATALOG;
-  if (!catalog || !Array.isArray(catalog.tools)) {
-    return;
-  }
-
-  const preferredRankingOrder = [
-    "Assistants",
-    "Research",
-    "Writing",
-    "Design",
-    "Video",
-    "Productivity",
-    "Translation",
-    "Coding",
-    "Audio",
-    "Automation",
-    "Meetings",
-    "Sales"
-  ];
-  const editorPickIds = [
-    "chatgpt", "claude", "perplexity", "cursor",
-    "notion", "gamma", "canva", "figma",
-    "runway", "elevenlabs", "deepl", "githubcopilot",
-    "n8n", "notebooklm"
-  ];
-  const newAndNotableIds = [
-    "deepseek", "lovable", "stitch", "windsurf",
-    "bolt", "v0", "genspark", "googleaistudio",
-    "ideogram", "recraft", "pika", "krea",
-    "luma", "continue", "granola", "lindy"
-  ];
-  const operatorStackFlows = [
-    {
-      title: "Research -> Brief -> Deck",
-      description: "A clean founder workflow for market scanning, synthesis, and presenting the story.",
-      toolIds: ["perplexity", "notebooklm", "chatgpt", "gamma"],
-      stepNotes: [
-        "Scan the market and collect live signal fast.",
-        "Digest sources into structured notes and evidence.",
-        "Turn findings into an executive-ready brief.",
-        "Package the narrative into a clean presentation."
-      ]
-    },
-    {
-      title: "Write -> Edit -> Translate",
-      description: "Produce readable copy, tighten tone, and ship multilingual output without context loss.",
-      toolIds: ["claude", "grammarly", "deepl", "notion"],
-      stepNotes: [
-        "Draft the first high-quality version of the content.",
-        "Tighten clarity, tone, and grammar before release.",
-        "Translate while preserving nuance and intent.",
-        "Organize the final copy for team publishing."
-      ]
-    },
-    {
-      title: "Design -> Motion -> Avatar",
-      description: "Turn visual direction into assets, motion, and spokesperson video for campaigns.",
-      toolIds: ["figma", "canva", "runway", "heygen"],
-      stepNotes: [
-        "Shape the core interface or visual system.",
-        "Produce campaign assets and fast creative variations.",
-        "Add motion, effects, and scene polish.",
-        "Create presenter-led video for delivery."
-      ]
-    },
-    {
-      title: "Code -> Ship -> Automate",
-      description: "Plan product work, generate code faster, and connect follow-up ops into automation.",
-      toolIds: ["cursor", "githubcopilot", "replit", "n8n"],
-      stepNotes: [
-        "Drive implementation inside the main coding workflow.",
-        "Accelerate code generation and inline suggestions.",
-        "Prototype, test, and demo quickly in the browser.",
-        "Wire the shipped flow into backend automations."
-      ]
-    },
-    {
-      title: "Meet -> Capture -> Follow Up",
-      description: "Record calls, summarize decisions, and push next steps into the team workflow.",
-      toolIds: ["tldv", "fireflies", "otter", "airtable"],
-      stepNotes: [
-        "Capture the meeting with searchable highlights.",
-        "Generate follow-up summaries and action extraction.",
-        "Keep a readable transcript and note record.",
-        "Track owners, status, and next steps."
-      ]
-    },
-    {
-      title: "Script -> Voice -> Edit",
-      description: "Draft scripts, create voiceover, and clean up final media for publishing.",
-      toolIds: ["chatgpt", "elevenlabs", "descript", "capcut"],
-      stepNotes: [
-        "Write the script and rough creative direction.",
-        "Generate natural voiceover from the approved script.",
-        "Edit dialogue, timing, and spoken delivery.",
-        "Assemble and export the final social cut."
-      ]
-    }
-  ];
-  const sidebarIconMap = {
-    All: `
-      <svg viewBox="0 0 24 24" fill="none">
-        <rect x="4" y="4" width="6" height="6" rx="1.6"></rect>
-        <rect x="14" y="4" width="6" height="6" rx="1.6"></rect>
-        <rect x="4" y="14" width="6" height="6" rx="1.6"></rect>
-        <rect x="14" y="14" width="6" height="6" rx="1.6"></rect>
-      </svg>
-    `,
-    Assistants: `
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M12 4.5L13.8 8.2L17.5 10L13.8 11.8L12 15.5L10.2 11.8L6.5 10L10.2 8.2L12 4.5Z"></path>
-        <path d="M18.5 15.5L19.3 17.2L21 18L19.3 18.8L18.5 20.5L17.7 18.8L16 18L17.7 17.2L18.5 15.5Z"></path>
-      </svg>
-    `,
-    Research: `
-      <svg viewBox="0 0 24 24" fill="none">
-        <circle cx="11" cy="11" r="5.5"></circle>
-        <path d="M16 16L20 20"></path>
-      </svg>
-    `,
-    Productivity: `
-      <svg viewBox="0 0 24 24" fill="none">
-        <rect x="4" y="5" width="16" height="14" rx="3"></rect>
-        <path d="M8 10.5L10.3 12.8L15.8 7.8"></path>
-      </svg>
-    `,
-    Automation: `
-      <svg viewBox="0 0 24 24" fill="none">
-        <circle cx="6.5" cy="7" r="2"></circle>
-        <circle cx="17.5" cy="7" r="2"></circle>
-        <circle cx="12" cy="17" r="2"></circle>
-        <path d="M8.2 8.1L10.5 11.2"></path>
-        <path d="M15.8 8.1L13.5 11.2"></path>
-        <path d="M8.6 17H15.4"></path>
-      </svg>
-    `,
-    Coding: `
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M9.2 7L4.8 12L9.2 17"></path>
-        <path d="M14.8 7L19.2 12L14.8 17"></path>
-      </svg>
-    `,
-    Writing: `
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M6 7.5H14"></path>
-        <path d="M6 11.5H14"></path>
-        <path d="M6 15.5H11"></path>
-        <path d="M15.5 15.5L18.8 12.2C19.4 11.6 20.4 11.6 21 12.2C21.6 12.8 21.6 13.8 21 14.4L17.7 17.7L14.5 18.5L15.5 15.5Z"></path>
-      </svg>
-    `,
-    Design: `
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M12 4.5C7.6 4.5 4 7.8 4 11.9C4 15.4 6.7 17.9 10 17.9H11.4C12.3 17.9 13 18.6 13 19.5C13 20.4 13.7 21 14.5 21C18.6 21 20 16.8 20 13.8C20 8.6 16.6 4.5 12 4.5Z"></path>
-        <circle cx="8" cy="11" r="1"></circle>
-        <circle cx="11" cy="8.5" r="1"></circle>
-        <circle cx="15" cy="9.5" r="1"></circle>
-      </svg>
-    `,
-    Video: `
-      <svg viewBox="0 0 24 24" fill="none">
-        <rect x="4" y="6" width="12" height="12" rx="3"></rect>
-        <path d="M16 10L20 8V16L16 14"></path>
-      </svg>
-    `,
-    Translation: `
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M4 7H14"></path>
-        <path d="M9 5V7C9 10.2 7.1 12.9 4.4 14.2"></path>
-        <path d="M6.5 10.5C7.1 12 8.4 13.5 10 14.6"></path>
-        <path d="M15 9H20"></path>
-        <path d="M17.5 7V9C17.5 12 16 14.7 13.8 16.5"></path>
-        <path d="M14.5 13.5H20.5"></path>
-      </svg>
-    `,
-    Audio: `
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M6 14V10"></path>
-        <path d="M10 17V7"></path>
-        <path d="M14 15V9"></path>
-        <path d="M18 13V11"></path>
-      </svg>
-    `,
-    Meetings: `
-      <svg viewBox="0 0 24 24" fill="none">
-        <rect x="4" y="6" width="16" height="11" rx="3"></rect>
-        <path d="M9 20H15"></path>
-        <path d="M12 17V20"></path>
-        <path d="M8.5 11H15.5"></path>
-      </svg>
-    `,
-    Sales: `
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M5 17L10 12L13.5 15.5L19 10"></path>
-        <path d="M15.5 10H19V13.5"></path>
-      </svg>
-    `
+(function () {
+  const isFileMode = window.location.protocol === "file:";
+  const pageName = document.body.getAttribute("data-page") || "";
+  let runtimeInfo = {
+    apiAvailable: !isFileMode,
+    mode: isFileMode ? "file" : "checking",
+    proxyEnabled: false,
+    backendLabel: isFileMode ? "Local file preview" : "Mate BFF"
   };
-  const promptTracks = [
-    {
-      id: "chatgpt",
-      label: "ChatGPT",
-      icon: "C",
-      toolId: "chatgpt",
-      description: "Versatile prompts for research, writing, and operator work.",
-      headline: "Flexible prompt patterns for everyday knowledge work",
-      bestFor: ["General research", "Planning", "Writing", "Execution support"],
-      formula: ["Role", "Context", "Task", "Constraints", "Output format"],
-      guidance: "Use ChatGPT when you want broad capability, fast iteration, and clean structured outputs across mixed tasks."
-    },
-    {
-      id: "claude",
-      label: "Claude",
-      icon: "CL",
-      toolId: "claude",
-      description: "Structured prompts for calm long-form thinking and editing.",
-      headline: "Long-context prompts for thoughtful writing and document work",
-      bestFor: ["Memo rewriting", "Document synthesis", "Editing", "Strategy drafts"],
-      formula: ["Goal", "Audience", "Source material", "Tone", "Decision-ready summary"],
-      guidance: "Claude works best when the brief is document-heavy and the desired output should feel measured, polished, and calm."
-    },
-    {
-      id: "deepseek",
-      label: "DeepSeek",
-      icon: "DS",
-      toolId: "deepseek",
-      description: "Reasoning-first prompts for analysis and technical problem solving.",
-      headline: "Reasoning-first prompts for technical and analytical work",
-      bestFor: ["Architecture reviews", "Debugging", "Tradeoff analysis", "Step-by-step reasoning"],
-      formula: ["Problem", "Assumptions", "Alternatives", "Evaluation criteria", "Recommended answer"],
-      guidance: "DeepSeek prompts perform best when you explicitly ask for assumptions, alternative paths, edge cases, and a final recommendation."
-    },
-    {
-      id: "midjourney",
-      label: "Midjourney",
-      icon: "MJ",
-      toolId: "midjourney",
-      description: "Visual direction prompts for imagery and concept exploration.",
-      headline: "Visual prompt building for concept art and campaign imagery",
-      bestFor: ["Art direction", "Landing page visuals", "Campaign look-dev", "Moodboards"],
-      formula: ["Subject", "Composition", "Lighting", "Material cues", "Aesthetic references"],
-      guidance: "Midjourney prompts get better when you define composition, material cues, lighting, and the exact mood before adding style references."
-    },
-    {
-      id: "marketing",
-      label: "Marketing",
-      icon: "Mk",
-      toolId: "jasper",
-      description: "Campaign, landing page, and positioning prompt patterns.",
-      headline: "Positioning, copy, and campaign prompts for growth teams",
-      bestFor: ["Positioning", "Landing pages", "ICP work", "Campaign planning"],
-      formula: ["Audience", "Pain", "Offer", "Proof", "CTA"],
-      guidance: "Marketing prompts improve when you define buyer pain, buying trigger, proof, and the exact conversion action you want."
-    },
-    {
-      id: "coding",
-      label: "Coding",
-      icon: "</>",
-      toolId: "githubcopilot",
-      description: "Prompt starters for shipping features, fixing bugs, and planning builds.",
-      headline: "Engineering prompts for planning, debugging, and delivery",
-      bestFor: ["Feature planning", "Bug triage", "Refactoring", "Rollout checklists"],
-      formula: ["Problem statement", "Constraints", "Affected systems", "Test plan", "Risk review"],
-      guidance: "Coding prompts are stronger when you define affected modules, constraints, test expectations, and rollout risks up front."
-    }
-  ];
-  const promptLibrary = [
-    {
-      track: "chatgpt",
-      title: "Competitive research sprint",
-      summary: "Turn scattered research into a buyer-ready brief.",
-      body: "Act as a B2B product strategist. Compare these competitors on ICP, pricing posture, messaging, and differentiation. Return a concise executive brief, a positioning table, and three market gaps we can attack next quarter."
-    },
-    {
-      track: "chatgpt",
-      title: "Operator weekly brief",
-      summary: "Compress meetings, docs, and open loops into one clear brief.",
-      body: "You are my chief of staff. Turn the notes below into a weekly operating brief with: top priorities, blockers, owners, deadlines, and decisions needed from leadership. Keep the tone crisp and businesslike."
-    },
-    {
-      track: "chatgpt",
-      title: "Meeting-to-plan converter",
-      summary: "Turn loose discussion into an execution-ready plan.",
-      body: "Act as an operations lead. Convert the notes below into a plan with goals, workstreams, owner suggestions, deadlines, dependencies, and the next five actions. Flag any missing information before finalizing."
-    },
-    {
-      track: "claude",
-      title: "Memo rewrite",
-      summary: "Rewrite messy drafts into calm, executive-grade writing.",
-      body: "Rewrite this memo for an executive audience. Preserve the meaning, remove repetition, tighten the logic, and improve transitions. Use clear section headings and end with a short decision summary."
-    },
-    {
-      track: "claude",
-      title: "Long document synthesis",
-      summary: "Pull the signal from long reports and strategy docs.",
-      body: "Read the material below and produce: the core thesis, supporting evidence, risks, unresolved questions, and the three most decision-relevant takeaways for a leadership team."
-    },
-    {
-      track: "claude",
-      title: "Policy and tone editor",
-      summary: "Improve clarity without losing nuance or intent.",
-      body: "Edit this policy draft for clarity, consistency, and executive readability. Keep the original intent, remove ambiguity, unify terminology, and end with a short list of sections that still need a human review."
-    },
-    {
-      track: "deepseek",
-      title: "Reasoning walkthrough",
-      summary: "Useful for modeling tradeoffs and technical logic.",
-      body: "Solve this problem step by step. State assumptions, evaluate edge cases, explain the tradeoffs between at least two approaches, and end with the most robust recommendation."
-    },
-    {
-      track: "deepseek",
-      title: "Architecture decision note",
-      summary: "Compare technical paths before implementation starts.",
-      body: "Act as a senior software architect. Compare these options across complexity, scalability, delivery speed, operational risk, and future flexibility. Recommend one approach and explain why."
-    },
-    {
-      track: "deepseek",
-      title: "Debugging hypothesis map",
-      summary: "Build a cleaner debugging flow before you change code.",
-      body: "Act as a principal engineer. Given the bug report, logs, and recent changes, list the most likely root causes in priority order. For each one, explain why it fits the symptoms, how to verify it quickly, and what the smallest safe fix would be."
-    },
-    {
-      track: "deepseek",
-      title: "Tradeoff analysis brief",
-      summary: "Useful when a team must choose between speed and robustness.",
-      body: "Compare these options using delivery time, implementation complexity, performance, maintainability, operational risk, and future flexibility. Show where each option wins, where it loses, and end with the best recommendation for this exact context."
-    },
-    {
-      track: "midjourney",
-      title: "Campaign art direction",
-      summary: "Build more intentional visual prompts for launch work.",
-      body: "Create a premium campaign visual for a modern AI product launch, soft studio light, glass UI reflections, restrained color palette, editorial composition, product-first framing, high detail, art direction quality."
-    },
-    {
-      track: "midjourney",
-      title: "Product hero image",
-      summary: "Sharper prompt base for landing-page visuals.",
-      body: "Minimalist product hero scene, floating interface panels, soft volumetric light, metallic details, white and pale blue palette, Apple-like restraint, ultra-clean composition, premium startup website aesthetic."
-    },
-    {
-      track: "midjourney",
-      title: "Editorial portrait system",
-      summary: "Create a cleaner visual language for campaigns and case studies.",
-      body: "Editorial portrait of a modern technology founder, soft natural light, refined composition, neutral wardrobe, glass-and-aluminum environment, premium magazine styling, subtle depth, restrained luxury, realistic texture."
-    },
-    {
-      track: "marketing",
-      title: "Landing page messaging",
-      summary: "Turn features into cleaner homepage copy.",
-      body: "You are a senior conversion copywriter. Using the product notes below, write a landing page structure with hero headline, subhead, three benefit blocks, proof points, objections, and a CTA that feels premium but clear."
-    },
-    {
-      track: "marketing",
-      title: "Audience ICP builder",
-      summary: "Sharpen positioning before writing campaigns.",
-      body: "Based on this product description, define three high-fit ICPs. For each one, include pains, buying triggers, objections, use cases, and the value proposition angle most likely to convert."
-    },
-    {
-      track: "marketing",
-      title: "Campaign angle generator",
-      summary: "Generate stronger hooks before ad and launch work begins.",
-      body: "Act as a product marketing lead. Based on the product, audience, and current market context, generate five campaign angles. For each one include the core tension, headline direction, proof point, objection to overcome, and the CTA that best fits the angle."
-    },
-    {
-      track: "coding",
-      title: "Feature implementation plan",
-      summary: "Break a request into concrete engineering work.",
-      body: "Act as a staff engineer. Convert this feature request into a practical implementation plan with assumptions, affected modules, API changes, UI changes, migration needs, test plan, and rollout risks."
-    },
-    {
-      track: "coding",
-      title: "Bug triage prompt",
-      summary: "Faster debugging for reproducible issues.",
-      body: "You are debugging a production issue. Given the error, logs, and recent changes, propose the most likely root causes, what to inspect first, and the smallest safe fix path. End with tests to prevent regression."
-    },
-    {
-      track: "coding",
-      title: "Refactor risk review",
-      summary: "Evaluate what can break before touching live modules.",
-      body: "Act as a senior engineer reviewing a refactor proposal. List the modules most at risk, the behaviors that could regress, the tests that should exist first, and a phased rollout plan with rollback checkpoints."
-    }
-  ];
+  let sessionInfo = {
+    authenticated: false,
+    user: null
+  };
+  let chatSessions = {};
+  let authRedirecting = false;
 
-  const promptQuery = new URLSearchParams(window.location.search);
-  const promptTrackIds = new Set(promptTracks.map((track) => track.id));
-
-  const state = {
-    query: "",
-    activeCategory: "All",
-    activePricing: "All",
-    activeRanking: "Assistants",
-    activePromptTrack: promptTrackIds.has(promptQuery.get("track")) ? promptQuery.get("track") : "deepseek",
-    featuredVisibleCounts: {}
+  const painStories = {
+    ielts: {
+      badge: "Exam Writing",
+      title: "Lift essay drafts.",
+      copy: "Structure, grammar, rewrite.",
+      output: "\"Clearer thesis. Tighter opening. Stronger tone.\""
+    },
+    email: {
+      badge: "Business Email",
+      title: "Polish work email.",
+      copy: "Reply, follow up, request.",
+      output: "\"Thanks for your patience. I've attached the revised timeline.\""
+    },
+    grammar: {
+      badge: "Grammar Coach",
+      title: "Fix grammar fast.",
+      copy: "Rule, example, drill.",
+      output: "\"Use 'is' here. 'Information' is singular.\""
+    },
+    upgrade: {
+      badge: "Expression Upgrade",
+      title: "Upgrade your tone.",
+      copy: "Academic, concise, polished.",
+      output: "\"I believe this approach offers clear practical value.\""
+    }
   };
 
-  const promptGuideCards = [
-    {
-      title: "State the role",
-      body: "Tell the model who it should act as. Senior architect, conversion copywriter, analyst, or editor is better than a vague ask."
+  const chatScenarios = {
+    essay: {
+      title: "Essay rewrite",
+      route: "POST /api/chat",
+      engine: "Mate BFF -> DeepTutor Chat",
+      goal: "Rewrite with stronger structure",
+      suggestions: ["Improve thesis", "Fix grammar", "Upgrade vocabulary"],
+      placeholder: "Paste your IELTS / TOEFL / SAT paragraph or essay introduction here...",
+      starters: [
+        "Please grade this IELTS Task 2 introduction and give me a Band 7.5 rewrite.",
+        "Tighten the logic in my SAT argumentative paragraph and show where the evidence feels weak.",
+        "Turn this broad thesis into a clearer academic position with stronger topic vocabulary."
+      ],
+      deliverables: [
+        {
+          title: "Diagnosis",
+          text: "Structure, thesis, grammar."
+        },
+        {
+          title: "Rewrite",
+          text: "Cleaner paragraph."
+        },
+        {
+          title: "Upgrade",
+          text: "Sharper wording."
+        }
+      ],
+      stats: [
+        { value: "Band +1.5", label: "target lift" },
+        { value: "3", label: "revision passes" },
+        { value: "1", label: "clearer thesis" }
+      ],
+      thread: [
+        {
+          role: "user",
+          content: "Please review my IELTS essay introduction. I want it to sound more academic and direct."
+        },
+        {
+          role: "assistant",
+          content: [
+            "Your opening idea is relevant, but the thesis is still too broad for a high-scoring response.",
+            "Try this rewrite: 'While public transport investment is costly, it remains one of the most effective ways to reduce congestion and improve urban sustainability.'",
+            "Why this works: the sentence is more specific, the contrast is cleaner, and the tone sounds more confident."
+          ]
+        }
+      ]
     },
-    {
-      title: "Add context",
-      body: "Include audience, business goal, constraints, and what inputs the model should use. Better prompts start with better context."
+    email: {
+      title: "Email polish",
+      route: "POST /api/chat",
+      engine: "Mate BFF -> DeepTutor Chat",
+      goal: "Rewrite for a clean client send",
+      suggestions: ["Soften tone", "Add clear next steps", "Sound more professional"],
+      placeholder: "Paste the business email, Slack update, or client message you want to improve...",
+      starters: [
+        "Rewrite this delayed project update so it sounds professional and calm, not defensive.",
+        "Turn this direct request into a polite client email with a clear next step.",
+        "Generate a reusable meeting follow-up template I can adapt after every client call."
+      ],
+      deliverables: [
+        {
+          title: "Rewrite",
+          text: "Clean email draft."
+        },
+        {
+          title: "Tone",
+          text: "Soft, direct, concise."
+        },
+        {
+          title: "Template",
+          text: "Save and reuse."
+        }
+      ],
+      stats: [
+        { value: "2", label: "tone variants" },
+        { value: "1", label: "clear CTA" },
+        { value: "Zero", label: "translation feel" }
+      ],
+      thread: [
+        {
+          role: "user",
+          content: "Can you rewrite this email so it sounds professional but not too cold? We need to push the deadline by three days."
+        },
+        {
+          role: "assistant",
+          content: [
+            "Here is a polished draft:",
+            "'Thank you for your patience. To ensure the final deliverable meets the agreed quality standard, we need a short extension of three business days.'",
+            "I also added a reassuring next-step sentence so the client feels informed rather than surprised."
+          ]
+        }
+      ]
     },
-    {
-      title: "Define the output",
-      body: "Specify format, sections, length, and decision criteria. This is the fastest way to reduce generic answers."
+    grammar: {
+      title: "Grammar fix",
+      route: "POST /api/chat",
+      engine: "Mate BFF -> DeepTutor Chat",
+      goal: "Fix repeat grammar mistakes",
+      suggestions: ["Explain simply", "Show two examples", "Create mini practice"],
+      placeholder: "Paste the sentence, paragraph, or grammar question you want Mate to explain...",
+      starters: [
+        "Explain why this sentence is wrong, then show two corrected examples I can copy.",
+        "Point out every article and tense mistake in this paragraph and tell me the pattern behind them.",
+        "Turn my most common grammar error into a mini drill with three short questions."
+      ],
+      deliverables: [
+        {
+          title: "Rule",
+          text: "Short explanation."
+        },
+        {
+          title: "Pattern",
+          text: "Spot repeat errors."
+        },
+        {
+          title: "Drill",
+          text: "Quick follow-up."
+        }
+      ],
+      stats: [
+        { value: "2", label: "error patterns" },
+        { value: "3", label: "practice items" },
+        { value: "1", label: "clear rule" }
+      ],
+      thread: [
+        {
+          role: "user",
+          content: "Why is 'the information are useful' wrong? Please explain it like a teacher."
+        },
+        {
+          role: "assistant",
+          content: [
+            "'Information' is an uncountable noun in English, so it takes a singular verb.",
+            "Correct version: 'The information is useful.'",
+            "You can compare it with 'advice' and 'furniture', which also use singular verbs."
+          ]
+        }
+      ]
     },
-    {
-      title: "Request tradeoffs",
-      body: "For reasoning models, ask for alternatives, edge cases, and final recommendations instead of one straight answer."
-    },
-    {
-      title: "Paste source material",
-      body: "The strongest prompt libraries still depend on strong input. Add logs, notes, drafts, screenshots, specs, or product facts whenever possible."
-    },
-    {
-      title: "Define failure cases",
-      body: "Tell the model what to avoid such as generic copy, unsupported claims, missing citations, or skipping edge cases."
+    upgrade: {
+      title: "Tone upgrade",
+      route: "POST /api/chat",
+      engine: "Mate BFF -> DeepTutor Chat",
+      goal: "Make the sentence sound stronger",
+      suggestions: ["Academic tone", "More concise", "More persuasive"],
+      placeholder: "Paste the sentence you want to make more advanced, natural, or persuasive...",
+      starters: [
+        "Upgrade this sentence so it sounds more academic but still natural.",
+        "Give me three stronger versions of this simple English sentence with different tones.",
+        "Turn this plain idea into a sharper workplace sentence and a stronger essay sentence."
+      ],
+      deliverables: [
+        {
+          title: "Rewrite",
+          text: "Stronger wording."
+        },
+        {
+          title: "Tone",
+          text: "Academic, business, concise."
+        },
+        {
+          title: "Pattern",
+          text: "Reuse the phrasing."
+        }
+      ],
+      stats: [
+        { value: "3", label: "tone options" },
+        { value: "1", label: "stronger rhythm" },
+        { value: "Less", label: "basic wording" }
+      ],
+      thread: [
+        {
+          role: "user",
+          content: "Can you upgrade this sentence: 'Many students feel stress because exams are hard.'"
+        },
+        {
+          role: "assistant",
+          content: [
+            "Stronger version: 'Many students experience significant stress because high-stakes exams place sustained pressure on their academic performance.'",
+            "This version is more precise, more formal, and uses stronger academic phrasing."
+          ]
+        }
+      ]
     }
-  ];
-  const assetPrefix = document.body?.dataset?.assetPrefix || "";
-
-  function loadIconManifest() {
-    try {
-      const request = new XMLHttpRequest();
-      request.open("GET", `${assetPrefix}assets/tool-icons/manifest.json`, false);
-      request.send();
-      if (request.status >= 200 && request.status < 300) {
-        return JSON.parse(request.responseText);
-      }
-    } catch (error) {
-      return {};
-    }
-    return {};
-  }
-
-  const iconManifest = loadIconManifest();
-
-  function manifestEntry(tool) {
-    return iconManifest[tool.id] || null;
-  }
-
-  function localIconPath(filename) {
-    return `${assetPrefix}assets/tool-icons/${filename}`;
-  }
-
-  function primaryIconPath(tool) {
-    const entry = manifestEntry(tool);
-    if (entry && entry.file && entry.content_type !== "text/html") {
-      return localIconPath(entry.file);
-    }
-    return localIconPath(`${tool.id}.png`);
-  }
-
-  function escapeJsString(value) {
-    return String(value).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-  }
-
-  function iconFallbackSources(tool) {
-    const entry = manifestEntry(tool);
-    const sources = [];
-    if (entry && entry.fallback) {
-      sources.push(localIconPath(entry.fallback));
-    }
-    sources.push(localIconPath(`${tool.id}.ico`));
-    sources.push(localIconPath(`${tool.id}.svg`));
-    sources.push(fallbackIcon(tool));
-    return sources.filter((source, index) => source && !sources.slice(0, index).includes(source) && source !== primaryIconPath(tool));
-  }
-
-  function iconOnErrorHandler(tool) {
-    return iconFallbackSources(tool).reduceRight(
-      (script, source) => `this.onerror=function(){${script}};this.src='${escapeJsString(source)}';`,
-      "this.onerror=null;"
-    );
-  }
-
-  const tools = [...catalog.tools]
-    .map((tool) => ({
-      ...tool,
-      iconUrl: primaryIconPath(tool)
-    }))
-    .sort((left, right) => right.monthlyVisits - left.monthlyVisits);
-
-  const categories = ["All", ...new Set(tools.flatMap((tool) => tool.categories))];
-  const pricingOptions = ["All", ...new Set(tools.map((tool) => tool.pricing))];
-  const categoryCounts = tools.reduce((accumulator, tool) => {
-    tool.categories.forEach((category) => {
-      accumulator.set(category, (accumulator.get(category) || 0) + 1);
-    });
-    return accumulator;
-  }, new Map());
-  const rankingCategories = preferredRankingOrder.filter((category) => categoryCounts.has(category)).slice(0, 8);
-
-  const ui = {
-    sidebarNav: document.getElementById("sidebar-nav"),
-    searchInput: document.getElementById("search-input"),
-    searchButton: document.getElementById("search-button"),
-    hotFilters: document.getElementById("hot-filters"),
-    hotGrid: document.getElementById("hot-grid"),
-    todayList: document.getElementById("today-list"),
-    editorList: document.getElementById("editor-list"),
-    stackList: document.getElementById("stack-list"),
-    rankTabs: document.getElementById("rank-tabs"),
-    rankGrid: document.getElementById("rank-grid"),
-    categoryWall: document.getElementById("category-wall"),
-    laneWall: document.getElementById("lane-wall"),
-    usecaseWall: document.getElementById("usecase-wall"),
-    deepRankingWall: document.getElementById("deep-ranking-wall"),
-    newList: document.getElementById("new-list"),
-    promptTabs: document.getElementById("prompt-tabs"),
-    promptNavFlyout: document.getElementById("prompt-nav-flyout"),
-    promptHeroIntro: document.getElementById("prompt-hero-intro"),
-    promptFeatureGrid: document.getElementById("prompt-feature-grid"),
-    promptLibraryGrid: document.getElementById("prompt-library-grid"),
-    promptGuideGrid: document.getElementById("prompt-guide-grid"),
-    categoryFilters: document.getElementById("category-filters"),
-    pricingFilters: document.getElementById("pricing-filters"),
-    directoryGrid: document.getElementById("directory-grid"),
-    resultsCount: document.getElementById("results-count"),
-    heroToolsCopy: document.getElementById("hero-tools-copy"),
-    heroCategoryCopy: document.getElementById("hero-category-copy"),
-    resetFilters: document.getElementById("reset-filters")
   };
 
-  function detailUrl(tool) {
-    return `tools/${encodeURIComponent(tool.id)}.html`;
-  }
-
-  function fallbackIcon(tool) {
-    const label = encodeURIComponent((tool.logoLetter || tool.name.charAt(0) || "A").toUpperCase());
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
-        <defs>
-          <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-            <stop stop-color="#fb923c" offset="0%"/>
-            <stop stop-color="#16335f" offset="100%"/>
-          </linearGradient>
-        </defs>
-        <rect width="96" height="96" rx="28" fill="url(#g)"/>
-        <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-size="44" font-family="Arial, sans-serif" font-weight="700" fill="white">${label}</text>
-      </svg>
-    `;
-    return `data:image/svg+xml;utf8,${svg.replace(/\n+/g, "").replace(/#/g, "%23").replace(/"/g, "'")}`;
-  }
-
-  function iconImage(tool) {
-    return `<img src="${tool.iconUrl}" alt="${tool.name} icon" loading="lazy" onerror="${iconOnErrorHandler(tool)}">`;
-  }
-
-  function promptTrackTool(track) {
-    if (!track || !track.toolId) {
-      return null;
+  const kbSamples = [
+    {
+      id: "rubric",
+      name: "IELTS Writing Band Descriptors.pdf",
+      type: "Scoring rubric",
+      status: "Indexed and ready",
+      summary: "Official scoring criteria for task response, coherence, lexical resource, and grammar.",
+      sourceText: "Band 7 and above responses maintain a clear position, strong cohesion, varied vocabulary, and a high level of grammatical control.",
+      tags: ["exam", "ielts", "rubric", "starter"]
+    },
+    {
+      id: "emails",
+      name: "Business Email Tone Guide.docx",
+      type: "Style guide",
+      status: "Synced to KB",
+      summary: "Approved phrasing patterns for client updates, scheduling, escalation, and follow-up emails.",
+      sourceText: "Use a calm opener, state the update directly, explain the reason briefly, and end with a clear next step or request.",
+      tags: ["business", "email", "tone", "starter"]
+    },
+    {
+      id: "essay-bank",
+      name: "Top Essays Collection.docx",
+      type: "Reference essays",
+      status: "Chunked into examples",
+      summary: "High-quality introductions, body paragraphs, and conclusion structures for common writing prompts.",
+      sourceText: "Strong essays define the position early, develop one main idea per paragraph, and connect examples back to the thesis.",
+      tags: ["essay", "writing", "examples", "starter"]
     }
-    return tools.find((tool) => tool.id === track.toolId) || null;
-  }
+  ];
 
-  function promptTrackGlyph(track) {
-    if (!track) {
-      return "";
+  const kbCards = [
+    {
+      title: "Rubrics",
+      meta: "Band guides and score notes."
+    },
+    {
+      title: "Drafts",
+      meta: "Corrected essays and samples."
+    },
+    {
+      title: "Email Guides",
+      meta: "Tone and template files."
+    },
+    {
+      title: "Class Notes",
+      meta: "Rules, phrases, reminders."
     }
+  ];
 
-    if (track.id === "marketing") {
-      return `
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M5 13.5V10.5"></path>
-          <path d="M9 16V8"></path>
-          <path d="M13 14.5V9.5"></path>
-          <path d="M17 12.5V11.5"></path>
-          <path d="M4 19L20 5"></path>
-        </svg>
-      `;
+  const quizModes = {
+    solve: {
+      eyebrow: "Deep Solve",
+      title: "Break the prompt before you write.",
+      prompt: "Analyze this SAT Writing prompt. Show the central claim, two weaknesses in my draft, and a stronger thesis statement.",
+      outputTitle: "Model reasoning path",
+      route: "POST /api/deep-solve",
+      actionLabel: "Run Deep Solve",
+      blocks: [
+        {
+          heading: "Prompt diagnosis",
+          text: "The draft has a clear topic, but it does not define a specific position or show how the examples connect back to the thesis."
+        },
+        {
+          heading: "Step-by-step improvement",
+          text: "1. Narrow the claim. 2. State the relationship between cause and effect. 3. Use one example per paragraph with explicit explanation."
+        },
+        {
+          heading: "Stronger thesis",
+          text: "Although technology can distract students, its educational value is substantial when schools guide its use with clear academic goals."
+        }
+      ],
+      scores: [
+        { value: "3", label: "logic gaps found" },
+        { value: "2", label: "rewrite options" },
+        { value: "1", label: "clearer thesis" }
+      ]
+    },
+    quiz: {
+      eyebrow: "Quiz Builder",
+      title: "Build practice from real mistakes.",
+      prompt: "Create 5 grammar questions focused on article usage and subject-verb agreement for an upper-intermediate learner.",
+      outputTitle: "Generated practice set",
+      route: "POST /api/quiz",
+      actionLabel: "Generate quiz set",
+      blocks: [
+        {
+          heading: "Question mix",
+          text: "5 items generated: 2 article corrections, 2 agreement checks, and 1 combined sentence rewrite task."
+        },
+        {
+          heading: "Difficulty control",
+          text: "The set uses business and campus examples so the practice feels realistic instead of textbook-only."
+        },
+        {
+          heading: "Feedback design",
+          text: "Every answer key includes a short explanation, a corrected sentence, and one extension example."
+        }
+      ],
+      scores: [
+        { value: "5", label: "questions created" },
+        { value: "2", label: "grammar targets" },
+        { value: "100%", label: "explanation coverage" }
+      ]
     }
+  };
 
-    if (track.id === "coding") {
-      return `
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M9 7L4.5 12L9 17"></path>
-          <path d="M15 7L19.5 12L15 17"></path>
-          <path d="M13 5L11 19"></path>
-        </svg>
-      `;
+  const quizPresets = {
+    "ielts-band": {
+      mode: "solve",
+      label: "IELTS Band Lift",
+      prompt: "Analyze this IELTS Task 2 prompt. Show the strongest position, two logic gaps in my draft, and a Band 7.5 thesis plus topic sentence plan.",
+      helper: "Logic, structure, thesis.",
+      difficulty: "upper-intermediate",
+      count: "5",
+      focus: ["Clarify the thesis before rewriting", "Tighten paragraph logic and evidence links", "Turn weak ideas into score-ready topic sentences"]
+    },
+    "sat-logic": {
+      mode: "solve",
+      label: "SAT Logic Repair",
+      prompt: "Break down this SAT writing response. Identify unsupported claims, show where evidence feels thin, and propose a stronger argumentative outline.",
+      helper: "Claim, evidence, reasoning.",
+      difficulty: "advanced",
+      count: "5",
+      focus: ["Separate claim from evidence", "Repair unsupported reasoning", "Produce a cleaner outline before drafting"]
+    },
+    "grammar-drill": {
+      mode: "quiz",
+      label: "Grammar Drill",
+      prompt: "Create 8 targeted grammar questions focused on articles, tense consistency, and subject-verb agreement for a learner who makes repeated editing mistakes.",
+      helper: "Repeat one weak grammar pattern.",
+      difficulty: "intermediate",
+      count: "8",
+      focus: ["Repeat one weak grammar pattern several times", "Mix correction and explanation style questions", "Keep examples close to real student writing"]
+    },
+    "email-template": {
+      mode: "quiz",
+      label: "Email Practice",
+      prompt: "Generate 5 business writing practice tasks for apology emails, timeline updates, follow-ups, and polite requests with short answer keys.",
+      helper: "Drills for work email.",
+      difficulty: "upper-intermediate",
+      count: "5",
+      focus: ["Practice calm professional tone", "Generate reusable email openings and closings", "Reinforce clarity and next-step language"]
     }
+  };
 
-    return `<span class="prompt-track-monogram">${track.icon}</span>`;
-  }
+  let currentChatScenario = "essay";
+  let currentQuizMode = "solve";
+  let currentQuizPreset = "ielts-band";
+  let currentKbFilter = "all";
 
-  function promptTrackIcon(track, className) {
-    const classes = ["prompt-track-icon", className].filter(Boolean).join(" ");
-    const tool = promptTrackTool(track);
-
-    if (tool) {
-      return `
-        <span class="${classes}" aria-hidden="true">
-          <img src="${tool.iconUrl}" alt="" loading="lazy" onerror="${iconOnErrorHandler(tool)}">
-        </span>
-      `;
-    }
-
-    return `<span class="${classes} is-glyph" aria-hidden="true">${promptTrackGlyph(track)}</span>`;
-  }
-
-  function promptTrackDestination(track) {
-    const tool = promptTrackTool(track);
-    return tool ? detailUrl(tool) : promptTrackHref(track.id);
-  }
-
-  function promptTrackAnchor(track, options) {
-    const settings = options || {};
-    const isActive = settings.useActiveClass === false ? false : track.id === state.activePromptTrack;
-    const classes = [settings.className, isActive ? "is-active" : ""].filter(Boolean).join(" ");
-    const iconClass = settings.iconClassName || "";
-    const labelClass = settings.labelClassName ? ` class="${settings.labelClassName}"` : "";
-    const href = settings.href || promptTrackHref(track.id);
-
-    return `
-      <a class="${classes}" href="${href}" ${settings.dataAttribute || ""}>
-        ${promptTrackIcon(track, iconClass)}
-        <span${labelClass}>${track.label}</span>
-      </a>
-    `;
-  }
-
-  function renderPromptNavFlyout() {
-    if (!ui.promptNavFlyout) {
-      return;
-    }
-
-    ui.promptNavFlyout.innerHTML = promptTracks
-      .map((track) => `
-        <a class="nav-flyout-link" href="${promptTrackHref(track.id)}">
-          ${promptTrackIcon(track, "nav-flyout-icon")}
-          <span class="nav-flyout-label">${track.label} Prompts</span>
-        </a>
-      `)
-      .join("");
-  }
-
-  function promptKeywordAccent(text, trackId) {
-    if (!text) {
-      return "";
-    }
-
-    const escapedText = escapeAttribute(text);
-    const keywordMap = {
-      chatgpt: ["ChatGPT", "research", "writing", "operator"],
-      claude: ["Claude", "long-context", "writing", "document"],
-      deepseek: ["DeepSeek", "Reasoning-first", "technical", "analysis", "assumptions", "alternative", "recommendation"],
-      midjourney: ["Midjourney", "Visual", "imagery", "concept", "lighting", "mood"],
-      marketing: ["Marketing", "campaign", "positioning", "copy", "growth", "CTA"],
-      coding: ["Coding", "Engineering", "debugging", "delivery", "test", "risk"]
-    };
-    const fallbackTrack = promptTrackMeta(trackId);
-    const keywords = keywordMap[trackId] || [fallbackTrack.label];
-
-    function accentOne(source, keyword) {
-      if (!keyword) {
-        return source;
-      }
-
-      const needle = keyword.toLowerCase();
-      const haystack = source.toLowerCase();
-      let cursor = 0;
-      let result = "";
-      let index = haystack.indexOf(needle, cursor);
-
-      while (index !== -1) {
-        result += source.slice(cursor, index);
-        result += `<span class="prompt-keyword-accent">${source.slice(index, index + keyword.length)}</span>`;
-        cursor = index + keyword.length;
-        index = haystack.indexOf(needle, cursor);
-      }
-
-      result += source.slice(cursor);
-      return result;
-    }
-
-    return keywords.reduce((result, keyword) => accentOne(result, keyword), escapedText);
-  }
-
-  function formatVisits(visitCount) {
-    if (visitCount >= 1000000000) {
-      return `${(visitCount / 1000000000).toFixed(1)}B`;
-    }
-    if (visitCount >= 1000000) {
-      return `${(visitCount / 1000000).toFixed(1)}M`;
-    }
-    return `${visitCount}`;
-  }
-
-  function slugify(value) {
-    return value.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-  }
-
-  function escapeAttribute(value) {
+  function escapeHtml(value) {
     return String(value)
       .replace(/&/g, "&amp;")
-      .replace(/"/g, "&quot;")
       .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
-  function shortenText(value, maxLength) {
-    if (!value || value.length <= maxLength) {
-      return value;
+  function truncate(value, maxLength) {
+    const text = String(value || "");
+    if (text.length <= maxLength) {
+      return text;
     }
-    return `${value.slice(0, maxLength - 1).trim()}...`;
+
+    return `${text.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
   }
 
-  function tooltipText(tool) {
-    return `${tool.name}: ${tool.summary} ${tool.recommendation}`;
-  }
-
-  function sidebarIcon(category) {
-    return sidebarIconMap[category] || sidebarIconMap.All;
-  }
-
-  function iconShell(tool, className) {
-    const tooltip = escapeAttribute(tooltipText(tool));
-    const extraClass = className ? ` ${className}` : "";
-    return `
-      <span class="tool-icon-wrap${extraClass}" data-tip="${tooltip}">
-        <span class="tool-icon-shell">
-          ${iconImage(tool)}
-        </span>
-      </span>
-    `;
-  }
-
-  function filteredTools() {
-    const query = state.query.trim().toLowerCase();
-    return tools.filter((tool) => {
-      const haystack = [
-        tool.name,
-        tool.vendor,
-        tool.summary,
-        tool.recommendation,
-        ...tool.categories,
-        ...tool.audience
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      const categoryMatches = state.activeCategory === "All" || tool.categories.includes(state.activeCategory);
-      const pricingMatches = state.activePricing === "All" || tool.pricing === state.activePricing;
-      const queryMatches = !query || haystack.includes(query);
-      return categoryMatches && pricingMatches && queryMatches;
-    });
-  }
-
-  function pickTools(ids) {
-    return ids
-      .map((id) => tools.find((tool) => tool.id === id))
-      .filter(Boolean);
-  }
-
-  function promptTrackMeta(trackId) {
-    return promptTracks.find((track) => track.id === trackId) || promptTracks[0];
-  }
-
-  function promptTrackHref(trackId) {
-    return `${assetPrefix}prompt-library.html?track=${encodeURIComponent(trackId)}`;
-  }
-
-  function topToolsByCategory(category, limit) {
-    return tools
-      .filter((tool) => tool.categories.includes(category))
-      .slice(0, limit);
-  }
-
-  function getFeaturedVisibleCount(key) {
-    return state.featuredVisibleCounts[key] || 20;
-  }
-
-  function increaseFeaturedVisibleCount(key) {
-    state.featuredVisibleCounts[key] = getFeaturedVisibleCount(key) + 20;
-  }
-
-  function toolCard(tool, options) {
-    const settings = options || {};
-    const classes = ["unified-tool-card", settings.className].filter(Boolean).join(" ");
-    const rankBadge = settings.rank ? `<span class="tool-rank-badge">${settings.rank}</span>` : "";
-    const metaBadge = settings.meta ? `<span class="tool-badge tool-corner-badge">${shortenText(settings.meta, 12)}</span>` : "";
-    const idAttr = settings.id ? ` id="${settings.id}"` : "";
-    const fullSummary = settings.summary || tool.summary;
-    const summary = shortenText(settings.summary || tool.summary, settings.summaryLength || 112);
-
-    return `
-      <a class="${classes}" href="${detailUrl(tool)}"${idAttr}>
-        ${rankBadge}
-        ${metaBadge}
-        <span class="tool-card-head">
-          ${iconShell(tool)}
-          <span class="tool-text">
-            <span class="tool-title-line">
-              <h3>${tool.name}</h3>
-            </span>
-            <span class="tool-subtitle">${tool.vendor}</span>
-          </span>
-        </span>
-        <span class="tool-summary" data-tip="${escapeAttribute(fullSummary)}">
-          <span class="tool-summary-text">${summary}</span>
-        </span>
-      </a>
-    `;
-  }
-
-  function renderSidebar() {
-    if (!ui.sidebarNav) {
-      return;
-    }
-    ui.sidebarNav.innerHTML = categories
-      .map((category) => `
-        <button class="sidebar-link ${state.activeCategory === category ? "is-active" : ""}" data-category="${category}" type="button">
-          <span class="sidebar-glyph" data-sidebar-tone="${category}" aria-hidden="true">${sidebarIcon(category)}</span>
-          <span>${category}</span>
-        </button>
-      `)
-      .join("");
-
-    ui.sidebarNav.querySelectorAll("[data-category]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.activeCategory = button.dataset.category;
-        renderAll();
-        document.getElementById("hot-tools").scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    });
-  }
-
-  function renderHeroMetrics() {
-    if (ui.heroToolsCopy) {
-      ui.heroToolsCopy.textContent = String(tools.length);
-    }
-    if (ui.heroCategoryCopy) {
-      ui.heroCategoryCopy.textContent = String(categories.length - 1);
+  function setText(id, value) {
+    const node = document.getElementById(id);
+    if (node) {
+      node.textContent = value;
     }
   }
 
-  function renderHotFilters() {
-    if (!ui.hotFilters) {
-      return;
+  function setHtml(id, value) {
+    const node = document.getElementById(id);
+    if (node) {
+      node.innerHTML = value;
     }
-    ui.hotFilters.innerHTML = categories
-      .map((category) => `<button class="filter-pill ${state.activeCategory === category ? "is-active" : ""}" type="button" data-hot-category="${category}">${category}</button>`)
-      .join("");
-
-    ui.hotFilters.querySelectorAll("[data-hot-category]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.activeCategory = button.dataset.hotCategory;
-        renderAll();
-      });
-    });
   }
 
-  function renderHotGrid() {
-    if (!ui.hotGrid) {
-      return;
+  function setValue(id, value) {
+    const node = document.getElementById(id);
+    if (node && "value" in node) {
+      node.value = value;
     }
-    const items = filteredTools().slice(0, 8);
-    if (!items.length) {
-      ui.hotGrid.innerHTML = `
-        <div class="empty-state">
-          <p class="kicker">No matches</p>
-          <h3>Try a broader search or clear the current category.</h3>
-        </div>
-      `;
+  }
+
+  function setSelectValue(id, value) {
+    const node = document.getElementById(id);
+    if (!node || !("value" in node)) {
       return;
     }
 
-    ui.hotGrid.innerHTML = items
-      .map((tool) =>
-        toolCard(tool, {
-          className: "tool-tile",
-          meta: tool.pricing === "Free" ? "Free" : formatVisits(tool.monthlyVisits),
-          summary: tool.summary,
-          summaryLength: 104
-        })
-      )
-      .join("");
+    const stringValue = String(value || "");
+    const hasOption = Array.from(node.options || []).some((option) => option.value === stringValue);
+    if (hasOption) {
+      node.value = stringValue;
+    }
   }
 
-  function miniTool(tool, note) {
-    return toolCard(tool, {
-      className: "mini-item",
-      summary: note,
-      summaryLength: 108
-    });
+  function normalizeUserGoalLabel(value) {
+    const raw = String(value || "").trim();
+    if (!raw) {
+      return "English learning plan";
+    }
+
+    const normalized = raw.toLowerCase();
+
+    if (normalized.includes("ielts") || normalized.includes("toefl") || normalized.includes("sat")) {
+      return "Exam writing plan";
+    }
+
+    if (normalized.includes("business") || normalized.includes("email")) {
+      return "Professional writing plan";
+    }
+
+    if (normalized.includes("grammar")) {
+      return "Grammar improvement plan";
+    }
+
+    if (normalized.includes("daily") || normalized.includes("expression") || /[^\x00-\x7F]/.test(raw)) {
+      return "Expression upgrade plan";
+    }
+
+    return truncate(raw, 32);
   }
 
-  function toolChip(tool, roleText) {
-    const note = roleText || tool.summary;
-    return `
-      <a class="stack-tool-chip" href="${detailUrl(tool)}">
-        <span class="stack-tool-chip-head">
-          ${iconShell(tool, "is-compact-chip")}
-          <span class="stack-tool-chip-text">
-            <strong>${tool.name}</strong>
-            <span>${tool.vendor}</span>
-          </span>
-        </span>
-        <span class="stack-tool-chip-note tool-summary" data-tip="${escapeAttribute(note)}">
-          <span class="tool-summary-text">${note}</span>
-        </span>
-      </a>
-    `;
+  function setBadge(node, text, tone) {
+    if (!node) {
+      return;
+    }
+
+    node.textContent = text;
+    node.classList.remove("is-live", "is-demo", "is-file");
+
+    if (tone) {
+      node.classList.add(tone);
+    }
   }
 
-  function operatorFlowCard(flow) {
-    const flowTools = pickTools(flow.toolIds);
-    return `
-      <article class="stack-flow-card">
-        <div class="stack-flow-head">
-          <p class="kicker">Workflow Chain</p>
-          <h4>${flow.title}</h4>
-          <p>${flow.description}</p>
-        </div>
-        <div class="stack-flow-steps">
-          ${flowTools
-            .map(
-              (tool, index) => `
-                <div class="stack-flow-step">
-                  <span class="stack-flow-step-index">${index + 1}</span>
-                  ${toolChip(tool, flow.stepNotes?.[index])}
-                </div>
-              `
-            )
-            .join("")}
-        </div>
-      </article>
-    `;
+  function getCurrentPagePath() {
+    const pathname = window.location.pathname || "";
+    return pathname.split("/").pop() || "index.html";
   }
 
-  function featuredBoardMarkup(items, options) {
-    const settings = options || {};
-    const key = settings.key;
-    const visibleCount = Math.min(items.length, getFeaturedVisibleCount(key));
-    const detailedItems = items.slice(0, Math.min(20, items.length));
-    const compactItems = items.slice(20, visibleCount);
+  function getNextPath() {
+    const params = new URLSearchParams(window.location.search);
+    const next = String(params.get("next") || "").trim();
 
-    const detailedMarkup = detailedItems.length
-      ? `
-        <div class="featured-card-grid">
-          ${detailedItems
-            .map((tool, index) =>
-              toolCard(tool, {
-                className: "tool-tile feature-tool-tile",
-                meta: settings.meta ? settings.meta(tool, index, false) : "",
-                summary: settings.summary ? settings.summary(tool, index, false) : tool.summary,
-                summaryLength: settings.summaryLength || 110
-              })
-            )
-            .join("")}
-        </div>
-      `
+    if (!next || next.startsWith("http") || next.startsWith("//")) {
+      return "";
+    }
+
+    return next;
+  }
+
+  function buildLoginPath() {
+    return `index.html?next=${encodeURIComponent(getCurrentPagePath())}`;
+  }
+
+  function pageRequiresAuth() {
+    return pageName === "chat" || pageName === "kb" || pageName === "quiz";
+  }
+
+  function getChatSessionStorageKey() {
+    return sessionInfo.authenticated && sessionInfo.user
+      ? `mate.chat.sessions.${sessionInfo.user.id}`
       : "";
-
-    const compactMarkup = compactItems.length
-      ? `
-        <div class="featured-card-grid featured-card-grid-compact">
-          ${compactItems
-            .map((tool, index) =>
-              toolCard(tool, {
-                className: "tool-tile feature-tool-tile is-compact",
-                meta: settings.meta ? settings.meta(tool, index + 20, true) : "",
-                summary: settings.summary ? settings.summary(tool, index + 20, true) : tool.summary,
-                summaryLength: settings.compactSummaryLength || 82
-              })
-            )
-            .join("")}
-        </div>
-      `
-      : "";
-
-    const moreMarkup = visibleCount < items.length
-      ? `
-        <div class="load-more-row">
-          <button class="load-more-button" type="button" data-featured-more="${key}">More +</button>
-        </div>
-      `
-      : "";
-
-    return `${detailedMarkup}${compactMarkup}${moreMarkup}`;
   }
 
-  function renderTodayBoards() {
-    const todayHotTools = tools.filter((tool) => tool.monthlyVisits >= 30000000);
+  function loadChatSessions() {
+    chatSessions = {};
 
-    if (ui.todayList) {
-      ui.todayList.innerHTML = featuredBoardMarkup(todayHotTools, {
-        key: "today",
-        meta: (tool) => tool.pricing === "Free" ? "Free" : formatVisits(tool.monthlyVisits),
-        summary: (tool, index, isCompact) => isCompact ? tool.summary : `${tool.trafficLabel} | ${tool.categories.join(" | ")}`,
-        summaryLength: 116,
-        compactSummaryLength: 84
-      });
-    }
-
-    const editorTools = pickTools(editorPickIds);
-
-    if (ui.editorList) {
-      ui.editorList.innerHTML = featuredBoardMarkup(editorTools, {
-        key: "editor",
-        meta: () => "Editor",
-        summary: (tool, index, isCompact) => isCompact ? tool.summary : tool.recommendation,
-        summaryLength: 116,
-        compactSummaryLength: 84
-      });
-    }
-
-    if (ui.stackList) {
-      ui.stackList.innerHTML = operatorStackFlows.map((flow) => operatorFlowCard(flow)).join("");
-    }
-
-    const newest = pickTools(newAndNotableIds);
-
-    if (ui.newList) {
-      ui.newList.innerHTML = featuredBoardMarkup(newest, {
-        key: "new",
-        meta: () => "New",
-        summary: (tool, index, isCompact) => isCompact ? tool.summary : tool.recommendation,
-        summaryLength: 116,
-        compactSummaryLength: 84
-      });
-    }
-  }
-
-  function renderRankTabs() {
-    if (!ui.rankTabs) {
+    const storageKey = getChatSessionStorageKey();
+    if (!storageKey || !window.sessionStorage) {
       return;
     }
-    ui.rankTabs.innerHTML = rankingCategories
-      .map((category) => `<button class="rank-pill ${state.activeRanking === category ? "is-active" : ""}" type="button" data-rank-category="${category}">${category} TOP 10</button>`)
-      .join("");
 
-    ui.rankTabs.querySelectorAll("[data-rank-category]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.activeRanking = button.dataset.rankCategory;
-        renderRankTabs();
-        renderRankGrid();
-      });
-    });
-  }
-
-  function renderRankGrid() {
-    if (!ui.rankGrid) {
-      return;
-    }
-    const leaders = topToolsByCategory(state.activeRanking, 10);
-    ui.rankGrid.innerHTML = leaders
-      .map((tool, index) =>
-        toolCard(tool, {
-          className: "rank-item",
-          summary: tool.recommendation,
-          summaryLength: 104
-        })
-      )
-      .join("");
-  }
-
-  function renderCategoryWall() {
-    if (!ui.categoryWall) {
-      return;
-    }
-    const spotlightCategories = preferredRankingOrder.filter((category) => categories.includes(category)).slice(0, 6);
-    ui.categoryWall.innerHTML = spotlightCategories
-      .map((category) => {
-        const leaders = topToolsByCategory(category, 4);
-        return `
-          <article class="category-card">
-            <div class="section-header compact-header">
-              <div>
-                <p class="kicker">Category</p>
-                <h3>${category}</h3>
-              </div>
-            </div>
-            <div class="category-mini-grid">
-              ${leaders
-                .map((tool) =>
-                  toolCard(tool, {
-                    className: "tool-tile",
-                    summary: tool.summary,
-                    summaryLength: 92
-                  })
-                )
-                .join("")}
-            </div>
-          </article>
-        `;
-      })
-      .join("");
-  }
-
-  function renderLaneWall() {
-    if (!ui.laneWall) {
-      return;
-    }
-    const lanes = ["Writing", "Design", "Video", "Coding"].filter((lane) => categories.includes(lane));
-    ui.laneWall.innerHTML = lanes
-      .map((lane) => {
-        const leaders = topToolsByCategory(lane, 4);
-        return `
-          <article class="lane-card">
-            <div class="section-header compact-header">
-              <div>
-                <p class="kicker">Lane</p>
-                <h3>${lane}</h3>
-              </div>
-            </div>
-            <div class="lane-list">
-              ${leaders
-                .map(
-                  (tool, index) => `
-                    ${toolCard(tool, {
-                      className: "lane-item",
-                      summary: tool.recommendation,
-                      summaryLength: 116
-                    })}
-                  `
-                )
-                .join("")}
-            </div>
-          </article>
-        `;
-      })
-      .join("");
-  }
-
-  function renderUseCaseWall() {
-    if (!ui.usecaseWall) {
-      return;
-    }
-    const boards = [
-      {
-        title: "For founders",
-        description: "Research, decks, writing, and quick operator leverage.",
-        tools: ["chatgpt", "perplexity", "gamma", "notion"]
-      },
-      {
-        title: "For creators",
-        description: "Visuals, narration, presentation, and short-form production.",
-        tools: ["midjourney", "heygen", "elevenlabs", "gamma"]
-      },
-      {
-        title: "For builders",
-        description: "AI-native coding, prototyping, and model-routing for modern product teams.",
-        tools: ["cursor", "lovable", "openrouter", "replit"]
-      },
-      {
-        title: "For global teams",
-        description: "Translation, multilingual delivery, and cleaner cross-border communication.",
-        tools: ["deepl", "elevenlabs", "synthesia", "claude"]
+    try {
+      const raw = window.sessionStorage.getItem(storageKey);
+      const parsed = raw ? JSON.parse(raw) : {};
+      if (parsed && typeof parsed === "object") {
+        chatSessions = parsed;
       }
-    ];
-
-    ui.usecaseWall.innerHTML = boards
-      .map((board) => {
-        const boardTools = board.tools
-          .map((id) => tools.find((tool) => tool.id === id))
-          .filter(Boolean);
-        return `
-          <article class="usecase-card">
-            <p class="kicker">Use case</p>
-            <h3>${board.title}</h3>
-            <p>${board.description}</p>
-            <div class="usecase-tools">
-              ${boardTools
-                .map(
-                  (tool) => `
-                    ${toolCard(tool, {
-                      className: "usecase-tool",
-                      summary: tool.recommendation,
-                      summaryLength: 88
-                    })}
-                  `
-                )
-                .join("")}
-            </div>
-          </article>
-        `;
-      })
-      .join("");
+    } catch (error) {
+      chatSessions = {};
+    }
   }
 
-  function deepRankingBlock(category) {
-    const leaders = topToolsByCategory(category, 4);
-    return `
-      <article class="deep-ranking-card">
-        <div class="section-header compact-header">
-          <div>
-            <p class="kicker">Top tools</p>
-            <h3>${category}</h3>
-          </div>
-        </div>
-        <div class="deep-ranking-list">
-          ${leaders
-            .map(
-              (tool, index) => `
-                ${toolCard(tool, {
-                  className: "deep-ranking-item",
-                  summary: tool.summary,
-                  summaryLength: 116
-                })}
-              `
-            )
-            .join("")}
-        </div>
-      </article>
-    `;
-  }
-
-  function renderDeepRankings() {
-    if (!ui.deepRankingWall) {
+  function persistChatSessions() {
+    const storageKey = getChatSessionStorageKey();
+    if (!storageKey || !window.sessionStorage) {
       return;
     }
-    const groups = rankingCategories.slice(0, 4);
-    ui.deepRankingWall.innerHTML = groups.map((group) => deepRankingBlock(group)).join("");
-  }
 
-  function renderNewList() {}
-
-  function renderPromptLibrary() {
-    if (!ui.promptTabs || !ui.promptFeatureGrid || !ui.promptLibraryGrid) {
+    if (!Object.keys(chatSessions).length) {
+      window.sessionStorage.removeItem(storageKey);
       return;
     }
-    ui.promptTabs.innerHTML = promptTracks
-      .map((track) => promptTrackAnchor(track, {
-        className: "prompt-pill",
-        iconClassName: "prompt-pill-icon",
-        labelClassName: "prompt-pill-label",
-        dataAttribute: `data-prompt-track="${track.id}"`
-      }))
-      .join("");
 
-    ui.promptTabs.querySelectorAll("[data-prompt-track]").forEach((button) => {
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        state.activePromptTrack = button.dataset.promptTrack;
-        if (window.history && window.history.replaceState) {
-          window.history.replaceState({}, "", promptTrackHref(state.activePromptTrack));
-        }
-        renderPromptLibrary();
+    window.sessionStorage.setItem(storageKey, JSON.stringify(chatSessions));
+  }
+
+  function clearChatSessionsForCurrentUser() {
+    const storageKey = getChatSessionStorageKey();
+    chatSessions = {};
+
+    if (storageKey && window.sessionStorage) {
+      window.sessionStorage.removeItem(storageKey);
+    }
+  }
+
+  function setFormStatus(node, text, tone) {
+    if (!node) {
+      return;
+    }
+
+    setBadge(node, text, tone);
+  }
+
+  function handleUnauthorized() {
+    sessionInfo = {
+      authenticated: false,
+      user: null
+    };
+    renderAccountShell();
+    syncAuthPageState();
+
+    if (!isFileMode && runtimeInfo.apiAvailable && pageRequiresAuth() && !authRedirecting) {
+      authRedirecting = true;
+      window.location.href = buildLoginPath();
+    }
+  }
+
+  async function restoreSession() {
+    if (isFileMode || !runtimeInfo.apiAvailable) {
+      sessionInfo = {
+        authenticated: false,
+        user: null
+      };
+      return sessionInfo;
+    }
+
+    try {
+      const response = await fetch("/api/auth/session", {
+        headers: {
+          Accept: "application/json"
+        },
+        credentials: "same-origin"
       });
-    });
 
-    const activeTrack = promptTrackMeta(state.activePromptTrack);
-    const prompts = promptLibrary.filter((item) => item.track === state.activePromptTrack);
+      if (!response.ok) {
+        throw new Error("Session restore failed");
+      }
 
-    if (ui.promptHeroIntro) {
-      ui.promptHeroIntro.innerHTML = `
-        <div>
-          <p class="kicker">Prompt Track</p>
-          <h1>${promptKeywordAccent(`${activeTrack.label} Prompt Guide`, activeTrack.id)}</h1>
-          <p class="prompt-hero-summary">${promptKeywordAccent(activeTrack.headline, activeTrack.id)}</p>
-          <div class="prompt-hero-links">
-            ${promptTracks
-              .map((track) => promptTrackAnchor(track, {
-                className: "prompt-mini-link",
-                iconClassName: "prompt-mini-link-icon",
-                labelClassName: "prompt-mini-link-label"
-              }))
-              .join("")}
-          </div>
-          <p class="prompt-hero-note">Best when you want ${promptKeywordAccent(activeTrack.bestFor.slice(0, 2).join(" and ").toLowerCase(), activeTrack.id)} with cleaner structure and less generic output.</p>
+      const payload = await response.json();
+      sessionInfo = {
+        authenticated: Boolean(payload.authenticated && payload.user),
+        user: payload.user || null
+      };
+      loadChatSessions();
+    } catch (error) {
+      sessionInfo = {
+        authenticated: false,
+        user: null
+      };
+    }
+
+    return sessionInfo;
+  }
+
+  function renderAccountShell() {
+    const shell = document.getElementById("account-shell");
+    if (!shell) {
+      return;
+    }
+
+    if (sessionInfo.authenticated && sessionInfo.user) {
+      shell.innerHTML = `
+        <div class="account-pill">
+          <span class="account-avatar">${escapeHtml(sessionInfo.user.initials || "M")}</span>
+          <span class="account-copy">
+            <strong>${escapeHtml(sessionInfo.user.name)}</strong>
+            <span>Workspace account</span>
+          </span>
         </div>
-        <div class="prompt-hero-meta">
-          <div class="prompt-hero-card">
-            <span>Best for</span>
-            <strong>${promptKeywordAccent(activeTrack.bestFor.join(" / "), activeTrack.id)}</strong>
-          </div>
-          <div class="prompt-hero-card">
-            <span>Prompt formula</span>
-            <strong>${promptKeywordAccent(activeTrack.formula.join(" -> "), activeTrack.id)}</strong>
-          </div>
-          <div class="prompt-hero-card">
-            <span>How to use it</span>
-            <strong>${promptKeywordAccent(activeTrack.guidance, activeTrack.id)}</strong>
-          </div>
-        </div>
+        <button class="secondary-button account-logout" type="button" id="header-logout-button">Log out</button>
       `;
+
+      const logoutButton = document.getElementById("header-logout-button");
+      if (logoutButton) {
+        logoutButton.addEventListener("click", handleLogout);
+      }
+      return;
     }
 
-    ui.promptFeatureGrid.innerHTML = `
-      <article class="prompt-feature-card">
-        <p class="kicker">Model focus</p>
-        <h3>${promptKeywordAccent(activeTrack.label, activeTrack.id)}</h3>
-        <p>${promptKeywordAccent(activeTrack.description, activeTrack.id)}</p>
-      </article>
-      <article class="prompt-feature-card">
-        <p class="kicker">How to prompt</p>
-        <h3>${promptKeywordAccent("Ask with structure", activeTrack.id)}</h3>
-        <p>${promptKeywordAccent(activeTrack.guidance, activeTrack.id)}</p>
-      </article>
-      <article class="prompt-feature-card">
-        <p class="kicker">Core formula</p>
-        <h3>${promptKeywordAccent(`${activeTrack.formula[0]} to ${activeTrack.formula[activeTrack.formula.length - 1]}`, activeTrack.id)}</h3>
-        <p>${promptKeywordAccent(activeTrack.formula.join(", "), activeTrack.id)}</p>
-      </article>
-      <article class="prompt-feature-card">
-        <p class="kicker">Prompt pack</p>
-        <h3>${prompts.length} ready prompts</h3>
-        <p>Use these as starter templates, then add your real context, source material, and target output format.</p>
-      </article>
-    `;
+    shell.innerHTML = `<span class="status-chip ${runtimeInfo.apiAvailable ? "is-file" : "is-demo"}">Signed out</span>`;
+  }
 
-    ui.promptLibraryGrid.innerHTML = prompts
-      .map(
-        (item) => `
-          <article class="prompt-card">
-            <div class="prompt-card-head">
-              <a class="prompt-track-chip" href="${promptTrackDestination(activeTrack)}">
-                ${promptTrackIcon(activeTrack, "prompt-track-chip-icon")}
-                <span>${activeTrack.label}</span>
-              </a>
-              <button class="link-button prompt-copy-button" type="button" data-copy-prompt="${escapeAttribute(item.body)}">Copy</button>
-            </div>
-            <h3>${promptKeywordAccent(item.title, activeTrack.id)}</h3>
-            <p class="prompt-card-summary">${promptKeywordAccent(item.summary, activeTrack.id)}</p>
-            <p class="prompt-card-body">${promptKeywordAccent(item.body, activeTrack.id)}</p>
-          </article>
-        `
-      )
-      .join("");
+  function syncAuthPageState() {
+    const toggle = document.getElementById("auth-toggle");
+    const forms = Array.from(document.querySelectorAll("[data-auth-form]"));
+    const summaryCard = document.getElementById("auth-session-card");
+    const continueLink = document.getElementById("auth-continue-link");
+    const summaryName = document.getElementById("auth-session-name");
+    const summaryEmail = document.getElementById("auth-session-email");
+    const summaryGoal = document.getElementById("auth-session-goal");
+    const summaryKb = document.getElementById("auth-session-kb");
+    const signoutButton = document.getElementById("auth-session-signout");
+    const nextPath = getNextPath() || "chat.html";
 
-    ui.promptLibraryGrid.querySelectorAll("[data-copy-prompt]").forEach((button) => {
-      button.addEventListener("click", async () => {
-        const promptText = button.dataset.copyPrompt || "";
-        try {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(promptText);
-            button.textContent = "Copied";
-          } else {
-            button.textContent = "Select";
-          }
-        } catch (error) {
-          button.textContent = "Select";
+    if (!summaryCard) {
+      return;
+    }
+
+    if (sessionInfo.authenticated && sessionInfo.user) {
+      if (toggle) {
+        toggle.classList.add("is-hidden");
+      }
+
+      forms.forEach((form) => form.classList.add("is-hidden"));
+      summaryCard.classList.remove("is-hidden");
+
+      setText("auth-session-name", sessionInfo.user.name);
+      setText("auth-session-email", sessionInfo.user.email);
+      setText("auth-session-goal", normalizeUserGoalLabel(sessionInfo.user.goal));
+      setText("auth-session-kb", sessionInfo.user.preferredKbName || "mate-english");
+
+      if (continueLink) {
+        continueLink.setAttribute("href", nextPath);
+      }
+
+      if (signoutButton) {
+        signoutButton.onclick = handleLogout;
+      }
+
+      return;
+    }
+
+    if (toggle) {
+      toggle.classList.remove("is-hidden");
+    }
+
+    const activeMode = document.querySelector("[data-auth-mode].is-active");
+    const activeKey = activeMode ? activeMode.getAttribute("data-auth-mode") : "signin";
+
+    forms.forEach((form) => {
+      const isTarget = form.getAttribute("data-auth-form") === activeKey;
+      form.classList.toggle("is-hidden", !isTarget);
+    });
+
+    summaryCard.classList.add("is-hidden");
+
+    if (summaryName) {
+      summaryName.textContent = "";
+    }
+    if (summaryEmail) {
+      summaryEmail.textContent = "";
+    }
+    if (summaryGoal) {
+      summaryGoal.textContent = "";
+    }
+    if (summaryKb) {
+      summaryKb.textContent = "";
+    }
+  }
+
+  async function submitAuthRequest(path, body, statusNode, successLabel) {
+    if (isFileMode || !runtimeInfo.apiAvailable) {
+      setFormStatus(statusNode, "Open Mate through the local Node server to use auth", "is-demo");
+      return null;
+    }
+
+    setFormStatus(statusNode, "Saving account", "is-file");
+
+    try {
+      const response = await fetch(path, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        },
+        credentials: "same-origin",
+        body: JSON.stringify(body)
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Authentication failed");
+      }
+
+      sessionInfo = {
+        authenticated: Boolean(payload.authenticated && payload.user),
+        user: payload.user || null
+      };
+      loadChatSessions();
+      renderAccountShell();
+      syncAuthPageState();
+      setFormStatus(statusNode, successLabel, "is-live");
+      window.location.href = getNextPath() || "chat.html";
+      return payload;
+    } catch (error) {
+      setFormStatus(statusNode, error.message || "Authentication failed", "is-demo");
+      return null;
+    }
+  }
+
+  async function handleLogout() {
+    const previousStorageKey = getChatSessionStorageKey();
+
+    if (!isFileMode && runtimeInfo.apiAvailable) {
+      try {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: {
+            Accept: "application/json"
+          },
+          credentials: "same-origin"
+        });
+      } catch (error) {
+        // Ignore logout transport failures and clear the local state anyway.
+      }
+    }
+
+    if (previousStorageKey && window.sessionStorage) {
+      window.sessionStorage.removeItem(previousStorageKey);
+    }
+
+    sessionInfo = {
+      authenticated: false,
+      user: null
+    };
+    chatSessions = {};
+    renderAccountShell();
+    syncAuthPageState();
+
+    if (pageName === "auth") {
+      setFormStatus(document.getElementById("signin-status"), "Signed out", "is-file");
+      setFormStatus(document.getElementById("signup-status"), "Signed out", "is-file");
+      return;
+    }
+
+    window.location.href = "index.html";
+  }
+
+  async function bootstrapRuntime() {
+    if (isFileMode) {
+      runtimeInfo = {
+        apiAvailable: false,
+        mode: "file",
+        proxyEnabled: false,
+        backendLabel: "Local file preview"
+      };
+      return runtimeInfo;
+    }
+
+    try {
+      const response = await fetch("/api/health", {
+        headers: {
+          Accept: "application/json"
         }
-        window.setTimeout(() => {
-          button.textContent = "Copy";
-        }, 1200);
       });
-    });
 
-    if (ui.promptGuideGrid) {
-      ui.promptGuideGrid.innerHTML = promptGuideCards
-        .map(
-          (card) => `
-            <article class="prompt-guide-card">
-              <h3>${card.title}</h3>
-              <p>${card.body}</p>
-            </article>
-          `
-        )
-        .join("");
+      if (!response.ok) {
+        throw new Error("BFF health check failed");
+      }
+
+      const payload = await response.json();
+      runtimeInfo = {
+        apiAvailable: true,
+        mode: payload.mode || "mock",
+        proxyEnabled: Boolean(payload.proxyEnabled),
+        backendLabel: payload.backendLabel || "Mate BFF"
+      };
+    } catch (error) {
+      runtimeInfo = {
+        apiAvailable: false,
+        mode: "demo",
+        proxyEnabled: false,
+        backendLabel: "Mate UI fallback"
+      };
     }
+
+    return runtimeInfo;
   }
 
-  function buildDirectoryPill(label, currentValue, key) {
-    const className = key === "category" ? "directory-pill" : "directory-pill";
-    return `<button class="${className} ${currentValue === label ? "is-active" : ""}" type="button" data-${key}="${label}">${label}</button>`;
+  async function requestJson(path, options, fallbackFactory) {
+    const requestOptions = Object.assign(
+      {
+        method: "GET",
+        credentials: "same-origin",
+        headers: {}
+      },
+      options || {}
+    );
+
+    if (!isFileMode && runtimeInfo.apiAvailable) {
+      try {
+        const response = await fetch(path, requestOptions);
+
+        if (response.status === 401) {
+          handleUnauthorized();
+          return fallbackFactory();
+        }
+
+        if (!response.ok) {
+          throw new Error("Request failed");
+        }
+
+        return await response.json();
+      } catch (error) {
+        runtimeInfo.apiAvailable = false;
+        runtimeInfo.mode = "demo";
+      }
+    }
+
+    return fallbackFactory();
   }
 
-  function renderDirectoryFilters() {
-    if (!ui.categoryFilters || !ui.pricingFilters) {
-      return;
+  async function requestJsonStrict(path, options) {
+    if (isFileMode || !runtimeInfo.apiAvailable) {
+      throw new Error("Mate BFF is not available in file preview mode.");
     }
-    ui.categoryFilters.innerHTML = categories
-      .map((category) => buildDirectoryPill(category, state.activeCategory, "category"))
-      .join("");
 
-    ui.pricingFilters.innerHTML = pricingOptions
-      .map((pricing) => buildDirectoryPill(pricing, state.activePricing, "pricing"))
-      .join("");
+    const requestOptions = Object.assign(
+      {
+        method: "GET",
+        credentials: "same-origin",
+        headers: {}
+      },
+      options || {}
+    );
 
-    ui.categoryFilters.querySelectorAll("[data-category]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.activeCategory = button.dataset.category;
-        renderAll();
+    const response = await fetch(path, requestOptions);
+
+    if (response.status === 401) {
+      handleUnauthorized();
+      throw new Error("Authentication required.");
+    }
+
+    let payload = {};
+    const responseText = await response.text();
+    if (responseText) {
+      try {
+        payload = JSON.parse(responseText);
+      } catch (error) {
+        payload = {
+          error: responseText
+        };
+      }
+    }
+
+    if (!response.ok) {
+      throw new Error(payload.error || "Request failed");
+    }
+
+    return payload;
+  }
+
+  async function uploadFilesWithProgress(path, files, onProgress) {
+    if (isFileMode || !runtimeInfo.apiAvailable) {
+      throw new Error("Mate BFF is not available in file preview mode.");
+    }
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const formData = new FormData();
+
+      files.forEach((file) => {
+        formData.append("files", file, file.name);
       });
-    });
 
-    ui.pricingFilters.querySelectorAll("[data-pricing]").forEach((button) => {
-      button.addEventListener("click", () => {
-        state.activePricing = button.dataset.pricing;
-        renderAll();
-      });
-    });
-  }
+      xhr.open("POST", path, true);
+      xhr.withCredentials = true;
 
-  function renderDirectory() {
-    if (!ui.directoryGrid || !ui.resultsCount) {
-      return;
-    }
-    const items = filteredTools();
-    ui.resultsCount.textContent = `${items.length} filtered tools`;
-
-    if (!items.length) {
-      ui.directoryGrid.innerHTML = `
-        <div class="empty-state">
-          <p class="kicker">No matches</p>
-          <h3>Nothing matches your current search and filter combination.</h3>
-        </div>
-      `;
-      return;
-    }
-
-    ui.directoryGrid.innerHTML = items
-      .map((tool) =>
-        toolCard(tool, {
-          className: "directory-item",
-          id: slugify(tool.name),
-          meta: tool.pricing,
-          summary: tool.recommendation,
-          summaryLength: 102
-        })
-      )
-      .join("");
-  }
-
-  function bindSidebarWheelScroll() {
-    if (!ui.sidebarNav) {
-      return;
-    }
-
-    ui.sidebarNav.addEventListener(
-      "wheel",
-      (event) => {
-        const maxScroll = ui.sidebarNav.scrollHeight - ui.sidebarNav.clientHeight;
-        if (maxScroll <= 0) {
+      xhr.upload.addEventListener("progress", function (event) {
+        if (typeof onProgress !== "function") {
           return;
         }
 
-        ui.sidebarNav.scrollTop += event.deltaY;
-        event.preventDefault();
-      },
-      { passive: false }
-    );
+        if (event.lengthComputable) {
+          const ratio = event.total ? event.loaded / event.total : 0;
+          onProgress({
+            loaded: event.loaded,
+            total: event.total,
+            percent: Math.min(100, Math.round(ratio * 100))
+          });
+          return;
+        }
+
+        onProgress({
+          loaded: event.loaded,
+          total: 0,
+          percent: 0
+        });
+      });
+
+      xhr.addEventListener("load", function () {
+        if (xhr.status === 401) {
+          handleUnauthorized();
+          reject(new Error("Authentication required."));
+          return;
+        }
+
+        let payload = {};
+
+        if (xhr.responseText) {
+          try {
+            payload = JSON.parse(xhr.responseText);
+          } catch (error) {
+            payload = {
+              error: xhr.responseText
+            };
+          }
+        }
+
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(payload);
+          return;
+        }
+
+        reject(new Error(payload.error || "Upload failed"));
+      });
+
+      xhr.addEventListener("error", function () {
+        reject(new Error("Upload failed"));
+      });
+
+      xhr.send(formData);
+    });
   }
 
-  const TOOLTIP_VIEWPORT_MARGIN = 12;
-  const TOOLTIP_BUBBLE_GAP = 10;
-  const TOOLTIP_ARROW_EDGE_PADDING = 14;
-  const TOOLTIP_BOUNDARY_PADDING = 10;
-  let tooltipMeasure = null;
+  function buildChatFallback(message, scenarioKey) {
+    const normalized = message.toLowerCase();
+    const scenario = chatScenarios[scenarioKey] || chatScenarios.essay;
+    const suggestions = scenario.suggestions.slice(0, 3);
+    let assistantLines;
 
-  function ensureTooltipMeasure() {
-    if (tooltipMeasure && document.body.contains(tooltipMeasure)) {
-      return tooltipMeasure;
+    if (normalized.includes("email") || scenarioKey === "email") {
+      assistantLines = [
+        "Here is a cleaner business version with a calmer tone and a clearer next step.",
+        "Suggested rewrite: 'Thank you for your patience. I would like to share a brief update and propose a revised delivery date that keeps the project quality on track.'",
+        "You can also ask Mate to make this more polite, more concise, or more persuasive."
+      ];
+    } else if (normalized.includes("grammar") || normalized.includes("tense") || scenarioKey === "grammar") {
+      assistantLines = [
+        "I would explain the rule first, then show a corrected sentence and one extra example.",
+        "This helps the learner understand the error instead of memorizing a one-off fix.",
+        "Next step: convert the explanation into a short practice drill for repetition."
+      ];
+    } else if (normalized.includes("upgrade") || normalized.includes("better") || scenarioKey === "upgrade") {
+      assistantLines = [
+        "I would keep your meaning but raise the tone, precision, and sentence flow.",
+        "A stronger version can sound more academic, more concise, or more natural depending on the writing goal.",
+        "Ask for two alternatives if you want to compare direct business English with polished exam English."
+      ];
+    } else {
+      assistantLines = [
+        "I would first tighten the thesis so the essay has a clear position from the opening line.",
+        "Then I would fix grammar friction, upgrade topic vocabulary, and make the logic more explicit between sentences.",
+        "If you want, the next pass can turn this into a score-oriented rewrite with paragraph-by-paragraph feedback."
+      ];
     }
 
-    tooltipMeasure = document.createElement("span");
-    tooltipMeasure.className = "tool-summary tool-summary-measure";
-    document.body.appendChild(tooltipMeasure);
-    return tooltipMeasure;
-  }
-
-  function tooltipBoundaryRect(summary) {
-      const scopedBoundary = summary.closest(".mini-item, .tool-tile, .rank-item, .directory-item, .lane-item, .usecase-tool, .deep-ranking-item, .stack-card, .stack-tool-chip");
-    const panelBoundary = summary.closest(".feature-panel, .section-card");
-    const boundary = scopedBoundary || panelBoundary;
-    return boundary ? boundary.getBoundingClientRect() : null;
-  }
-
-  function tooltipMaxWidth(summary) {
-    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
-    const boundaryRect = tooltipBoundaryRect(summary);
-    const viewportMax = Math.max(0, Math.min(300, viewportWidth * 0.7));
-
-    if (!boundaryRect) {
-      return viewportMax;
-    }
-
-    const boundaryMax = Math.max(
-      0,
-      Math.min(
-        viewportMax,
-        boundaryRect.width - TOOLTIP_BOUNDARY_PADDING * 2
-      )
-    );
-
-    return boundaryMax || viewportMax;
-  }
-
-  function measureTooltip(summary, maxWidth) {
-    const measure = ensureTooltipMeasure();
-
-    measure.textContent = summary.dataset.tip || "";
-    measure.style.maxWidth = `${maxWidth}px`;
-
-    const rect = measure.getBoundingClientRect();
     return {
-      width: Math.ceil(rect.width),
-      height: Math.ceil(rect.height)
+      mode: "demo",
+      backendLabel: "Mate UI fallback",
+      routeLabel: "POST /api/chat",
+      engineLabel: "Demo coach response",
+      suggestions: suggestions,
+      assistantLines: assistantLines
     };
   }
 
-  function applyTooltipDirection(summary) {
-    if (!summary || !summary.dataset.tip) {
-      return;
-    }
+  function buildKnowledgeCards(query, documents) {
+    const normalized = query.trim().toLowerCase();
+    const documentCards = (documents || []).map((document) => ({
+      title: `${document.type}: ${document.name}`,
+      meta: `${document.summary || "Saved in Mate knowledge base."}${getDocumentTags(document).length ? ` Tags: ${getDocumentTags(document).join(", ")}` : ""}`
+    }));
 
-    const rect = summary.getBoundingClientRect();
-    const maxWidth = tooltipMaxWidth(summary);
-    const tooltipRect = measureTooltip(summary, maxWidth);
-    const boundaryRect = tooltipBoundaryRect(summary);
-    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
-
-    const spaceAbove = rect.top - TOOLTIP_BUBBLE_GAP - TOOLTIP_VIEWPORT_MARGIN;
-    const spaceBelow = viewportHeight - rect.bottom - TOOLTIP_BUBBLE_GAP - TOOLTIP_VIEWPORT_MARGIN;
-    const fitsAbove = spaceAbove >= tooltipRect.height;
-    const fitsBelow = spaceBelow >= tooltipRect.height;
-
-    let direction = "up";
-    if (!fitsAbove && fitsBelow) {
-      direction = "down";
-    } else if (!fitsBelow && fitsAbove) {
-      direction = "up";
-    } else if (!fitsAbove && !fitsBelow) {
-      direction = spaceBelow > spaceAbove ? "down" : "up";
-    } else {
-      direction = spaceBelow > spaceAbove ? "down" : "up";
-    }
-
-    const minBoundaryLeft = boundaryRect ? boundaryRect.left + TOOLTIP_BOUNDARY_PADDING : TOOLTIP_VIEWPORT_MARGIN;
-    const maxBoundaryRight = boundaryRect ? boundaryRect.right - TOOLTIP_BOUNDARY_PADDING : viewportWidth - TOOLTIP_VIEWPORT_MARGIN;
-    const minLeft = Math.max(TOOLTIP_VIEWPORT_MARGIN, minBoundaryLeft);
-    const maxLeft = Math.max(
-      minLeft,
-      Math.min(
-        viewportWidth - TOOLTIP_VIEWPORT_MARGIN - tooltipRect.width,
-        maxBoundaryRight - tooltipRect.width
-      )
-    );
-    const desiredLeft = Math.min(Math.max(rect.left, minLeft), maxLeft);
-    const offsetX = desiredLeft - rect.left;
-
-    let horizontal = "center";
-    if (offsetX > 1) {
-      horizontal = "right";
-    } else if (offsetX < -1) {
-      horizontal = "left";
-    }
-
-    const anchorX = rect.width / 2 - offsetX;
-    const arrowLeft = Math.min(
-      Math.max(anchorX, TOOLTIP_ARROW_EDGE_PADDING),
-      Math.max(TOOLTIP_ARROW_EDGE_PADDING, tooltipRect.width - TOOLTIP_ARROW_EDGE_PADDING)
-    );
-
-    summary.dataset.tipDirection = direction;
-    summary.dataset.tipShift = horizontal;
-    summary.style.setProperty("--tip-max-width", `${Math.round(maxWidth)}px`);
-    summary.style.setProperty("--tip-offset-x", `${Math.round(offsetX)}px`);
-    summary.style.setProperty("--tip-arrow-left", `${Math.round(arrowLeft)}px`);
-  }
-
-  function refreshTooltipDirections() {
-    document.querySelectorAll(".tool-summary[data-tip]").forEach((summary) => {
-      applyTooltipDirection(summary);
+    return kbCards.concat(documentCards).filter((card) => {
+      if (!normalized) {
+        return true;
+      }
+      return `${card.title} ${card.meta}`.toLowerCase().includes(normalized);
     });
   }
 
-  function bindNavFlyouts() {
-    const navItems = Array.from(document.querySelectorAll(".nav-item-with-panel"));
-    if (!navItems.length) {
+  function formatBytes(size) {
+    const numericSize = Number(size || 0);
+
+    if (numericSize >= 1024 * 1024) {
+      return `${(numericSize / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    if (numericSize >= 1024) {
+      return `${Math.max(1, Math.round(numericSize / 1024))} KB`;
+    }
+
+    return `${numericSize} B`;
+  }
+
+  function buildUploadedFileFallbackDocuments(files) {
+    return files.map((file, index) => ({
+      id: `demo-upload-${Date.now()}-${index}`,
+      name: file.name,
+      type: "Uploaded file",
+      summary: `Uploaded from your device. ${formatBytes(file.size)} ready for indexing.`,
+      status: "Saved in UI preview",
+      fileSize: file.size,
+      tags: ["file", "upload"],
+      sourceOrigin: "personal",
+      editable: false
+    }));
+  }
+
+  function getDocumentTags(document) {
+    return Array.isArray(document.tags) ? document.tags.slice(0, 6) : [];
+  }
+
+  function buildFilterLabel(filterKey) {
+    const labels = {
+      all: "All docs",
+      personal: "My uploads",
+      starter: "Starter docs",
+      files: "Files",
+      notes: "Notes"
+    };
+
+    return labels[filterKey] || "All docs";
+  }
+
+  function isFileDocument(document) {
+    return Boolean(document.storagePath || document.fileSize || document.mimeType);
+  }
+
+  function isNoteDocument(document) {
+    const normalizedType = String(document.type || "").toLowerCase();
+    return normalizedType.includes("note") || normalizedType.includes("guide") || !isFileDocument(document);
+  }
+
+  function matchesKbFilter(document, filterKey) {
+    if (filterKey === "personal") {
+      return document.sourceOrigin === "personal";
+    }
+
+    if (filterKey === "starter") {
+      return document.sourceOrigin === "starter";
+    }
+
+    if (filterKey === "files") {
+      return isFileDocument(document);
+    }
+
+    if (filterKey === "notes") {
+      return isNoteDocument(document);
+    }
+
+    return true;
+  }
+
+  function getDocumentGroupMeta(groupKey) {
+    const map = {
+      personal: {
+        title: "Your workspace",
+        meta: "Private uploads, notes, and files tied to your Mate account."
+      },
+      starter: {
+        title: "Starter library",
+        meta: "Shared seed documents that help the first session feel useful immediately."
+      },
+      deeptutor: {
+        title: "DeepTutor sync",
+        meta: "Knowledge bases currently visible from the upstream DeepTutor layer."
+      },
+      other: {
+        title: "Other documents",
+        meta: "Additional knowledge sources connected to this workspace."
+      }
+    };
+
+    return map[groupKey] || map.other;
+  }
+
+  function groupKnowledgeDocuments(documents) {
+    const order = ["personal", "starter", "deeptutor", "other"];
+    const groups = new Map();
+
+    documents.forEach((document) => {
+      const groupKey = ["personal", "starter", "deeptutor"].includes(document.sourceOrigin)
+        ? document.sourceOrigin
+        : "other";
+
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, []);
+      }
+
+      groups.get(groupKey).push(document);
+    });
+
+    return order
+      .filter((groupKey) => groups.has(groupKey))
+      .map((groupKey) => ({
+        key: groupKey,
+        meta: getDocumentGroupMeta(groupKey),
+        documents: groups.get(groupKey)
+      }));
+  }
+
+  function buildQuizFallback(modeKey, payload) {
+    const mode = quizModes[modeKey];
+    const requestedCount = Math.max(1, Number((payload && payload.count) || 5));
+    const requestedDifficulty = String((payload && payload.difficulty) || "upper-intermediate");
+    const requestedTopic = String((payload && (payload.topic || payload.prompt)) || mode.prompt);
+
+    if (modeKey === "quiz") {
+      return {
+        mode: "demo",
+        backendLabel: "Mate UI fallback",
+        routeLabel: mode.route,
+        outputTitle: mode.outputTitle,
+        blocks: [
+          {
+            heading: "Question mix",
+            text: `${requestedCount} items requested for ${truncate(requestedTopic, 76)}. Mate would blend correction, rewrite, and explanation-style questions.`
+          },
+          {
+            heading: "Difficulty control",
+            text: `The practice set is tuned for a ${requestedDifficulty} learner and stays close to exam, classroom, or business writing pain points.`
+          },
+          {
+            heading: "Feedback design",
+            text: "Each answer key should include a short explanation, a corrected version, and one transfer example learners can reuse."
+          }
+        ],
+        scores: [
+          { value: String(requestedCount), label: "questions requested" },
+          { value: requestedDifficulty, label: "difficulty" },
+          { value: "Mixed", label: "question type" }
+        ]
+      };
+    }
+
+    return {
+      mode: "demo",
+      backendLabel: "Mate UI fallback",
+      routeLabel: mode.route,
+      outputTitle: mode.outputTitle,
+      blocks: [
+        {
+          heading: "Prompt diagnosis",
+          text: requestedTopic
+            ? `Mate would first clarify the writing task in: ${truncate(requestedTopic, 110)}`
+            : mode.blocks[0].text
+        },
+        mode.blocks[1],
+        mode.blocks[2]
+      ],
+      scores: mode.scores
+    };
+  }
+
+  function createMessageMarkup(role, content) {
+    const body = Array.isArray(content)
+      ? `<ul>${content.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>`
+      : `<p>${escapeHtml(content)}</p>`;
+
+    return `
+      <article class="message ${role}">
+        <span class="message-role">${role === "user" ? "Learner" : "Mate"}</span>
+        ${body}
+      </article>
+    `;
+  }
+
+  function buildScoreCardsMarkup(scores) {
+    const items = Array.isArray(scores) ? scores : [];
+
+    if (!items.length) {
+      return `
+        <article class="score-card">
+          <strong>0</strong>
+          <span>No metrics yet</span>
+        </article>
+      `;
+    }
+
+    return items.map((score) => `
+      <article class="score-card">
+        <strong>${escapeHtml(score.value)}</strong>
+        <span>${escapeHtml(score.label)}</span>
+      </article>
+    `).join("");
+  }
+
+  function renderChatStarters(items) {
+    const starters = Array.isArray(items) ? items : [];
+    setHtml(
+      "chat-starter-list",
+      starters.map((item) => `
+        <button class="starter-button" type="button" data-chat-starter="${escapeHtml(item)}">
+          ${escapeHtml(item)}
+        </button>
+      `).join("")
+    );
+  }
+
+  function renderDeliverables(items) {
+    const deliverables = Array.isArray(items) ? items : [];
+    setHtml(
+      "chat-deliverables",
+      deliverables.map((item) => `
+        <article class="deliverable-card">
+          <strong>${escapeHtml(item.title)}</strong>
+          <p>${escapeHtml(item.text)}</p>
+        </article>
+      `).join("")
+    );
+  }
+
+  function renderScoreCards(targetId, scores) {
+    setHtml(targetId, buildScoreCardsMarkup(scores));
+  }
+
+  function renderAnalysisList(targetId, items) {
+    const list = Array.isArray(items) ? items : [];
+    setHtml(targetId, list.map((item) => `<li>${escapeHtml(item)}</li>`).join(""));
+  }
+
+  function renderChatFocusChips(items) {
+    const chips = Array.isArray(items) ? items : [];
+    setHtml(
+      "chat-tone-row",
+      chips.map((item) => `<span class="status-chip is-file">${escapeHtml(item)}</span>`).join("")
+    );
+  }
+
+  function buildDocumentBadgeTone(status) {
+    const normalized = String(status || "").toLowerCase();
+
+    if (normalized.includes("failed")) {
+      return "is-demo";
+    }
+
+    if (normalized.includes("uploaded") || normalized.includes("synced") || normalized.includes("ready") || normalized.includes("default")) {
+      return "is-live";
+    }
+
+    if (normalized.includes("saved") || normalized.includes("queued") || normalized.includes("local")) {
+      return "is-file";
+    }
+
+    return "";
+  }
+
+  function buildDocumentIcon(document) {
+    const name = String(document.name || "");
+    const ext = name.includes(".") ? name.split(".").pop().toUpperCase() : "";
+
+    if (ext) {
+      return ext.slice(0, 4);
+    }
+
+    const type = String(document.type || "DOC").toUpperCase().replace(/[^A-Z]/g, "");
+    return type.slice(0, 4) || "DOC";
+  }
+
+  function renderChatScenario(key) {
+    const scenario = chatScenarios[key];
+    const thread = document.getElementById("chat-thread");
+    const textarea = document.getElementById("chat-input");
+
+    if (!scenario || !thread) {
       return;
     }
 
-    const openDelay = 70;
-    const closeDelay = 220;
+    currentChatScenario = key;
+    setText("chat-scenario-title", scenario.title);
+    setText("chat-goal", scenario.goal);
+    setText("chat-route", scenario.route);
+    setText("chat-engine", scenario.engine);
+    renderAnalysisList("chat-suggestions", scenario.suggestions);
+    renderChatStarters(scenario.starters);
+    renderDeliverables(scenario.deliverables);
+    renderScoreCards("chat-score-grid", scenario.stats);
+    renderChatFocusChips(scenario.suggestions);
+    if (textarea) {
+      textarea.placeholder = scenario.placeholder || "Paste your writing task here...";
+    }
+    thread.innerHTML = scenario.thread.map((message) => createMessageMarkup(message.role, message.content)).join("");
+    thread.scrollTop = thread.scrollHeight;
+  }
 
-    navItems.forEach((item) => {
-      let openTimer = null;
-      let closeTimer = null;
+  function renderDocuments(documents) {
+    const feed = document.getElementById("kb-doc-feed");
+    if (!feed) {
+      return;
+    }
 
-      const clearTimers = () => {
-        if (openTimer) {
-          window.clearTimeout(openTimer);
-          openTimer = null;
-        }
-        if (closeTimer) {
-          window.clearTimeout(closeTimer);
-          closeTimer = null;
-        }
-      };
+    const filteredDocuments = documents.filter((document) => matchesKbFilter(document, currentKbFilter));
+    const groupedDocuments = groupKnowledgeDocuments(filteredDocuments);
 
-      const openMenu = () => {
-        clearTimers();
-        navItems.forEach((navItem) => {
-          if (navItem !== item) {
-            navItem.classList.remove("is-open");
-          }
-        });
-        item.classList.add("is-open");
-      };
+    if (!filteredDocuments.length) {
+      feed.innerHTML = `
+        <li class="doc-empty-state">
+          <strong>No documents match this view yet.</strong>
+          <span class="source-meta">Try another filter, upload a file, or add a custom note to grow this library.</span>
+        </li>
+      `;
+      return;
+    }
 
-      const closeMenu = () => {
-        clearTimers();
-        item.classList.remove("is-open");
-      };
+    feed.innerHTML = groupedDocuments.map((group) => `
+      <li class="doc-group">
+        <div class="doc-group-head">
+          <div>
+            <strong>${escapeHtml(group.meta.title)}</strong>
+            <span class="source-meta">${escapeHtml(group.meta.meta)} - ${escapeHtml(`${group.documents.length} file${group.documents.length === 1 ? "" : "s"}`)}</span>
+          </div>
+        </div>
+        <div class="doc-group-list">
+          ${group.documents.map((document) => `
+            <article class="doc-item">
+              <div class="doc-top">
+                <span class="doc-icon">${escapeHtml(buildDocumentIcon(document))}</span>
+                <div class="doc-copy">
+                  <strong>${escapeHtml(document.name)}</strong>
+                  <span class="file-meta">${escapeHtml(document.type)}${document.fileSize ? ` - ${escapeHtml(formatBytes(document.fileSize))}` : ""}</span>
+                </div>
+                <span class="status-chip ${buildDocumentBadgeTone(document.status)}">${escapeHtml(document.status || "Saved")}</span>
+              </div>
+              <span class="source-meta">${escapeHtml(document.summary || "No summary yet.")}</span>
+              ${getDocumentTags(document).length ? `
+                <div class="doc-tag-row">
+                  ${getDocumentTags(document).map((tag) => `<span class="doc-tag">${escapeHtml(tag)}</span>`).join("")}
+                </div>
+              ` : ""}
+              <div class="doc-footer">
+                <span class="doc-origin">${escapeHtml(document.sourceOrigin || "personal")}</span>
+                ${document.editable ? `
+                  <div class="doc-actions">
+                    <button class="secondary-button doc-action-button" type="button" data-doc-action="rename" data-doc-id="${escapeHtml(document.id)}">Rename</button>
+                    <button class="secondary-button doc-action-button is-danger" type="button" data-doc-action="delete" data-doc-id="${escapeHtml(document.id)}">Delete</button>
+                  </div>
+                ` : `<span class="doc-lock">Managed by Mate</span>`}
+              </div>
+            </article>
+          `).join("")}
+        </div>
+      </li>
+    `).join("");
+  }
 
-      const scheduleOpen = () => {
-        if (closeTimer) {
-          window.clearTimeout(closeTimer);
-          closeTimer = null;
-        }
-        if (item.classList.contains("is-open")) {
+  function renderKnowledgeCards(cards) {
+    const grid = document.getElementById("kb-source-grid");
+    if (!grid) {
+      return;
+    }
+
+    grid.innerHTML = cards.map((card) => `
+      <article class="source-card">
+        <h3>${escapeHtml(card.title)}</h3>
+        <p class="source-meta">${escapeHtml(card.meta)}</p>
+      </article>
+    `).join("");
+  }
+
+  function renderUploadQueue(files) {
+    const queue = document.getElementById("kb-upload-queue");
+    if (!queue) {
+      return;
+    }
+
+    if (!files.length) {
+      queue.innerHTML = "<li>No files in queue yet.</li>";
+      return;
+    }
+
+    queue.innerHTML = files.map((file) => `
+      <li>
+        <strong>${escapeHtml(file.name)}</strong>
+        <span class="file-meta">${escapeHtml(file.type || "Local file")} - ${escapeHtml(formatBytes(file.size))}</span>
+      </li>
+    `).join("");
+  }
+
+  function renderQuizResult(payload) {
+    setText("quiz-output-title", payload.outputTitle);
+    setText("quiz-route-chip", payload.routeLabel || quizModes[currentQuizMode].route);
+
+    const blocks = document.getElementById("quiz-output-blocks");
+    const scores = document.getElementById("quiz-score-grid");
+    const blockItems = Array.isArray(payload.blocks) ? payload.blocks : [];
+    const scoreItems = Array.isArray(payload.scores) ? payload.scores : [];
+
+    if (blocks) {
+      blocks.innerHTML = blockItems.map((block) => `
+        <article class="output-block">
+          <h3>${escapeHtml(block.heading)}</h3>
+          <p>${escapeHtml(block.text)}</p>
+        </article>
+      `).join("");
+    }
+
+    if (scores) {
+      scores.innerHTML = buildScoreCardsMarkup(scoreItems);
+    }
+  }
+
+  function renderQuizFocus(items) {
+    renderAnalysisList("quiz-focus-list", items);
+  }
+
+  function getFirstQuizPresetForMode(modeKey) {
+    const entry = Object.entries(quizPresets).find(function (item) {
+      return item[1].mode === modeKey;
+    });
+    return entry ? entry[0] : "";
+  }
+
+  function syncQuizModeTabs(modeKey) {
+    Array.from(document.querySelectorAll("[data-quiz-mode]")).forEach((tab) => {
+      tab.classList.toggle("is-active", tab.getAttribute("data-quiz-mode") === modeKey);
+    });
+  }
+
+  function syncQuizPresetButtons(presetKey) {
+    Array.from(document.querySelectorAll("[data-quiz-preset]")).forEach((button) => {
+      button.classList.toggle("is-active", button.getAttribute("data-quiz-preset") === presetKey);
+    });
+  }
+
+  function renderQuizMode(modeKey, options) {
+    const mode = quizModes[modeKey];
+    const promptInput = document.getElementById("quiz-prompt-input");
+    const nextPrompt = options && options.promptValue ? options.promptValue : mode ? mode.prompt : "";
+    const helperText = options && options.helperText ? options.helperText : mode ? mode.prompt : "";
+
+    if (!mode) {
+      return;
+    }
+
+    currentQuizMode = modeKey;
+    syncQuizModeTabs(modeKey);
+    setText("quiz-eyebrow", mode.eyebrow);
+    setText("quiz-title", mode.title);
+    setText("quiz-prompt", helperText);
+    setText("quiz-run-label", mode.actionLabel);
+    setText("quiz-route-chip", mode.route);
+    if (promptInput && (!options || !options.preservePrompt || !String(promptInput.value || "").trim())) {
+      promptInput.value = nextPrompt;
+    }
+    renderQuizResult({
+      outputTitle: mode.outputTitle,
+      routeLabel: mode.route,
+      blocks: mode.blocks,
+      scores: mode.scores
+    });
+  }
+
+  function applyQuizPreset(presetKey) {
+    const preset = quizPresets[presetKey];
+    if (!preset) {
+      return;
+    }
+
+    currentQuizPreset = presetKey;
+    renderQuizMode(preset.mode, {
+      promptValue: preset.prompt,
+      helperText: preset.helper
+    });
+    setSelectValue("quiz-difficulty", preset.difficulty);
+    setSelectValue("quiz-count", preset.count);
+    renderQuizFocus(preset.focus);
+    syncQuizPresetButtons(presetKey);
+  }
+
+  function updateRuntimeLabels() {
+    const label = runtimeInfo.proxyEnabled
+      ? "DeepTutor live"
+      : runtimeInfo.mode === "mock"
+        ? "BFF mock mode"
+        : runtimeInfo.mode === "file"
+          ? "Local preview"
+          : "UI fallback";
+    const tone = runtimeInfo.proxyEnabled
+      ? "is-live"
+      : runtimeInfo.mode === "file"
+        ? "is-file"
+        : "is-demo";
+
+    [
+      document.getElementById("chat-runtime"),
+      document.getElementById("kb-runtime"),
+      document.getElementById("quiz-runtime")
+    ].forEach((badge) => setBadge(badge, label, tone));
+  }
+
+  function initAuth() {
+    const painButtons = Array.from(document.querySelectorAll("[data-pain-key]"));
+    const authButtons = Array.from(document.querySelectorAll("[data-auth-mode]"));
+    const authForms = Array.from(document.querySelectorAll("[data-auth-form]"));
+    const signinForm = document.getElementById("signin-form");
+    const signupForm = document.getElementById("signup-form");
+    const signinStatus = document.getElementById("signin-status");
+    const signupStatus = document.getElementById("signup-status");
+
+    painButtons.forEach((button) => {
+      button.addEventListener("click", function () {
+        const key = button.getAttribute("data-pain-key");
+        const story = painStories[key];
+        if (!story) {
           return;
         }
-        openTimer = window.setTimeout(openMenu, openDelay);
-      };
 
-      const scheduleClose = () => {
-        if (openTimer) {
-          window.clearTimeout(openTimer);
-          openTimer = null;
-        }
-        closeTimer = window.setTimeout(closeMenu, closeDelay);
-      };
-
-      item.addEventListener("pointerenter", scheduleOpen);
-      item.addEventListener("pointerleave", scheduleClose);
-      item.addEventListener("focusin", openMenu);
-      item.addEventListener("focusout", () => {
-        window.setTimeout(() => {
-          if (!item.contains(document.activeElement)) {
-            scheduleClose();
-          }
-        }, 0);
+        painButtons.forEach((item) => item.classList.remove("is-active"));
+        button.classList.add("is-active");
+        setText("pain-badge", story.badge);
+        setText("pain-title", story.title);
+        setText("pain-copy", story.copy);
+        setText("pain-output", story.output);
       });
     });
 
-    document.addEventListener("pointerdown", (event) => {
-      if (event.target.closest(".nav-item-with-panel")) {
-        return;
-      }
-      navItems.forEach((item) => item.classList.remove("is-open"));
+    authButtons.forEach((button) => {
+      button.addEventListener("click", function () {
+        const mode = button.getAttribute("data-auth-mode");
+        authButtons.forEach((item) => item.classList.remove("is-active"));
+        button.classList.add("is-active");
+        syncAuthPageState();
+      });
     });
 
-    document.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-      navItems.forEach((item) => item.classList.remove("is-open"));
-    });
+    if (signinForm) {
+      signinForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        const emailField = document.getElementById("signin-email");
+        const passwordField = document.getElementById("signin-password");
+        const submitButton = signinForm.querySelector("button[type='submit']");
+
+        if (!emailField || !passwordField || !submitButton) {
+          return;
+        }
+
+        if (isFileMode) {
+          window.location.href = getNextPath() || "chat.html";
+          return;
+        }
+
+        submitButton.disabled = true;
+        await submitAuthRequest(
+          "/api/auth/login",
+          {
+            email: emailField.value.trim(),
+            password: passwordField.value
+          },
+          signinStatus,
+          "Welcome back"
+        );
+        submitButton.disabled = false;
+      });
+    }
+
+    if (signupForm) {
+      signupForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        const nameField = document.getElementById("signup-name");
+        const emailField = document.getElementById("signup-email");
+        const goalField = document.getElementById("signup-goal");
+        const passwordField = document.getElementById("signup-password");
+        const submitButton = signupForm.querySelector("button[type='submit']");
+
+        if (!nameField || !emailField || !goalField || !passwordField || !submitButton) {
+          return;
+        }
+
+        if (isFileMode) {
+          window.location.href = getNextPath() || "chat.html";
+          return;
+        }
+
+        submitButton.disabled = true;
+        await submitAuthRequest(
+          "/api/auth/signup",
+          {
+            name: nameField.value.trim(),
+            email: emailField.value.trim(),
+            goal: goalField.value,
+            password: passwordField.value
+          },
+          signupStatus,
+          "Account created"
+        );
+        submitButton.disabled = false;
+      });
+    }
+
+    syncAuthPageState();
   }
 
-  function handleSearchSubmit() {
-    if (!ui.searchInput) {
+  function initChat() {
+    const thread = document.getElementById("chat-thread");
+    const chips = Array.from(document.querySelectorAll("[data-chat-scenario]"));
+    const form = document.getElementById("chat-composer");
+    const textarea = document.getElementById("chat-input");
+    const runtimeBadge = document.getElementById("chat-runtime");
+    const starterList = document.getElementById("chat-starter-list");
+
+    if (!thread || !form || !textarea) {
       return;
     }
-    state.query = ui.searchInput.value;
-    renderHotGrid();
-    renderDirectory();
-    const hotTools = document.getElementById("hot-tools");
-    if (hotTools) {
-      hotTools.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }
 
-  function bindStaticEvents() {
-    bindSidebarWheelScroll();
-    bindNavFlyouts();
+    renderChatScenario("essay");
+    setBadge(runtimeBadge, "Checking BFF", "is-file");
 
-    document.addEventListener("mouseenter", (event) => {
-      const summary = event.target.closest(".tool-summary[data-tip]");
-      if (!summary) {
-        return;
-      }
-      applyTooltipDirection(summary);
-    }, true);
-
-    document.addEventListener("focusin", (event) => {
-      const summary = event.target.closest(".tool-summary[data-tip]");
-      if (!summary) {
-        return;
-      }
-      applyTooltipDirection(summary);
+    chips.forEach((chip) => {
+      chip.addEventListener("click", function () {
+        const key = chip.getAttribute("data-chat-scenario");
+        chips.forEach((item) => item.classList.remove("is-active"));
+        chip.classList.add("is-active");
+        renderChatScenario(key);
+      });
     });
 
-    window.addEventListener("resize", refreshTooltipDirections);
-    window.addEventListener("scroll", refreshTooltipDirections, { passive: true });
+    if (starterList) {
+      starterList.addEventListener("click", function (event) {
+        const button = event.target.closest("[data-chat-starter]");
+        if (!button) {
+          return;
+        }
 
-    if (ui.searchInput) {
-      ui.searchInput.addEventListener("input", function (event) {
-        state.query = event.target.value;
-        renderHotGrid();
-        renderDirectory();
+        textarea.value = button.getAttribute("data-chat-starter") || "";
+        textarea.focus();
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      });
+    }
+
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      const text = textarea.value.trim();
+      const submitButton = form.querySelector("button[type='submit']");
+
+      if (!text || !submitButton) {
+        return;
+      }
+
+      thread.insertAdjacentHTML("beforeend", createMessageMarkup("user", text));
+      thread.insertAdjacentHTML("beforeend", createMessageMarkup("assistant", ["Mate is preparing a coaching response..."]));
+
+      const loadingMessage = thread.lastElementChild;
+      textarea.value = "";
+      submitButton.disabled = true;
+
+      const payload = await requestJson(
+        "/api/chat",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            scenario: currentChatScenario,
+            message: text,
+            goal: chatScenarios[currentChatScenario].goal,
+            sessionId: chatSessions[currentChatScenario] || null
+          })
+        },
+        function () {
+          return buildChatFallback(text, currentChatScenario);
+        }
+      );
+
+      if (payload.sessionId) {
+        chatSessions[currentChatScenario] = payload.sessionId;
+        persistChatSessions();
+      }
+
+      if (loadingMessage) {
+        loadingMessage.outerHTML = createMessageMarkup("assistant", payload.assistantLines || ["Mate returned an empty response."]);
+      }
+
+      if (Array.isArray(payload.suggestions) && payload.suggestions.length) {
+        setHtml("chat-suggestions", payload.suggestions.map((item) => `<li>${escapeHtml(item)}</li>`).join(""));
+      }
+
+      if (payload.routeLabel) {
+        setText("chat-route", payload.routeLabel);
+      }
+
+      if (payload.engineLabel) {
+        setText("chat-engine", payload.engineLabel);
+      }
+
+      if (runtimeBadge) {
+        const tone = payload.mode === "proxy" ? "is-live" : "is-demo";
+        const label = payload.mode === "proxy" ? "DeepTutor live" : "Demo fallback";
+        setBadge(runtimeBadge, label, tone);
+      }
+
+      submitButton.disabled = false;
+      thread.scrollTop = thread.scrollHeight;
+    });
+  }
+
+  function initKnowledgeBase() {
+    const feed = document.getElementById("kb-doc-feed");
+    const buttons = Array.from(document.querySelectorAll("[data-kb-add]"));
+    const filterButtons = Array.from(document.querySelectorAll("[data-kb-filter]"));
+    const search = document.getElementById("kb-search");
+    const runtimeBadge = document.getElementById("kb-runtime");
+    const docStatus = document.getElementById("kb-doc-status");
+    const filterStatus = document.getElementById("kb-filter-status");
+    const entryForm = document.getElementById("kb-entry-form");
+    const entryStatus = document.getElementById("kb-entry-status");
+    const dropzone = document.getElementById("kb-dropzone");
+    const fileInput = document.getElementById("kb-file-input");
+    const filePicker = document.getElementById("kb-file-picker");
+    const uploadButton = document.getElementById("kb-upload-submit");
+    const uploadStatus = document.getElementById("kb-upload-status");
+    const uploadProgress = document.getElementById("kb-upload-progress");
+    const uploadProgressFill = document.getElementById("kb-upload-progress-fill");
+    const uploadProgressText = document.getElementById("kb-upload-progress-text");
+    const uploadProgressDetail = document.getElementById("kb-upload-progress-detail");
+    let activeDocs = kbSamples.slice();
+    let queuedFiles = [];
+
+    if (!feed || !search) {
+      return;
+    }
+
+    function updateUploadStatus(text, tone) {
+      setBadge(uploadStatus, text, tone);
+    }
+
+    function updateDocStatus(text, tone) {
+      setBadge(docStatus, text, tone);
+    }
+
+    function setUploadProgress(percent, detailText) {
+      if (!uploadProgress || !uploadProgressFill || !uploadProgressText || !uploadProgressDetail) {
+        return;
+      }
+
+      uploadProgress.classList.remove("is-hidden");
+      uploadProgressFill.style.width = `${Math.max(0, Math.min(100, percent || 0))}%`;
+      uploadProgressText.textContent = `${Math.max(0, Math.min(100, percent || 0))}%`;
+      uploadProgressDetail.textContent = detailText || "Uploading files";
+    }
+
+    function hideUploadProgress() {
+      if (!uploadProgress || !uploadProgressFill || !uploadProgressText || !uploadProgressDetail) {
+        return;
+      }
+
+      uploadProgress.classList.add("is-hidden");
+      uploadProgressFill.style.width = "0%";
+      uploadProgressText.textContent = "0%";
+      uploadProgressDetail.textContent = "Waiting for upload";
+    }
+
+    function updateFilterState() {
+      filterButtons.forEach((button) => {
+        button.classList.toggle("is-active", button.getAttribute("data-kb-filter") === currentKbFilter);
       });
 
-      ui.searchInput.addEventListener("keydown", function (event) {
-        if (event.key === "Enter") {
-          handleSearchSubmit();
+      if (filterStatus) {
+        setBadge(filterStatus, buildFilterLabel(currentKbFilter), "is-file");
+      }
+    }
+
+    function syncKnowledgeSurface() {
+      renderDocuments(activeDocs);
+      renderKnowledgeCards(buildKnowledgeCards(search.value, activeDocs));
+      const visibleCount = activeDocs.filter((document) => matchesKbFilter(document, currentKbFilter)).length;
+      updateDocStatus(`${visibleCount} visible / ${activeDocs.length} total`, "is-file");
+      updateFilterState();
+    }
+
+    function setQueuedFiles(fileList) {
+      queuedFiles = Array.from(fileList || []).filter((file) => file && file.size > 0);
+      renderUploadQueue(queuedFiles);
+
+      if (uploadButton) {
+        uploadButton.disabled = !queuedFiles.length;
+      }
+
+      if (!queuedFiles.length) {
+        updateUploadStatus("No files selected", "is-demo");
+        hideUploadProgress();
+        return;
+      }
+
+      updateUploadStatus(`${queuedFiles.length} file${queuedFiles.length > 1 ? "s" : ""} ready`, "is-file");
+      hideUploadProgress();
+    }
+
+    syncKnowledgeSurface();
+    renderUploadQueue([]);
+    hideUploadProgress();
+    setBadge(runtimeBadge, runtimeInfo.apiAvailable ? "Mate KB" : "Local preview", runtimeInfo.apiAvailable ? "is-live" : "is-demo");
+
+    requestJson(
+      "/api/kb/documents",
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json"
+        }
+      },
+      function () {
+        return {
+          mode: "demo",
+          documents: activeDocs
+        };
+      }
+    ).then((payload) => {
+      activeDocs = payload.documents || activeDocs;
+      syncKnowledgeSurface();
+      setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : payload.mode === "mock" ? "KB local store" : "Local preview", payload.mode === "proxy" ? "is-live" : "is-demo");
+    });
+
+    if (feed) {
+      feed.addEventListener("click", async function (event) {
+        const button = event.target.closest("[data-doc-action]");
+        if (!button) {
+          return;
+        }
+
+        const action = button.getAttribute("data-doc-action");
+        const documentId = button.getAttribute("data-doc-id");
+        const targetDocument = activeDocs.find((item) => item.id === documentId);
+
+        if (!action || !documentId || !targetDocument) {
+          return;
+        }
+
+        if (action === "rename") {
+          const nextName = window.prompt("Rename this document", targetDocument.name);
+          if (!nextName || nextName.trim() === targetDocument.name) {
+            return;
+          }
+
+          button.disabled = true;
+          updateDocStatus("Renaming document", "is-file");
+
+          try {
+            const payload = await requestJsonStrict(`/api/kb/documents/${encodeURIComponent(documentId)}`, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json"
+              },
+              body: JSON.stringify({
+                name: nextName.trim()
+              })
+            });
+
+            activeDocs = payload.documents || activeDocs;
+            syncKnowledgeSurface();
+            updateDocStatus("Document renamed", payload.mode === "proxy" ? "is-live" : "is-file");
+          } catch (error) {
+            updateDocStatus(error.message || "Rename failed", "is-demo");
+          } finally {
+            button.disabled = false;
+          }
+          return;
+        }
+
+        if (action === "delete") {
+          const shouldDelete = window.confirm(`Delete "${targetDocument.name}" from your Mate knowledge base?`);
+          if (!shouldDelete) {
+            return;
+          }
+
+          button.disabled = true;
+          updateDocStatus("Deleting document", "is-file");
+
+          try {
+            const payload = await requestJsonStrict(`/api/kb/documents/${encodeURIComponent(documentId)}`, {
+              method: "DELETE",
+              headers: {
+                Accept: "application/json"
+              }
+            });
+
+            activeDocs = payload.documents || activeDocs;
+            syncKnowledgeSurface();
+            updateDocStatus("Document removed", payload.mode === "proxy" ? "is-live" : "is-file");
+          } catch (error) {
+            updateDocStatus(error.message || "Delete failed", "is-demo");
+          } finally {
+            button.disabled = false;
+          }
         }
       });
     }
 
-    if (ui.searchButton) {
-      ui.searchButton.addEventListener("click", handleSearchSubmit);
-    }
+    filterButtons.forEach((button) => {
+      button.addEventListener("click", function () {
+        currentKbFilter = button.getAttribute("data-kb-filter") || "all";
+        syncKnowledgeSurface();
+      });
+    });
 
-    if (ui.resetFilters) {
-      ui.resetFilters.addEventListener("click", () => {
-        state.query = "";
-        state.activeCategory = "All";
-        state.activePricing = "All";
-        state.activeRanking = "Assistants";
-        ui.searchInput.value = "";
-        renderAll();
+    if (filePicker && fileInput) {
+      filePicker.addEventListener("click", function () {
+        fileInput.click();
+      });
+
+      fileInput.addEventListener("change", function () {
+        setQueuedFiles(fileInput.files);
       });
     }
 
-    document.querySelectorAll("[data-scroll-target]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const target = document.getElementById(button.dataset.scrollTarget);
-        if (target) {
-          target.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (dropzone && fileInput) {
+      ["dragenter", "dragover"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, function (event) {
+          event.preventDefault();
+          dropzone.classList.add("is-dragging");
+        });
+      });
+
+      ["dragleave", "dragend"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, function (event) {
+          event.preventDefault();
+          if (!dropzone.contains(event.relatedTarget)) {
+            dropzone.classList.remove("is-dragging");
+          }
+        });
+      });
+
+      dropzone.addEventListener("drop", function (event) {
+        event.preventDefault();
+        dropzone.classList.remove("is-dragging");
+        setQueuedFiles(event.dataTransfer ? event.dataTransfer.files : []);
+      });
+
+      dropzone.addEventListener("keydown", function (event) {
+        if ((event.key === "Enter" || event.key === " ") && event.target === dropzone) {
+          event.preventDefault();
+          fileInput.click();
         }
       });
+    }
+
+    if (uploadButton) {
+      uploadButton.disabled = true;
+      uploadButton.addEventListener("click", async function () {
+        if (!queuedFiles.length) {
+          updateUploadStatus("Choose files before uploading", "is-demo");
+          return;
+        }
+
+        uploadButton.disabled = true;
+        updateUploadStatus("Uploading files", "is-file");
+        setUploadProgress(0, "Preparing files");
+
+        let payload;
+
+        if (!isFileMode && runtimeInfo.apiAvailable) {
+          try {
+            payload = await uploadFilesWithProgress("/api/kb/documents", queuedFiles, function (progress) {
+              setUploadProgress(progress.percent, `Uploaded ${formatBytes(progress.loaded)} of ${progress.total ? formatBytes(progress.total) : "?"}`);
+            });
+          } catch (error) {
+            runtimeInfo.apiAvailable = false;
+            runtimeInfo.mode = "demo";
+          }
+        }
+
+        if (!payload) {
+          payload = {
+            mode: "demo",
+            uploadedCount: queuedFiles.length,
+            documents: buildUploadedFileFallbackDocuments(queuedFiles).concat(activeDocs)
+          };
+        }
+
+        activeDocs = payload.documents || activeDocs;
+        syncKnowledgeSurface();
+        setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : payload.mode === "mock" ? "KB local store" : "KB demo mode", payload.mode === "proxy" ? "is-live" : "is-demo");
+        setUploadProgress(100, payload.mode === "proxy" ? "Upload completed and synced" : payload.mode === "mock" ? "Upload saved locally" : "Upload saved in preview");
+        updateUploadStatus(
+          payload.mode === "proxy"
+            ? `${payload.uploadedCount || queuedFiles.length} file${(payload.uploadedCount || queuedFiles.length) > 1 ? "s" : ""} synced`
+            : payload.mode === "mock"
+              ? `${payload.uploadedCount || queuedFiles.length} file${(payload.uploadedCount || queuedFiles.length) > 1 ? "s" : ""} saved locally`
+              : `${payload.uploadedCount || queuedFiles.length} file${(payload.uploadedCount || queuedFiles.length) > 1 ? "s" : ""} saved in preview`,
+          payload.mode === "proxy" ? "is-live" : "is-demo"
+        );
+        queuedFiles = [];
+        renderUploadQueue([]);
+        if (fileInput) {
+          fileInput.value = "";
+        }
+        uploadButton.disabled = true;
+      });
+    }
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", async function () {
+        const id = button.getAttribute("data-kb-add");
+        const sample = kbSamples.find((item) => item.id === id);
+
+        if (!sample) {
+          return;
+        }
+
+        const payload = await requestJson(
+          "/api/kb/documents",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              name: sample.name,
+              type: sample.type,
+              summary: sample.summary,
+              sourceText: sample.sourceText
+            })
+          },
+          function () {
+            return {
+              mode: "demo",
+              documents: [
+                {
+                  id: `demo-sample-${sample.id}-${Date.now()}`,
+                  name: `${sample.name} (new upload)`,
+                  type: sample.type,
+                  summary: sample.summary,
+                  status: "Queued for indexing",
+                  tags: sample.tags || [],
+                  sourceOrigin: "personal",
+                  editable: false
+                }
+              ].concat(activeDocs)
+            };
+          }
+        );
+
+        activeDocs = payload.documents || activeDocs;
+        syncKnowledgeSurface();
+        setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : "KB demo mode", payload.mode === "proxy" ? "is-live" : "is-demo");
+      });
     });
 
-    document.addEventListener("click", (event) => {
-      const button = event.target.closest("[data-featured-more]");
-      if (!button) {
+    if (entryForm && entryStatus) {
+      entryForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        const titleField = document.getElementById("kb-entry-title");
+        const typeField = document.getElementById("kb-entry-type");
+        const summaryField = document.getElementById("kb-entry-summary");
+        const textField = document.getElementById("kb-entry-text");
+        const submitButton = document.getElementById("kb-entry-submit");
+
+        if (!titleField || !typeField || !summaryField || !textField || !submitButton) {
+          return;
+        }
+
+        const title = titleField.value.trim();
+        const type = typeField.value.trim();
+        const summary = summaryField.value.trim();
+        const tagsField = document.getElementById("kb-entry-tags");
+        const sourceText = textField.value.trim();
+
+        if (!title || !sourceText || !tagsField) {
+          setBadge(entryStatus, "Add a title and knowledge text", "is-demo");
+          return;
+        }
+
+        submitButton.disabled = true;
+        setBadge(entryStatus, "Saving entry", "is-file");
+
+        const payload = await requestJson(
+          "/api/kb/documents",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              name: title,
+              type: type || "Custom note",
+              summary: summary || "Custom knowledge entry for Mate",
+              sourceText: sourceText,
+              tags: tagsField.value
+            })
+          },
+          function () {
+            return {
+              mode: "demo",
+              documents: [
+                {
+                  id: `demo-note-${Date.now()}`,
+                  name: title,
+                  type: type || "Custom note",
+                  summary: summary || "Custom knowledge entry for Mate",
+                  status: "Saved in UI preview",
+                  tags: String(tagsField.value || "").split(",").map((tag) => tag.trim().toLowerCase()).filter(Boolean),
+                  sourceOrigin: "personal",
+                  editable: false
+                }
+              ].concat(activeDocs)
+            };
+          }
+        );
+
+        activeDocs = payload.documents || activeDocs;
+        syncKnowledgeSurface();
+        setBadge(entryStatus, payload.mode === "proxy" ? "Saved to DeepTutor KB" : payload.mode === "mock" ? "Saved to local KB store" : "Saved in local preview", payload.mode === "proxy" ? "is-live" : "is-demo");
+        setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : "KB local store", payload.mode === "proxy" ? "is-live" : "is-demo");
+        entryForm.reset();
+        submitButton.disabled = false;
+      });
+    }
+
+    search.addEventListener("input", async function () {
+      const query = search.value;
+      const payload = await requestJson(
+        "/api/kb/search",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            query: query
+          })
+        },
+        function () {
+          return {
+            mode: "demo",
+            cards: buildKnowledgeCards(query, activeDocs)
+          };
+        }
+      );
+
+      renderKnowledgeCards(payload.cards || buildKnowledgeCards(query, activeDocs));
+      setBadge(runtimeBadge, payload.mode === "proxy" ? "KB search live" : "KB demo mode", payload.mode === "proxy" ? "is-live" : "is-demo");
+    });
+  }
+
+  function initQuiz() {
+    const tabs = Array.from(document.querySelectorAll("[data-quiz-mode]"));
+    const presetButtons = Array.from(document.querySelectorAll("[data-quiz-preset]"));
+    const runButton = document.getElementById("quiz-run-button");
+    const runtimeBadge = document.getElementById("quiz-runtime");
+    const promptInput = document.getElementById("quiz-prompt-input");
+    const difficultySelect = document.getElementById("quiz-difficulty");
+    const countSelect = document.getElementById("quiz-count");
+
+    if (!tabs.length || !runButton || !promptInput || !difficultySelect || !countSelect) {
+      return;
+    }
+
+    applyQuizPreset(currentQuizPreset);
+    setBadge(runtimeBadge, "Checking BFF", "is-file");
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", function () {
+        const mode = tab.getAttribute("data-quiz-mode");
+        const nextPreset = currentQuizPreset && quizPresets[currentQuizPreset] && quizPresets[currentQuizPreset].mode === mode
+          ? currentQuizPreset
+          : getFirstQuizPresetForMode(mode);
+
+        if (nextPreset) {
+          applyQuizPreset(nextPreset);
+          return;
+        }
+
+        currentQuizMode = mode;
+        renderQuizMode(mode);
+        renderQuizFocus([]);
+        syncQuizPresetButtons("");
+      });
+    });
+
+    presetButtons.forEach((button) => {
+      button.addEventListener("click", function () {
+        const presetKey = button.getAttribute("data-quiz-preset");
+        applyQuizPreset(presetKey);
+      });
+    });
+
+    runButton.addEventListener("click", async function () {
+      const mode = quizModes[currentQuizMode];
+      const prompt = promptInput.value.trim();
+      const difficulty = difficultySelect.value;
+      const count = Math.max(1, Number(countSelect.value || 5));
+      const activePreset = quizPresets[currentQuizPreset];
+
+      if (!prompt) {
+        setBadge(runtimeBadge, "Add a prompt first", "is-demo");
+        promptInput.focus();
         return;
       }
-      increaseFeaturedVisibleCount(button.dataset.featuredMore);
-      renderTodayBoards();
+
+      runButton.disabled = true;
+      const requestPayload = currentQuizMode === "solve"
+        ? {
+            mode: currentQuizMode,
+            prompt: prompt,
+            question: prompt,
+            detailedAnswer: false,
+            audience: "English learners",
+            difficulty: difficulty,
+            preference: activePreset ? activePreset.label : mode.title,
+            tools: []
+          }
+        : {
+          mode: currentQuizMode,
+          prompt: prompt,
+          topic: prompt,
+          difficulty: difficulty,
+          count: count,
+          questionType: "mixed",
+          preference: activePreset ? activePreset.label : "Targeted practice for English learning"
+        };
+
+      const payload = await requestJson(
+        currentQuizMode === "solve" ? "/api/deep-solve" : "/api/quiz",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(requestPayload)
+        },
+        function () {
+          return buildQuizFallback(currentQuizMode, requestPayload);
+        }
+      );
+
+      renderQuizResult(payload);
+      setBadge(runtimeBadge, payload.mode === "proxy" ? "DeepTutor live" : "Demo fallback", payload.mode === "proxy" ? "is-live" : "is-demo");
+      runButton.disabled = false;
     });
   }
 
-  function renderAll() {
-    renderPromptNavFlyout();
-    renderSidebar();
-    renderHeroMetrics();
-    renderHotFilters();
-    renderHotGrid();
-    renderTodayBoards();
-    renderRankTabs();
-    renderRankGrid();
-    renderCategoryWall();
-    renderLaneWall();
-    renderUseCaseWall();
-    renderDeepRankings();
-    renderNewList();
-    renderPromptLibrary();
-    renderDirectoryFilters();
-    renderDirectory();
-    refreshTooltipDirections();
-  }
+  document.addEventListener("DOMContentLoaded", async function () {
+    await bootstrapRuntime();
+    await restoreSession();
+    renderAccountShell();
+    syncAuthPageState();
 
-  bindStaticEvents();
-  renderAll();
+    if (!isFileMode && runtimeInfo.apiAvailable && pageRequiresAuth() && !sessionInfo.authenticated) {
+      handleUnauthorized();
+      return;
+    }
+
+    initAuth();
+    initChat();
+    initKnowledgeBase();
+    initQuiz();
+    updateRuntimeLabels();
+  });
 })();

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mate Deep Solve + Quiz | Break Down and Drill</title>
+  <meta
+    name="description"
+    content="Use Mate Deep Solve and Quiz to break down prompts and generate practice."
+  >
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="quiz">
+  <div class="site-bg">
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+    <div class="bg-orb orb-c"></div>
+    <div class="grid-wash"></div>
+  </div>
+
+  <div class="site-shell">
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Mate home">
+        <span class="brand-mark">M</span>
+        <span class="brand-copy">
+          <strong>Mate</strong>
+          <span>English Growth Studio</span>
+        </span>
+      </a>
+
+      <nav class="site-nav" aria-label="Primary">
+        <a href="index.html">Get started</a>
+        <a href="chat.html">Study Chat</a>
+        <a href="knowledge-base.html">Knowledge Base</a>
+        <a class="is-active" href="quiz.html">Practice</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="header-cta" href="knowledge-base.html">Add sources</a>
+        <div class="account-shell" id="account-shell">
+          <span class="status-chip is-file">Checking session</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="app-hero app-hero-flat app-hero-compact">
+      <div class="reveal">
+        <p class="eyebrow">Deep Solve + Quiz</p>
+        <h1>Solve first. Practice next.</h1>
+        <p class="hero-lead">Break down prompts. Build drills.</p>
+        <div class="hero-actions">
+          <span class="status-chip" id="quiz-runtime">Checking BFF</span>
+        </div>
+      </div>
+    </section>
+
+    <main class="app-shell workspace-shell">
+      <section class="quiz-layout workspace-layout">
+        <section class="quiz-main">
+          <article class="quiz-card reveal">
+            <div class="mode-switcher" role="tablist" aria-label="Mode">
+              <button class="mode-tab is-active" type="button" data-quiz-mode="solve">Deep Solve</button>
+              <button class="mode-tab" type="button" data-quiz-mode="quiz">Quiz Builder</button>
+            </div>
+
+            <div class="quiz-workbench">
+              <div class="preset-stack">
+                <div class="quick-chip-row" id="quiz-preset-row">
+                  <button class="quick-chip is-active" type="button" data-quiz-preset="ielts-band">IELTS Band Lift</button>
+                  <button class="quick-chip" type="button" data-quiz-preset="sat-logic">SAT Logic Repair</button>
+                  <button class="quick-chip" type="button" data-quiz-preset="grammar-drill">Grammar Drill</button>
+                  <button class="quick-chip" type="button" data-quiz-preset="email-template">Email Practice</button>
+                </div>
+              </div>
+              <div>
+                <h3 id="quiz-title">Break the prompt before you write.</h3>
+              </div>
+              <div class="prompt-box">
+                <textarea id="quiz-prompt-input" placeholder="Describe the writing problem or practice set you want Mate to generate..."></textarea>
+                <p class="meta-text" id="quiz-prompt">Find the main claim, weak logic, and a stronger thesis.</p>
+              </div>
+              <div class="field-row">
+                <label class="field-block">
+                  <span>Difficulty</span>
+                  <select id="quiz-difficulty">
+                    <option value="upper-intermediate">Upper-intermediate</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                  </select>
+                </label>
+                <label class="field-block">
+                  <span>Question count</span>
+                  <select id="quiz-count">
+                    <option value="5">5</option>
+                    <option value="8">8</option>
+                    <option value="10">10</option>
+                  </select>
+                </label>
+              </div>
+              <div class="inline-actions">
+                <button class="primary-button" id="quiz-run-button" type="button">
+                  <span id="quiz-run-label">Run through Mate BFF</span>
+                </button>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <aside class="quiz-side">
+          <article class="output-card reveal">
+            <h3 id="quiz-output-title">Result</h3>
+            <div id="quiz-output-blocks"></div>
+            <ul class="analysis-list" id="quiz-focus-list"></ul>
+            <div class="rail-summary">
+              <div class="score-grid score-grid-compact" id="quiz-score-grid"></div>
+            </div>
+          </article>
+        </aside>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <strong>Mate</strong>
+      </div>
+      <div>
+        <span>Practice</span>
+        <span>Solve</span>
+        <span>Quiz</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

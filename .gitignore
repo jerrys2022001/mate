@@ -1,3 +1,12 @@
 __pycache__/
 output/
 *.pyc
+.env
+.npm-cache/
+.playwright-cli/
+node_modules/
+.tmp/
+data/mate-users.json
+data/mate-sessions.json
+data/mate-kb-notes/
+data/mate-kb-files/

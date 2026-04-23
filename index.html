@@ -3,153 +3,284 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Northstar AI Directory</title>
+  <title>Mate | English Support for Students</title>
   <meta
     name="description"
-    content="A Western-facing AI tools and navigation portal inspired by faxianai, curated from Futurepedia and Toolify with stronger traffic filtering and an Apple-like interface."
+    content="Mate helps students write essays, fix grammar, polish email, and practice faster."
   >
-  <meta name="theme-color" content="#f3f4f6">
+  <meta name="theme-color" content="#ffffff">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-  <div class="page-glow glow-a"></div>
-  <div class="page-glow glow-b"></div>
+<body data-page="auth">
+  <div class="site-bg">
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+    <div class="bg-orb orb-c"></div>
+    <div class="grid-wash"></div>
+  </div>
 
-  <header class="topbar">
-    <div class="brand">
-      <div class="brand-badge">
-        <img src="assets/brand-mark.png" alt="Northstar AI logo">
-      </div>
-      <div class="brand-copy">
-        <strong>Northstar AI</strong>
-        <span>WESTERN AI NAVIGATOR</span>
-      </div>
-    </div>
+  <div class="site-shell">
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Mate home">
+        <span class="brand-mark">M</span>
+        <span class="brand-copy">
+          <strong>Mate</strong>
+          <span>English Growth Studio</span>
+        </span>
+      </a>
 
-    <nav class="topnav" aria-label="Primary">
-      <a class="is-active" href="index.html">Home</a>
-      <a href="#hot-tools">Live Tools</a>
-      <div class="nav-item nav-item-with-panel">
-        <a class="nav-trigger" href="featured.html">
-          <span>Featured Flow</span>
-        </a>
-        <div class="nav-flyout">
-          <a class="nav-flyout-link" href="featured.html"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">FF</span></span><span class="nav-flyout-label">Featured Overview</span></a>
-          <a class="nav-flyout-link" href="featured.html#today-hot"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">TH</span></span><span class="nav-flyout-label">Today Hot</span></a>
-          <a class="nav-flyout-link" href="featured.html#editor-picks"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">EP</span></span><span class="nav-flyout-label">Editor Picks</span></a>
-          <a class="nav-flyout-link" href="featured.html#operator-stack"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">OS</span></span><span class="nav-flyout-label">Operator Stack</span></a>
-          <a class="nav-flyout-link" href="featured.html#new-notable"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">NN</span></span><span class="nav-flyout-label">New &amp; Notable</span></a>
+      <nav class="site-nav" aria-label="Primary">
+        <a class="is-active" href="index.html">Get started</a>
+        <a href="chat.html">Study Chat</a>
+        <a href="knowledge-base.html">Knowledge Base</a>
+        <a href="quiz.html">Practice</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="header-cta" href="#auth-card">Start free</a>
+        <div class="account-shell" id="account-shell">
+          <span class="status-chip is-file">Signed out</span>
         </div>
       </div>
-      <div class="nav-item nav-item-with-panel">
-        <a class="nav-trigger" href="rankings.html">
-          <span>AI Rankings</span>
-        </a>
-        <div class="nav-flyout">
-          <a class="nav-flyout-link" href="rankings.html"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">AR</span></span><span class="nav-flyout-label">Rankings Overview</span></a>
-          <a class="nav-flyout-link" href="rankings.html#top10"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">10</span></span><span class="nav-flyout-label">Top 10</span></a>
-          <a class="nav-flyout-link" href="rankings.html#lane-rankings"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">LR</span></span><span class="nav-flyout-label">Lane Rankings</span></a>
-          <a class="nav-flyout-link" href="rankings.html#deep-rankings"><span class="nav-flyout-icon is-glyph"><span class="prompt-track-monogram">DR</span></span><span class="nav-flyout-label">Deep Rankings</span></a>
+    </header>
+
+    <main class="page">
+      <section class="hero hero-auth hero-student">
+        <div class="hero-copy reveal">
+          <p class="eyebrow">For students</p>
+          <h1>Write clearly. Sound confident. Turn in stronger work.</h1>
+          <p class="hero-lead">One workspace for writing and practice.</p>
+
+          <div class="hero-actions">
+            <a class="primary-button" href="#auth-card">Sign up. It's free.</a>
+            <a class="secondary-button" href="chat.html">Open Study Chat</a>
+          </div>
+
+          <div class="hero-chip-row">
+            <button class="pill-button is-active" type="button" data-pain-key="ielts">IELTS / TOEFL / SAT</button>
+            <button class="pill-button" type="button" data-pain-key="email">Business Email</button>
+            <button class="pill-button" type="button" data-pain-key="grammar">Weak Grammar</button>
+            <button class="pill-button" type="button" data-pain-key="upgrade">Upgrade Expression</button>
+          </div>
+
+          <div class="hero-story-card hero-story-inline">
+            <div class="story-badge" id="pain-badge">Exam Writing</div>
+            <h2 id="pain-title">Turn messy essay drafts into score-ready writing.</h2>
+            <div class="story-output" id="pain-output">
+              "Your introduction is clear, but the thesis is too broad. Here is a tighter version that sounds more academic."
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="nav-item nav-item-with-panel">
-        <a class="nav-trigger" href="prompt-library.html?track=deepseek">
-          <span class="nav-mini-icon" aria-hidden="true">&#9711;</span>
-          <span>AI Prompt Library</span>
-        </a>
-        <div class="nav-flyout" id="prompt-nav-flyout"></div>
-      </div>
-      <a href="directory.html">Pro Directory</a>
-    </nav>
 
-    <button class="icon-button" type="button" aria-label="Search">
-      <span>&#8981;</span>
-    </button>
-  </header>
-
-  <main class="portal" id="home">
-    <aside class="sidebar glass">
-      <div class="sidebar-section">
-        <h2>Browse</h2>
-        <div id="sidebar-nav" class="sidebar-nav"></div>
-      </div>
-    </aside>
-
-    <section class="content">
-      <section class="search-hero glass" id="search-hub">
-        <div class="hero-layout">
-          <div class="hero-main">
-            <div class="hero-copy">
-              <p class="kicker">Discover Faster</p>
-              <h1>
-                Discover The Best
-                <span class="hero-keyword hero-keyword-ai">AI</span>
-                <span class="hero-keyword hero-keyword-web">Websites</span>
-                &amp;
-                <span class="hero-keyword hero-keyword-tools">Tools</span>
-              </h1>
-              <p class="hero-subtitle">
-                <strong id="hero-tools-copy">--</strong> curated AI tools across
-                <strong id="hero-category-copy">--</strong> categories for Western teams.
-              </p>
+        <aside class="auth-card reveal" id="auth-card">
+          <div class="auth-card-head">
+            <div>
+              <p class="eyebrow">Get started</p>
+              <h2>Sign up. It's free.</h2>
+              <p class="meta-text">Start with Mate.</p>
             </div>
-
-            <div class="search-panel">
-              <label class="search-shell" for="search-input">
-                <input id="search-input" type="search" placeholder="Search by AI tool, workflow, vendor, or category">
-                <button id="search-button" class="search-button" type="button" aria-label="Search">
-                  <span>Search</span>
-                  <span class="search-button-icon">&#8981;</span>
-                </button>
-              </label>
+            <div class="auth-toggle" id="auth-toggle" role="tablist" aria-label="Authentication">
+              <button class="auth-toggle-button is-active" type="button" data-auth-mode="signin">Log in</button>
+              <button class="auth-toggle-button" type="button" data-auth-mode="signup">Sign up</button>
             </div>
+          </div>
 
-            <div class="hero-quick-links">
-              <a class="hero-quick-link" href="#hot-tools">Trending picks</a>
-              <a class="hero-quick-link" href="#usecase-boards">Use Cases</a>
+          <form class="auth-form" data-auth-form="signin" id="signin-form">
+            <label>
+              <span>Email</span>
+              <input id="signin-email" type="email" placeholder="you@school.edu" autocomplete="email" required>
+            </label>
+            <label>
+              <span>Password</span>
+              <input id="signin-password" type="password" placeholder="Enter your password" autocomplete="current-password" required>
+            </label>
+            <div class="inline-actions">
+              <button class="primary-button" type="submit">Continue to Mate</button>
+              <span class="status-chip" id="signin-status">Use your Mate account</span>
+            </div>
+          </form>
+
+          <form class="auth-form is-hidden" data-auth-form="signup" id="signup-form">
+            <label>
+              <span>Full name</span>
+              <input id="signup-name" type="text" placeholder="Avery Chen" autocomplete="name" required>
+            </label>
+            <label>
+              <span>Email</span>
+              <input id="signup-email" type="email" placeholder="you@school.edu" autocomplete="email" required>
+            </label>
+            <label>
+              <span>Main goal</span>
+              <select id="signup-goal">
+                <option>IELTS / TOEFL / SAT Writing</option>
+                <option>Business email</option>
+                <option>Grammar practice</option>
+                <option>Daily expression upgrade</option>
+              </select>
+            </label>
+            <label>
+              <span>Password</span>
+              <input id="signup-password" type="password" placeholder="Create a password with 8+ characters" autocomplete="new-password" required>
+            </label>
+            <div class="inline-actions">
+              <button class="primary-button" type="submit">Create free account</button>
+              <span class="status-chip" id="signup-status">Local account</span>
+            </div>
+          </form>
+
+          <section class="session-summary is-hidden" id="auth-session-card">
+            <span class="small-label">Current account</span>
+            <h3 id="auth-session-name"></h3>
+            <p class="meta-text" id="auth-session-email"></p>
+            <div class="mini-chip-row">
+              <span class="status-chip is-live" id="auth-session-goal"></span>
+              <span class="status-chip is-file" id="auth-session-kb"></span>
+            </div>
+            <div class="session-links">
+              <a class="primary-button" id="auth-continue-link" href="chat.html">Continue to workspace</a>
+              <button class="secondary-button" id="auth-session-signout" type="button">Log out</button>
+            </div>
+          </section>
+
+        </aside>
+      </section>
+
+      <section class="section-band trust-strip">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Used for real student work</p>
+          <h2>Built for essays, email, grammar, and timed practice.</h2>
+        </div>
+        <div class="trust-badges reveal">
+          <span class="logo-pill">IELTS</span>
+          <span class="logo-pill">TOEFL</span>
+          <span class="logo-pill">SAT Writing</span>
+          <span class="logo-pill">Business Email</span>
+          <span class="logo-pill">Grammar</span>
+          <span class="logo-pill">Daily English</span>
+        </div>
+      </section>
+
+      <section class="section-block feature-split">
+        <div class="feature-copy reveal">
+          <p class="eyebrow">Work on writing in one place</p>
+          <h2>Draft, rewrite, and improve in one place.</h2>
+          <p class="feature-lead">Keep revision in one place.</p>
+          <a class="primary-button" href="chat.html">Open Study Chat</a>
+        </div>
+
+        <div class="feature-visual reveal">
+          <div class="ui-shot ui-shot-chat">
+            <div class="ui-toolbar">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div class="ui-window">
+              <div class="ui-pill-row">
+                <span>Essay Coach</span>
+                <span>Email Coach</span>
+                <span>Grammar</span>
+              </div>
+              <div class="ui-bubble is-user">Please rewrite this IELTS introduction in a clearer tone.</div>
+              <div class="ui-bubble">Clearer thesis. Tighter opening. Stronger vocabulary.</div>
+              <div class="ui-lines">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="section-card section-shell" id="hot-tools">
-        <div class="section-header">
-          <div class="section-header-copy">
-            <p class="kicker">Hot AI</p>
-            <h2>Trending AI picks</h2>
-            <p class="section-lead">The fastest way to see what is drawing attention across the current catalog.</p>
+      <section class="section-block feature-split is-reverse">
+        <div class="feature-visual reveal">
+          <div class="ui-shot ui-shot-kb">
+            <div class="ui-toolbar">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div class="ui-window">
+              <div class="mini-library">
+                <div class="mini-file">
+                  <strong>IELTS Band Descriptors</strong>
+                  <span>Rubric</span>
+                </div>
+                <div class="mini-file">
+                  <strong>Email Tone Guide</strong>
+                  <span>Style guide</span>
+                </div>
+                <div class="mini-file">
+                  <strong>Essay Corrections</strong>
+                  <span>Reference bank</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <a class="link-button" href="directory.html">more+</a>
         </div>
 
-        <div class="section-filter-row" id="hot-filters"></div>
-        <div class="tool-portal-grid" id="hot-grid" aria-live="polite"></div>
-      </section>
-
-      <section class="section-card section-shell" id="usecase-boards">
-        <div class="section-header">
-          <div class="section-header-copy">
-            <p class="kicker">Use Cases</p>
-            <h2>Start from the job to be done</h2>
-            <p class="section-lead">Browse from workflow intent when users care more about outcomes than tool brands.</p>
-          </div>
-          <a class="link-button" href="usecases.html">more+</a>
+        <div class="feature-copy reveal">
+          <p class="eyebrow">Keep your context close</p>
+          <h2>Save sources once and bring them back when you need them.</h2>
+          <p class="feature-lead">Keep sources close to the writing surface.</p>
+          <a class="secondary-button" href="knowledge-base.html">Open Knowledge Base</a>
         </div>
-        <div class="usecase-wall" id="usecase-wall"></div>
       </section>
-    </section>
-  </main>
 
-  <footer class="footer">
-    <p>Northstar AI Directory</p>
-    <p>Structured like a portal, curated like a product, and filtered for higher-traction AI tools.</p>
-  </footer>
+      <section class="section-block workspace-block product-overview">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Choose your workflow</p>
+          <h2>Pick the workspace you need.</h2>
+        </div>
 
-    <script src="catalog.js"></script>
-    <script src="catalog_extra_1.js"></script>
-    <script src="catalog_extra_2.js"></script>
-    <script src="catalog_extra_3.js"></script>
-    <script src="app.js"></script>
+        <div class="product-columns">
+          <article class="product-column reveal">
+            <h3>Study Chat</h3>
+            <p>Rewrite essays, polish emails, and fix grammar in context.</p>
+            <a class="text-link" href="chat.html">Open Study Chat</a>
+          </article>
+          <article class="product-column reveal">
+            <h3>Knowledge Base</h3>
+            <p>Keep rubrics, corrected drafts, and writing notes ready to reuse.</p>
+            <a class="text-link" href="knowledge-base.html">Open Knowledge Base</a>
+          </article>
+          <article class="product-column reveal">
+            <h3>Deep Solve + Quiz</h3>
+            <p>Break down prompts and build drills from real weak spots.</p>
+            <a class="text-link" href="quiz.html">Open Practice</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-band final-cta">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Start free</p>
+          <h2>Start with one draft. Keep improving from there.</h2>
+        </div>
+        <div class="cta-row reveal">
+          <a class="primary-button" href="#auth-card">Create account</a>
+          <a class="secondary-button" href="chat.html">Explore Study Chat</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <strong>Mate</strong>
+      </div>
+      <div>
+        <span>Essay</span>
+        <span>Grammar</span>
+        <span>Practice</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>

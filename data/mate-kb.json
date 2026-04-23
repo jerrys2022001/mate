@@ -1,0 +1,44 @@
+[
+  {
+    "id": "rubric",
+    "name": "IELTS Writing Band Descriptors.pdf",
+    "type": "Scoring rubric",
+    "status": "Indexed and ready",
+    "summary": "Official scoring criteria for task response, coherence, lexical resource, and grammar.",
+    "sourceText": "Band descriptors for exam writing evaluation.",
+    "tags": [
+      "exam",
+      "ielts",
+      "rubric",
+      "starter"
+    ]
+  },
+  {
+    "id": "emails",
+    "name": "Business Email Tone Guide.docx",
+    "type": "Style guide",
+    "status": "Synced to KB",
+    "summary": "Approved phrasing patterns for client updates, scheduling, escalation, and follow-up emails.",
+    "sourceText": "Use concise, polite, business-friendly language with a clear next step.",
+    "tags": [
+      "business",
+      "email",
+      "tone",
+      "starter"
+    ]
+  },
+  {
+    "id": "essay-bank",
+    "name": "Top Essays Collection.docx",
+    "type": "Reference essays",
+    "status": "Chunked into examples",
+    "summary": "High-quality introductions, body paragraphs, and conclusion structures for common writing prompts.",
+    "sourceText": "Examples of strong introductions, body logic, and conclusions.",
+    "tags": [
+      "essay",
+      "writing",
+      "examples",
+      "starter"
+    ]
+  }
+]
