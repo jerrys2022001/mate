@@ -2658,26 +2658,14 @@ async function handleApi(req, res, pathname) {
         sendJson(res, 200, await proxyChatToDeepTutor(payload, authContext.user));
         return;
       } catch (error) {
-        sendJson(res, 502, {
-          ok: false,
-          mode: "proxy-error",
-          backendLabel: "Mate BFF",
-          routeLabel: `WS ${deepTutorConfig.chatWsPath}`,
-          engineLabel: "Mate writing coach",
-          error: error.message || "DeepTutor chat failed."
-        });
+        const fallback = buildChatMock(payload);
+        fallback.warning = error.message || "DeepTutor chat failed.";
+        sendJson(res, 200, fallback);
         return;
       }
     }
 
-    sendJson(res, 503, {
-      ok: false,
-      mode: "unavailable",
-      backendLabel: "Mate BFF",
-      routeLabel: "POST /api/chat",
-      engineLabel: "Mate writing coach",
-      error: "Live chat is unavailable because DeepTutor realtime mode is not connected."
-    });
+    sendJson(res, 200, buildChatMock(payload));
     return;
   }
 
