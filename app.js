@@ -2061,6 +2061,120 @@
     return /不定式|动词不定式|to\s+do|infinitive/i.test(String(topic || ""));
   }
 
+  function isVocabularyPracticeTopic(topic) {
+    const text = String(topic || "");
+    const hasVocabularySignal = /vocab(?:ulary)?|word\s*(?:practice|drill|list)|\u5355\u8bcd|\u8bcd\u6c47|\u8bcd\u8bed/i.test(text);
+    const hasExamSignal = /cet[-\s]?4|\u56db\u7ea7|\u5927\u5b66\u82f1\u8bed/i.test(text);
+
+    return hasVocabularySignal || (hasExamSignal && /word|vocab|\u5355\u8bcd|\u8bcd\u6c47|\u8bcd\u8bed/i.test(text));
+  }
+
+  function isCet4PracticeTopic(topic) {
+    return /cet[-\s]?4|\u56db\u7ea7|\u5927\u5b66\u82f1\u8bed\s*(?:4|\u56db)/i.test(String(topic || ""));
+  }
+
+  function buildClientVocabularyPracticeQuestions(topic, count, difficulty) {
+    const normalizedTopic = String(topic || "").trim();
+    const isCet4 = isCet4PracticeTopic(normalizedTopic);
+    const concentration = isCet4 ? "CET-4 vocabulary practice" : "English vocabulary practice";
+    const levelLabel = isCet4 ? "CET-4" : "target";
+    const bank = [
+      {
+        type: "choice",
+        question: `${levelLabel} vocabulary: Choose the closest meaning of "significant".`,
+        options: [
+          { key: "A", text: "small and ordinary" },
+          { key: "B", text: "important and noticeable" },
+          { key: "C", text: "easy to forget" },
+          { key: "D", text: "quick but careless" }
+        ],
+        correctAnswer: "B. important and noticeable",
+        explanation: "\"Significant\" means important enough to notice, measure, or consider."
+      },
+      {
+        type: "fill-in",
+        question: `${levelLabel} vocabulary: Complete the sentence. The university will ___ a new reading policy next term. (put into action)`,
+        options: [],
+        correctAnswer: "implement",
+        explanation: "\"Implement\" means to put a plan, rule, or policy into action."
+      },
+      {
+        type: "choice",
+        question: `${levelLabel} vocabulary: Which word best completes the sentence? Regular review can help students ___ new words.`,
+        options: [
+          { key: "A", text: "retain" },
+          { key: "B", text: "refuse" },
+          { key: "C", text: "replace" },
+          { key: "D", text: "remove" }
+        ],
+        correctAnswer: "A. retain",
+        explanation: "\"Retain\" means to keep something in memory or continue to have it."
+      },
+      {
+        type: "written",
+        question: `${levelLabel} vocabulary: Write one original sentence using "efficient" correctly.`,
+        options: [],
+        correctAnswer: "Example: An efficient study plan helps students remember more words in less time.",
+        explanation: "\"Efficient\" describes something that works well without wasting time, energy, or resources."
+      },
+      {
+        type: "choice",
+        question: `${levelLabel} vocabulary: Choose the best synonym for "obtain".`,
+        options: [
+          { key: "A", text: "forget" },
+          { key: "B", text: "get or acquire" },
+          { key: "C", text: "argue against" },
+          { key: "D", text: "make smaller" }
+        ],
+        correctAnswer: "B. get or acquire",
+        explanation: "\"Obtain\" means to get something, especially through effort."
+      },
+      {
+        type: "fill-in",
+        question: `${levelLabel} vocabulary: Complete the collocation. The evidence is highly ___, so most readers accept the conclusion.`,
+        options: [],
+        correctAnswer: "convincing",
+        explanation: "\"Convincing evidence\" is evidence strong enough to make people believe something."
+      },
+      {
+        type: "choice",
+        question: `${levelLabel} vocabulary: Which option uses "available" correctly?`,
+        options: [
+          { key: "A", text: "The book is available in the library." },
+          { key: "B", text: "The book available the library." },
+          { key: "C", text: "The book is availability in the library." },
+          { key: "D", text: "The book availablely in the library." }
+        ],
+        correctAnswer: "A. The book is available in the library.",
+        explanation: "\"Available\" is an adjective and usually follows be-verbs such as is, are, or was."
+      },
+      {
+        type: "written",
+        question: `${levelLabel} vocabulary: Explain the difference between "affect" and "effect" in one short sentence.`,
+        options: [],
+        correctAnswer: "\"Affect\" is usually a verb meaning influence; \"effect\" is usually a noun meaning result.",
+        explanation: "This pair is common in exam vocabulary because the spelling and meaning are close."
+      }
+    ];
+
+    return Array.from({ length: count }).map((_, index) => {
+      const source = bank[index % bank.length];
+      const number = index + 1;
+
+      return {
+        id: `demo-vocabulary-practice-${number}`,
+        number,
+        type: source.type,
+        difficulty,
+        concentration,
+        question: source.question,
+        options: source.options,
+        correctAnswer: source.correctAnswer,
+        explanation: source.explanation
+      };
+    });
+  }
+
   function buildClientInfinitivePracticeQuestions(topic, count, difficulty) {
     const concentration = String(topic || "").includes("初三")
       ? "初三英语：动词不定式（to do）"
@@ -2149,6 +2263,7 @@
     const requestedTopic = String((payload && (payload.topic || payload.prompt)) || mode.prompt);
     const requestedCount = resolvePracticeQuestionCount(requestedTopic, payload && payload.count);
     const isInfinitiveSet = isInfinitivePracticeTopic(requestedTopic);
+    const isVocabularySet = isVocabularyPracticeTopic(requestedTopic);
 
     if (modeKey === "quiz") {
       return {
@@ -2158,8 +2273,10 @@
         outputTitle: mode.outputTitle,
         blocks: [
           {
-            heading: isInfinitiveSet ? "Grammar drill" : "Question mix",
-            text: isInfinitiveSet
+            heading: isVocabularySet ? "Vocabulary drill" : isInfinitiveSet ? "Grammar drill" : "Question mix",
+            text: isVocabularySet
+              ? `${requestedCount} vocabulary questions requested for ${isCet4PracticeTopic(requestedTopic) ? "CET-4" : truncate(requestedTopic, 76)}. The set uses meaning, collocation, word form, and sentence-use tasks.`
+              : isInfinitiveSet
               ? `已生成 ${requestedCount} 道动词不定式练习题。先在页面作答，再展开答案和解析。`
               : `${requestedCount} items requested for ${truncate(requestedTopic, 76)}. Mate would blend correction, rewrite, and explanation-style questions.`
           },
@@ -2167,6 +2284,8 @@
             heading: "Difficulty control",
             text: isInfinitiveSet
               ? `The practice set is tuned for ${requestedDifficulty} learners and uses junior-high grammar patterns instead of generic rewrite prompts.`
+              : isVocabularySet
+              ? `The practice set is tuned for ${requestedDifficulty} vocabulary building and avoids generic rewrite prompts.`
               : `The practice set is tuned for a ${requestedDifficulty} learner and stays close to exam, classroom, or business writing pain points.`
           },
           {
@@ -2209,6 +2328,10 @@
 
     if (isInfinitivePracticeTopic(normalizedTopic)) {
       return buildClientInfinitivePracticeQuestions(normalizedTopic, requestedCount, difficulty);
+    }
+
+    if (isVocabularyPracticeTopic(normalizedTopic)) {
+      return buildClientVocabularyPracticeQuestions(normalizedTopic, requestedCount, difficulty);
     }
 
     return Array.from({ length: requestedCount }).map((_, index) => {
@@ -5951,6 +6074,9 @@
       const selectedSources = getSelectedPracticeSources();
       const contextualPrompt = buildPromptWithPracticeSources(prompt, selectedSources);
       const sourceMetadata = buildPracticeSourceRequestMetadata(selectedSources);
+      const quizPreference = isVocabularyPracticeTopic(prompt)
+        ? "Vocabulary practice: generate meaning, collocation, word-form, and sentence-use questions. Do not create generic rewrite prompts."
+        : activePreset ? activePreset.label : "Targeted practice for English learning";
       countInput.value = count;
 
       if (!prompt) {
@@ -5990,7 +6116,7 @@
           questionType: "mixed",
           sourceDocumentIds: selectedSources.map((source) => source.id),
           sourceDocuments: sourceMetadata,
-          preference: activePreset ? activePreset.label : "Targeted practice for English learning"
+          preference: quizPreference
         };
 
       try {
