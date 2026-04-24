@@ -500,22 +500,22 @@
       actionLabel: "Generate quiz set",
       blocks: [
         {
-          heading: "Question mix",
-          text: "5 items generated: 2 article corrections, 2 agreement checks, and 1 combined sentence rewrite task."
+          heading: "How to practice",
+          text: "Choose a preset, adjust difficulty and question count, then click Generate quiz set. The questions will appear here as practice cards."
         },
         {
-          heading: "Difficulty control",
-          text: "The set uses business and campus examples so the practice feels realistic instead of textbook-only."
+          heading: "Answer first",
+          text: "Type your answer inside each card before opening the model answer. For choice questions, pick your answer mentally or write the option letter."
         },
         {
-          heading: "Feedback design",
-          text: "Every answer key includes a short explanation, a corrected sentence, and one extension example."
+          heading: "Check and repeat",
+          text: "Open the model answer and explanation, compare the difference, then rewrite your answer once more."
         }
       ],
       scores: [
-        { value: "5", label: "questions created" },
-        { value: "2", label: "grammar targets" },
-        { value: "100%", label: "explanation coverage" }
+        { value: "0", label: "questions generated" },
+        { value: "Ready", label: "practice mode" },
+        { value: "1", label: "click to start" }
       ]
     }
   };
@@ -560,8 +560,8 @@
   };
 
   let currentChatScenario = "essay";
-  let currentQuizMode = "solve";
-  let currentQuizPreset = "ielts-band";
+  let currentQuizMode = "quiz";
+  let currentQuizPreset = "grammar-drill";
   let currentKbFilter = "all";
 
   function escapeHtml(value) {
@@ -1629,6 +1629,7 @@
             text: "Each answer key should include a short explanation, a corrected version, and one transfer example learners can reuse."
           }
         ],
+        questions: buildClientPracticeQuestions(requestedTopic, requestedCount, requestedDifficulty, payload && payload.questionType),
         scores: [
           { value: String(requestedCount), label: "questions requested" },
           { value: requestedDifficulty, label: "difficulty" },
@@ -1654,6 +1655,36 @@
       ],
       scores: mode.scores
     };
+  }
+
+  function buildClientPracticeQuestions(topic, count, difficulty, questionType) {
+    const requestedCount = Math.max(1, Number(count || 5));
+    const normalizedTopic = String(topic || "English writing practice").trim();
+    const normalizedType = String(questionType || "mixed").trim();
+
+    return Array.from({ length: requestedCount }).map((_, index) => {
+      const number = index + 1;
+      const isChoice = normalizedType === "choice" || (normalizedType === "mixed" && number % 2 === 0);
+
+      return {
+        id: `demo-practice-${number}`,
+        number,
+        type: isChoice ? "choice" : "written",
+        difficulty,
+        concentration: normalizedTopic,
+        question: isChoice
+          ? `Choose the strongest correction for a learner mistake related to ${normalizedTopic}.`
+          : `Rewrite one sentence about ${normalizedTopic} with clearer grammar and stronger academic wording.`,
+        options: isChoice ? [
+          { key: "A", text: "Keep the sentence as-is." },
+          { key: "B", text: "Use a clearer subject, verb, and article pattern." },
+          { key: "C", text: "Add more filler words before the main verb." },
+          { key: "D", text: "Remove the specific example." }
+        ] : [],
+        correctAnswer: isChoice ? "B" : "Answers should be grammatical, specific, and concise.",
+        explanation: "Practice the target pattern, then compare your answer with the model answer and explanation."
+      };
+    });
   }
 
   function createMessageMarkup(role, content) {
@@ -1894,20 +1925,80 @@
     const blocks = document.getElementById("quiz-output-blocks");
     const scores = document.getElementById("quiz-score-grid");
     const blockItems = Array.isArray(payload.blocks) ? payload.blocks : [];
+    const questionItems = Array.isArray(payload.questions) ? payload.questions : [];
     const scoreItems = Array.isArray(payload.scores) ? payload.scores : [];
 
     if (blocks) {
-      blocks.innerHTML = blockItems.map((block) => `
+      const practiceMarkup = questionItems.length ? buildPracticeQuestionsMarkup(questionItems) : "";
+      const blockMarkup = blockItems.map((block) => `
         <article class="output-block">
           <h3>${escapeHtml(block.heading)}</h3>
           <div class="rich-output">${formatMessageText(block.text)}</div>
         </article>
       `).join("");
+      blocks.innerHTML = `${practiceMarkup}${blockMarkup}`;
     }
 
     if (scores) {
       scores.innerHTML = buildScoreCardsMarkup(scoreItems);
     }
+  }
+
+  function buildPracticeQuestionsMarkup(questions) {
+    return `
+      <section class="practice-set" aria-label="Practice questions">
+        <div class="practice-set-header">
+          <span class="small-label">Practice Set</span>
+          <strong>${questions.length} question${questions.length === 1 ? "" : "s"} ready</strong>
+          <p>Write your answer first. Then open the answer panel to compare with Mate.</p>
+        </div>
+        ${questions.map((question, index) => buildPracticeQuestionMarkup(question, index)).join("")}
+      </section>
+    `;
+  }
+
+  function buildPracticeQuestionMarkup(question, index) {
+    const number = Number(question.number || index + 1);
+    const options = Array.isArray(question.options) ? question.options : [];
+    const optionMarkup = options.length
+      ? `
+        <ul class="practice-options">
+          ${options.map((option) => `
+            <li>
+              <span>${escapeHtml(option.key || "")}</span>
+              <p>${escapeHtml(option.text || "")}</p>
+            </li>
+          `).join("")}
+        </ul>
+      `
+      : "";
+    const answer = question.correctAnswer || "No model answer was returned.";
+    const explanation = question.explanation || "No explanation was returned.";
+
+    return `
+      <article class="practice-question-card">
+        <div class="practice-question-top">
+          <span class="status-chip is-file">Q${number}</span>
+          <span>${escapeHtml(question.type || "written")}${question.difficulty ? ` - ${escapeHtml(question.difficulty)}` : ""}</span>
+        </div>
+        ${question.concentration ? `<p class="practice-focus">${escapeHtml(question.concentration)}</p>` : ""}
+        <h4>${escapeHtml(question.question || "")}</h4>
+        ${optionMarkup}
+        <label class="practice-answer-box">
+          <span>Your answer</span>
+          <textarea placeholder="Type your answer here before opening the model answer..."></textarea>
+        </label>
+        <details class="practice-answer">
+          <summary>Show model answer and explanation</summary>
+          <div>
+            <strong>Answer</strong>
+            <p>${formatInlineMarkdown(answer)}</p>
+            <strong>Explanation</strong>
+            <p>${formatInlineMarkdown(explanation)}</p>
+          </div>
+        </details>
+      </article>
+    `;
   }
 
   function renderQuizFocus(items) {
@@ -1950,6 +2041,12 @@
     setText("quiz-title", mode.title);
     setText("quiz-prompt", helperText);
     setText("quiz-run-label", mode.actionLabel);
+    setText(
+      "quiz-action-hint",
+      modeKey === "quiz"
+        ? "Questions will appear in the practice panel on the right."
+        : "The analysis will appear in the result panel on the right."
+    );
     setText("quiz-route-chip", getRuntimeRouteLabel(modeKey === "quiz" ? "quiz" : "deepSolve", mode.route));
     if (promptInput && (!options || !options.preservePrompt || !String(promptInput.value || "").trim())) {
       promptInput.value = nextPrompt;

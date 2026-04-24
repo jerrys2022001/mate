@@ -1160,6 +1160,7 @@ function buildQuizMock(payload) {
   const requestedCount = Math.max(1, Number((payload && payload.count) || 5));
   const requestedDifficulty = String((payload && payload.difficulty) || "upper-intermediate");
   const requestedTopic = String((payload && (payload.topic || payload.prompt)) || "English writing practice");
+  const questions = buildPracticeQuestions(requestedTopic, requestedCount, requestedDifficulty, payload && payload.questionType);
 
   return {
     mode: "mock",
@@ -1180,6 +1181,7 @@ function buildQuizMock(payload) {
         text: "Each answer key includes the correct sentence, a short explanation, and one extension example."
       }
     ],
+    questions,
     scores: [
       { value: String(requestedCount), label: "questions created" },
       { value: requestedDifficulty, label: "difficulty" },
@@ -1430,6 +1432,78 @@ function buildSolveProxyResponse(resultEvent, payload) {
   };
 }
 
+function normalizeQuestionOptions(options) {
+  if (!options || typeof options !== "object") {
+    return [];
+  }
+
+  return Object.entries(options)
+    .map(([key, value]) => ({
+      key: String(key || "").trim(),
+      text: String(value || "").trim()
+    }))
+    .filter((option) => option.key || option.text);
+}
+
+function normalizePracticeQuestion(question, index) {
+  const item = question && typeof question === "object" ? question : {};
+  const text = String(item.question || item.prompt || "").trim();
+
+  if (!text) {
+    return null;
+  }
+
+  return {
+    id: String(item.question_id || item.id || `q-${index + 1}`),
+    number: index + 1,
+    type: String(item.question_type || item.type || "written").trim() || "written",
+    difficulty: String(item.difficulty || "").trim(),
+    concentration: String(item.concentration || "").trim(),
+    question: text,
+    options: normalizeQuestionOptions(item.options),
+    correctAnswer: String(item.correct_answer || item.answer || "").trim(),
+    explanation: String(item.explanation || "").trim()
+  };
+}
+
+function extractPracticeQuestions(events) {
+  return events
+    .filter((event) => event && event.type === "result" && event.question)
+    .map((event, index) => normalizePracticeQuestion(event.question, index))
+    .filter(Boolean);
+}
+
+function buildPracticeQuestions(topic, count, difficulty, questionType) {
+  const requestedCount = Math.max(1, Number(count || 5));
+  const normalizedTopic = String(topic || "English writing practice").trim();
+  const normalizedDifficulty = String(difficulty || "upper-intermediate").trim();
+  const normalizedType = String(questionType || "mixed").trim();
+
+  return Array.from({ length: requestedCount }).map((_, index) => {
+    const number = index + 1;
+    const isChoice = normalizedType === "choice" || (normalizedType === "mixed" && number % 2 === 0);
+
+    return {
+      id: `practice-${number}`,
+      number,
+      type: isChoice ? "choice" : "written",
+      difficulty: normalizedDifficulty,
+      concentration: normalizedTopic,
+      question: isChoice
+        ? `Choose the strongest correction for a learner mistake related to ${normalizedTopic}.`
+        : `Rewrite one sentence about ${normalizedTopic} with clearer grammar and stronger academic wording.`,
+      options: isChoice ? [
+        { key: "A", text: "Keep the sentence as-is." },
+        { key: "B", text: "Use a clearer subject, verb, and article pattern." },
+        { key: "C", text: "Add more filler words before the main verb." },
+        { key: "D", text: "Remove the specific example." }
+      ] : [],
+      correctAnswer: isChoice ? "B" : "Answers should be grammatical, specific, and concise.",
+      explanation: "Practice the target pattern, then compare your answer with the model answer and explanation."
+    };
+  });
+}
+
 async function proxySolveToDeepTutor(payload, user) {
   const requestedKbName = String(payload.kbName || "").trim();
   const tools = Array.isArray(payload.tools)
@@ -1469,6 +1543,7 @@ function buildQuizProxyResponse(events, payload) {
     completed: 0,
     failed: 0
   };
+  const questions = extractPracticeQuestions(events);
   const statusMessages = events
     .map((event) => event.content || event.message || "")
     .filter(Boolean)
@@ -1482,24 +1557,23 @@ function buildQuizProxyResponse(events, payload) {
     mode: "proxy",
     backendLabel: "Mate BFF",
     routeLabel: `WS ${deepTutorConfig.quizWsPath}`,
-    outputTitle: "DeepTutor quiz generation",
+    outputTitle: questions.length ? "Practice questions" : "DeepTutor quiz generation",
     blocks: [
       {
         heading: "Generation status",
-        text: `Requested ${batch.requested || payload.count || 5} questions. Completed ${batch.completed || 0}. Failed ${batch.failed || 0}.`
+        text: questions.length
+          ? `${questions.length} practice questions are ready below. Answer first, then reveal the model answer and explanation.`
+          : `Requested ${batch.requested || payload.count || 5} questions. Completed ${batch.completed || 0}. Failed ${batch.failed || 0}.`
       },
       {
         heading: "DeepTutor activity",
         text: truncate(activitySummary, 320)
-      },
-      {
-        heading: "Next step",
-        text: "Review the generated question batch inside DeepTutor and bring the strongest items back into Mate's practice flow."
       }
     ],
+    questions,
     scores: [
+      { value: String(questions.length || batch.completed || 0), label: "ready to practice" },
       { value: String(batch.requested || payload.count || 5), label: "requested" },
-      { value: String(batch.completed || 0), label: "completed" },
       { value: String(batch.failed || 0), label: "failed" }
     ]
   };
@@ -1517,7 +1591,7 @@ async function proxyQuizToDeepTutor(payload, user) {
     knowledge_point: String(payload.topic || payload.prompt || "English writing practice"),
     preference: String(payload.preference || "Targeted practice for English learning"),
     difficulty: String(payload.difficulty || "upper-intermediate"),
-    question_type: String(payload.questionType || "mixed")
+    question_type: String(payload.questionType || "mixed") === "mixed" ? "auto" : String(payload.questionType || "auto")
   };
 
     return runWebSocketSession(

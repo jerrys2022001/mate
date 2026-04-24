@@ -50,9 +50,9 @@
 
     <section class="app-hero app-hero-flat app-hero-compact">
       <div class="reveal">
-        <p class="eyebrow" id="quiz-eyebrow">Deep Solve + Quiz</p>
-        <h1>Solve first. Practice next.</h1>
-        <p class="hero-lead">Break down prompts. Build drills.</p>
+        <p class="eyebrow" id="quiz-eyebrow">Quiz Builder</p>
+        <h1>Generate practice. Answer next.</h1>
+        <p class="hero-lead">Build drills from real mistakes.</p>
         <div class="hero-actions">
           <span class="status-chip" id="quiz-runtime">Checking BFF</span>
         </div>
@@ -62,8 +62,8 @@
     <section class="workspace-brief">
       <article class="workspace-brief-card reveal">
         <span class="small-label">Current Mode</span>
-        <strong id="quiz-mode-chip">Deep Solve</strong>
-        <p>Switch between reasoning help and drill generation without losing the current prompt.</p>
+        <strong id="quiz-mode-chip">Quiz Builder</strong>
+        <p>Generate questions, answer them on the page, then compare with Mate's model answer.</p>
       </article>
       <article class="workspace-brief-card reveal">
         <span class="small-label">AI Route</span>
@@ -86,25 +86,25 @@
         <section class="quiz-main">
           <article class="quiz-card reveal">
             <div class="mode-switcher" role="tablist" aria-label="Mode">
-              <button class="mode-tab is-active" type="button" data-quiz-mode="solve">Deep Solve</button>
-              <button class="mode-tab" type="button" data-quiz-mode="quiz">Quiz Builder</button>
+              <button class="mode-tab" type="button" data-quiz-mode="solve">Deep Solve</button>
+              <button class="mode-tab is-active" type="button" data-quiz-mode="quiz">Quiz Builder</button>
             </div>
 
             <div class="quiz-workbench">
               <div class="preset-stack">
                 <div class="quick-chip-row" id="quiz-preset-row">
-                  <button class="quick-chip is-active" type="button" data-quiz-preset="ielts-band">IELTS Band Lift</button>
+                  <button class="quick-chip" type="button" data-quiz-preset="ielts-band">IELTS Band Lift</button>
                   <button class="quick-chip" type="button" data-quiz-preset="sat-logic">SAT Logic Repair</button>
-                  <button class="quick-chip" type="button" data-quiz-preset="grammar-drill">Grammar Drill</button>
+                  <button class="quick-chip is-active" type="button" data-quiz-preset="grammar-drill">Grammar Drill</button>
                   <button class="quick-chip" type="button" data-quiz-preset="email-template">Email Practice</button>
                 </div>
               </div>
               <div>
-                <h3 id="quiz-title">Break the prompt before you write.</h3>
+                <h3 id="quiz-title">Build practice from real mistakes.</h3>
               </div>
               <div class="prompt-box">
                 <textarea id="quiz-prompt-input" placeholder="Describe the writing problem or practice set you want Mate to generate..."></textarea>
-                <p class="meta-text" id="quiz-prompt">Find the main claim, weak logic, and a stronger thesis.</p>
+                <p class="meta-text" id="quiz-prompt">Repeat one weak grammar pattern.</p>
               </div>
               <div class="field-row">
                 <label class="field-block">
@@ -126,8 +126,9 @@
               </div>
               <div class="inline-actions">
                 <button class="primary-button" id="quiz-run-button" type="button">
-                  <span id="quiz-run-label">Run through Mate BFF</span>
+                  <span id="quiz-run-label">Generate quiz set</span>
                 </button>
+                <p class="meta-text action-hint" id="quiz-action-hint">Questions will appear in the practice panel on the right.</p>
               </div>
             </div>
           </article>
@@ -135,7 +136,7 @@
 
         <aside class="quiz-side">
           <article class="output-card reveal">
-            <h3 id="quiz-output-title">Result</h3>
+            <h3 id="quiz-output-title">Generated practice set</h3>
             <div id="quiz-output-blocks"></div>
             <ul class="analysis-list" id="quiz-focus-list"></ul>
             <div class="rail-summary">
