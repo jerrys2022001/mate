@@ -1860,19 +1860,33 @@
     const scopedFilter = filterKey || "all";
     const starterCards = kbCards.filter((card) => (
       scopedFilter === "all" || !Array.isArray(card.filters) || card.filters.includes(scopedFilter)
-    ));
+    )).map((card) => ({
+      title: card.title,
+      meta: card.meta,
+      typeLabel: "Starter",
+      tags: Array.isArray(card.filters) ? card.filters : [],
+      isStarter: true
+    }));
     const documentCards = (documents || [])
       .filter((document) => matchesKbFilter(document, scopedFilter))
-      .map((document) => ({
-        title: `${document.type}: ${document.name}`,
-        meta: `${document.summary || "Saved in Mate knowledge base."}${getDocumentTags(document).length ? ` Tags: ${getDocumentTags(document).join(", ")}` : ""}`
-      }));
+      .map((document) => {
+        const tags = getDocumentTags(document);
+        return {
+          title: document.name,
+          meta: document.summary || "Saved in Mate knowledge base.",
+          typeLabel: document.type || "Document",
+          tags,
+          documentId: document.id,
+          canDelete: canDeleteKnowledgeDocument(document),
+          sourceOrigin: document.sourceOrigin || "personal"
+        };
+      });
 
     return starterCards.concat(documentCards).filter((card) => {
       if (!normalized) {
         return true;
       }
-      return `${card.title} ${card.meta}`.toLowerCase().includes(normalized);
+      return `${card.title} ${card.meta} ${card.typeLabel || ""} ${(card.tags || []).join(" ")}`.toLowerCase().includes(normalized);
     });
   }
 
@@ -1908,6 +1922,18 @@
 
   function getDocumentTags(document) {
     return Array.isArray(document.tags) ? document.tags.slice(0, 6) : [];
+  }
+
+  function canDeleteKnowledgeDocument(document) {
+    const id = String(document && document.id ? document.id : "");
+    return Boolean(
+      document
+      && (
+        document.editable
+        || id.startsWith("demo-upload-")
+        || id.startsWith("demo-sample-")
+      )
+    );
   }
 
   function getKbFilterMeta(filterKey) {
@@ -3736,6 +3762,7 @@
         <div class="doc-group-list">
           ${group.documents.map((document) => {
             const canDownload = document.downloadable !== false && !String(document.id || "").startsWith("deeptutor:");
+            const canDelete = canDeleteKnowledgeDocument(document);
             return `
             <article class="doc-item">
               <div class="doc-top">
@@ -3758,6 +3785,8 @@
                   ${canDownload ? `<button class="secondary-button doc-action-button" type="button" data-doc-action="download" data-doc-id="${escapeAttribute(document.id)}">Download</button>` : ""}
                   ${document.editable ? `
                     <button class="secondary-button doc-action-button" type="button" data-doc-action="rename" data-doc-id="${escapeAttribute(document.id)}">Rename</button>
+                    <button class="secondary-button doc-action-button is-danger" type="button" data-doc-action="delete" data-doc-id="${escapeAttribute(document.id)}">Delete</button>
+                  ` : canDelete ? `
                     <button class="secondary-button doc-action-button is-danger" type="button" data-doc-action="delete" data-doc-id="${escapeAttribute(document.id)}">Delete</button>
                   ` : canDownload ? "" : `<span class="doc-lock">Managed by Mate</span>`}
                 </div>
@@ -3792,12 +3821,22 @@
       return;
     }
 
-    grid.innerHTML = cards.map((card) => `
-      <article class="source-card">
-        <h3>${escapeHtml(card.title)}</h3>
-        <p class="source-meta">${escapeHtml(card.meta)}</p>
+    grid.innerHTML = cards.map((card) => {
+      const tags = Array.isArray(card.tags) ? card.tags.slice(0, 4) : [];
+      const title = card.title || "Untitled document";
+      const typeLabel = card.typeLabel || (card.isStarter ? "Starter" : "Document");
+      return `
+      <article class="source-card${card.documentId ? " source-card--document" : ""}">
+        <div class="source-card-head">
+          <span class="source-kicker">${escapeHtml(typeLabel)}</span>
+          ${card.canDelete ? `<button class="secondary-button doc-action-button is-danger library-delete-button" type="button" data-library-action="delete" data-doc-id="${escapeAttribute(card.documentId)}" aria-label="Delete ${escapeAttribute(title)}">Delete</button>` : ""}
+        </div>
+        <h3>${escapeHtml(title)}</h3>
+        <p class="source-meta">${escapeHtml(truncate(card.meta || "Saved in Mate knowledge base.", 120))}</p>
+        ${tags.length ? `<div class="source-card-tags">${tags.map((tag) => `<span class="doc-tag">${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
       </article>
-    `).join("");
+    `;
+    }).join("");
   }
 
   function renderUploadQueue(files) {
@@ -5870,6 +5909,51 @@
       syncSampleAddButtons();
     }
 
+    async function deleteKnowledgeDocumentFromUi(documentId, button) {
+      const targetDocument = activeDocs.find((item) => item.id === documentId);
+
+      if (!targetDocument || !canDeleteKnowledgeDocument(targetDocument)) {
+        updateDocStatus("This item cannot be deleted here", "is-demo");
+        return;
+      }
+
+      const shouldDelete = window.confirm(`Delete "${targetDocument.name}" from your Mate knowledge base?`);
+      if (!shouldDelete) {
+        return;
+      }
+
+      if (button) {
+        button.disabled = true;
+      }
+      updateDocStatus("Deleting document", "is-file");
+
+      if (String(documentId).startsWith("demo-upload-") || String(documentId).startsWith("demo-sample-")) {
+        activeDocs = activeDocs.filter((item) => item.id !== documentId);
+        syncKnowledgeSurface();
+        updateDocStatus("Document removed", "is-file");
+        return;
+      }
+
+      try {
+        const payload = await requestJsonStrict(`/api/kb/documents/${encodeURIComponent(documentId)}`, {
+          method: "DELETE",
+          headers: {
+            Accept: "application/json"
+          }
+        });
+
+        activeDocs = payload.documents || activeDocs;
+        syncKnowledgeSurface();
+        updateDocStatus("Document removed", payload.mode === "proxy" ? "is-live" : "is-file");
+      } catch (error) {
+        updateDocStatus(error.message || "Delete failed", "is-demo");
+      } finally {
+        if (button) {
+          button.disabled = false;
+        }
+      }
+    }
+
     function setQueuedFiles(fileList) {
       const nextQueue = filterUniqueUploadFiles(fileList);
       queuedFiles = nextQueue.files;
@@ -5980,38 +6064,20 @@
         }
 
         if (action === "delete") {
-          const shouldDelete = window.confirm(`Delete "${targetDocument.name}" from your Mate knowledge base?`);
-          if (!shouldDelete) {
-            return;
-          }
-
-          if (String(documentId).startsWith("demo-upload-")) {
-            activeDocs = activeDocs.filter((item) => item.id !== documentId);
-            syncKnowledgeSurface();
-            updateDocStatus("Document removed", "is-file");
-            return;
-          }
-
-          button.disabled = true;
-          updateDocStatus("Deleting document", "is-file");
-
-          try {
-            const payload = await requestJsonStrict(`/api/kb/documents/${encodeURIComponent(documentId)}`, {
-              method: "DELETE",
-              headers: {
-                Accept: "application/json"
-              }
-            });
-
-            activeDocs = payload.documents || activeDocs;
-            syncKnowledgeSurface();
-            updateDocStatus("Document removed", payload.mode === "proxy" ? "is-live" : "is-file");
-          } catch (error) {
-            updateDocStatus(error.message || "Delete failed", "is-demo");
-          } finally {
-            button.disabled = false;
-          }
+          deleteKnowledgeDocumentFromUi(documentId, button);
         }
+      });
+    }
+
+    const libraryGrid = document.getElementById("kb-source-grid");
+    if (libraryGrid) {
+      libraryGrid.addEventListener("click", function (event) {
+        const button = event.target.closest("[data-library-action='delete']");
+        if (!button) {
+          return;
+        }
+
+        deleteKnowledgeDocumentFromUi(button.getAttribute("data-doc-id"), button);
       });
     }
 
@@ -6308,7 +6374,7 @@
         }
       );
 
-      const nextCards = currentKbFilter === "all" && Array.isArray(payload.cards) ? payload.cards : fallbackCards;
+      const nextCards = fallbackCards;
       renderKnowledgeCards(nextCards);
       updateFilterState(nextCards.length, visibleCount);
       setBadge(runtimeBadge, payload.mode === "proxy" ? "KB search live" : "Ready", payload.mode === "proxy" ? "is-live" : "is-demo");
