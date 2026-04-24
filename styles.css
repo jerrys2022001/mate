@@ -6332,11 +6332,14 @@ body[data-page="quiz"] .workspace-link-row {
   gap: 10px;
 }
 
-/* Keep the homepage scenario summary on one clean line. */
+/* Keep the homepage scenario summary tidy without overflowing its card. */
 .hero-story-inline {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 18px;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .hero-story-inline .story-badge {
@@ -6344,9 +6347,13 @@ body[data-page="quiz"] .workspace-link-row {
 }
 
 .hero-story-inline h2 {
+  flex: 1 1 18rem;
   max-width: none;
+  min-width: 0;
   margin: 0;
-  white-space: nowrap;
+  font-size: clamp(1.45rem, 2.8vw, 2rem);
+  line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 body[data-page="kb"] .kb-library-summary {
@@ -6701,5 +6708,47 @@ body[data-page="kb"] .workspace-shell .doc-body h4 {
     justify-content: center;
     padding-inline: 10px;
     white-space: nowrap;
+  }
+}
+/* Homepage auth column: keep proof points directly under the login card. */
+.auth-column {
+  display: grid;
+  align-self: start;
+  gap: 18px;
+}
+
+.auth-column .trust-strip {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 22px 24px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--warm-soft);
+}
+
+.auth-column .trust-strip .section-heading {
+  gap: 8px;
+}
+
+.auth-column .trust-strip h2 {
+  max-width: none;
+  font-size: clamp(1.35rem, 2.1vw, 1.75rem);
+  line-height: 1.14;
+}
+
+.auth-column .trust-badges {
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.auth-column .logo-pill {
+  padding: 8px 10px;
+  font-size: 0.86rem;
+}
+
+@media (max-width: 1100px) {
+  .auth-column {
+    gap: 16px;
   }
 }

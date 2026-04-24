@@ -94,91 +94,93 @@
           </div>
         </div>
 
-        <aside class="auth-card reveal" id="auth-card">
-          <div class="auth-card-head">
-            <div>
-              <p class="eyebrow">Get started</p>
-              <h2>Sign up. It's free.</h2>
-              <p class="meta-text">Start with Mate.</p>
+        <div class="auth-column reveal">
+          <aside class="auth-card" id="auth-card">
+            <div class="auth-card-head">
+              <div>
+                <p class="eyebrow">Get started</p>
+                <h2>Sign up. It's free.</h2>
+                <p class="meta-text">Start with Mate.</p>
+              </div>
+              <div class="auth-toggle" id="auth-toggle" role="tablist" aria-label="Authentication">
+                <button class="auth-toggle-button is-active" type="button" data-auth-mode="signin">Log in</button>
+                <button class="auth-toggle-button" type="button" data-auth-mode="signup">Sign up</button>
+              </div>
             </div>
-            <div class="auth-toggle" id="auth-toggle" role="tablist" aria-label="Authentication">
-              <button class="auth-toggle-button is-active" type="button" data-auth-mode="signin">Log in</button>
-              <button class="auth-toggle-button" type="button" data-auth-mode="signup">Sign up</button>
-            </div>
-          </div>
 
-          <form class="auth-form" data-auth-form="signin" id="signin-form">
-            <label>
-              <span>Email</span>
-              <input id="signin-email" type="email" placeholder="you@school.edu" autocomplete="email" required>
-            </label>
-            <label>
-              <span>Password</span>
-              <input id="signin-password" type="password" placeholder="Enter your password" autocomplete="current-password" required>
-            </label>
-            <div class="inline-actions">
-              <button class="primary-button" type="submit">Continue to Mate</button>
-              <span class="status-chip" id="signin-status">Use your Mate account</span>
-            </div>
-          </form>
+            <form class="auth-form" data-auth-form="signin" id="signin-form">
+              <label>
+                <span>Email</span>
+                <input id="signin-email" type="email" placeholder="you@school.edu" autocomplete="email" required>
+              </label>
+              <label>
+                <span>Password</span>
+                <input id="signin-password" type="password" placeholder="Enter your password" autocomplete="current-password" required>
+              </label>
+              <div class="inline-actions">
+                <button class="primary-button" type="submit">Continue to Mate</button>
+                <span class="status-chip" id="signin-status">Use your Mate account</span>
+              </div>
+            </form>
 
-          <form class="auth-form is-hidden" data-auth-form="signup" id="signup-form">
-            <label>
-              <span>Full name</span>
-              <input id="signup-name" type="text" placeholder="Avery Chen" autocomplete="name" required>
-            </label>
-            <label>
-              <span>Email</span>
-              <input id="signup-email" type="email" placeholder="you@school.edu" autocomplete="email" required>
-            </label>
-            <label>
-              <span>Main goal</span>
-              <select id="signup-goal">
-                <option>IELTS / TOEFL / SAT Writing</option>
-                <option>Business email</option>
-                <option>Grammar practice</option>
-                <option>Daily expression upgrade</option>
-              </select>
-            </label>
-            <label>
-              <span>Password</span>
-              <input id="signup-password" type="password" placeholder="Create a password with 8+ characters" autocomplete="new-password" required>
-            </label>
-            <div class="inline-actions">
-              <button class="primary-button" type="submit">Create free account</button>
-              <span class="status-chip" id="signup-status">Local account</span>
-            </div>
-          </form>
+            <form class="auth-form is-hidden" data-auth-form="signup" id="signup-form">
+              <label>
+                <span>Full name</span>
+                <input id="signup-name" type="text" placeholder="Avery Chen" autocomplete="name" required>
+              </label>
+              <label>
+                <span>Email</span>
+                <input id="signup-email" type="email" placeholder="you@school.edu" autocomplete="email" required>
+              </label>
+              <label>
+                <span>Main goal</span>
+                <select id="signup-goal">
+                  <option>IELTS / TOEFL / SAT Writing</option>
+                  <option>Business email</option>
+                  <option>Grammar practice</option>
+                  <option>Daily expression upgrade</option>
+                </select>
+              </label>
+              <label>
+                <span>Password</span>
+                <input id="signup-password" type="password" placeholder="Create a password with 8+ characters" autocomplete="new-password" required>
+              </label>
+              <div class="inline-actions">
+                <button class="primary-button" type="submit">Create free account</button>
+                <span class="status-chip" id="signup-status">Local account</span>
+              </div>
+            </form>
 
-          <section class="session-summary is-hidden" id="auth-session-card">
-            <span class="small-label">Current account</span>
-            <h3 id="auth-session-name"></h3>
-            <p class="meta-text" id="auth-session-email"></p>
-            <div class="mini-chip-row">
-              <span class="status-chip is-live" id="auth-session-goal"></span>
-              <span class="status-chip is-file" id="auth-session-kb"></span>
+            <section class="session-summary is-hidden" id="auth-session-card">
+              <span class="small-label">Current account</span>
+              <h3 id="auth-session-name"></h3>
+              <p class="meta-text" id="auth-session-email"></p>
+              <div class="mini-chip-row">
+                <span class="status-chip is-live" id="auth-session-goal"></span>
+                <span class="status-chip is-file" id="auth-session-kb"></span>
+              </div>
+              <div class="session-links">
+                <a class="primary-button" id="auth-continue-link" href="chat.html">Continue to workspace</a>
+                <button class="secondary-button" id="auth-session-signout" type="button">Log out</button>
+              </div>
+            </section>
+
+          </aside>
+
+          <section class="section-band trust-strip">
+            <div class="section-heading">
+              <p class="eyebrow">Used for real student work</p>
+              <h2>Built for essays, email, grammar, and timed practice.</h2>
             </div>
-            <div class="session-links">
-              <a class="primary-button" id="auth-continue-link" href="chat.html">Continue to workspace</a>
-              <button class="secondary-button" id="auth-session-signout" type="button">Log out</button>
+            <div class="trust-badges">
+              <span class="logo-pill">IELTS</span>
+              <span class="logo-pill">TOEFL</span>
+              <span class="logo-pill">SAT Writing</span>
+              <span class="logo-pill">Business Email</span>
+              <span class="logo-pill">Grammar</span>
+              <span class="logo-pill">Daily English</span>
             </div>
           </section>
-
-        </aside>
-      </section>
-
-      <section class="section-band trust-strip">
-        <div class="section-heading reveal">
-          <p class="eyebrow">Used for real student work</p>
-          <h2>Built for essays, email, grammar, and timed practice.</h2>
-        </div>
-        <div class="trust-badges reveal">
-          <span class="logo-pill">IELTS</span>
-          <span class="logo-pill">TOEFL</span>
-          <span class="logo-pill">SAT Writing</span>
-          <span class="logo-pill">Business Email</span>
-          <span class="logo-pill">Grammar</span>
-          <span class="logo-pill">Daily English</span>
         </div>
       </section>
 
