@@ -535,7 +535,7 @@
       blocks: [
         {
           heading: "How to practice",
-          text: "Choose a preset, adjust difficulty and question count, then click Generate quiz set. The questions will appear here as practice cards."
+          text: "Choose a preset, adjust difficulty and question count, then click Generate quiz set. The questions will open in a separate practice window."
         },
         {
           heading: "Answer first",
@@ -598,6 +598,8 @@
   let currentQuizPreset = "grammar-drill";
   let currentKbFilter = "all";
   let practiceTimerId = null;
+  let practiceTimerWindow = window;
+  let latestPracticePayload = null;
 
   function escapeHtml(value) {
     return String(value)
@@ -2847,7 +2849,7 @@
     `).join("");
   }
 
-  function renderQuizResult(payload) {
+  function renderQuizResult(payload, options) {
     setText("quiz-output-title", payload.outputTitle);
     setText(
       "quiz-route-chip",
@@ -2869,17 +2871,131 @@
       `).join("");
 
       if (questionItems.length) {
-        blocks.innerHTML = buildPracticeQuestionsMarkup(questionItems);
-        initPracticeExam(blocks);
+        latestPracticePayload = payload;
+        const opened = renderPracticeInWindow(payload, options && options.practiceWindow);
+        blocks.innerHTML = buildPracticeLaunchMarkup(payload, opened);
       } else {
+        latestPracticePayload = null;
         clearPracticeTimer();
         blocks.innerHTML = blockMarkup;
+
+        if (options && options.practiceWindow) {
+          writePracticeWindowDocument(
+            options.practiceWindow,
+            "No Practice Questions Returned",
+            blockMarkup || `<article class="output-block">
+              <h3>No practice questions returned</h3>
+              <p>Try a clearer topic or reduce the question count, then generate again.</p>
+            </article>`
+          );
+        }
       }
     }
 
     if (scores) {
       scores.innerHTML = questionItems.length ? "" : buildScoreCardsMarkup(scoreItems);
     }
+  }
+
+  function openPracticeWindow() {
+    try {
+      return window.open("", "mate-practice-session", "width=1280,height=860,menubar=no,toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes");
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writePracticeWindowDocument(practiceWindow, title, bodyMarkup) {
+    if (!practiceWindow || practiceWindow.closed) {
+      return null;
+    }
+
+    const cssHref = new URL("styles.css", window.location.href).toString();
+    const faviconHref = new URL("favicon.svg", window.location.href).toString();
+    const safeTitle = escapeHtml(title || "Mate Practice Set");
+    let doc;
+
+    try {
+      doc = practiceWindow.document;
+      doc.open();
+      doc.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${safeTitle}</title>
+  <link rel="icon" type="image/svg+xml" href="${escapeAttribute(faviconHref)}">
+  <link rel="stylesheet" href="${escapeAttribute(cssHref)}">
+</head>
+<body data-page="quiz" class="practice-window-page">
+  <main class="practice-window-shell workspace-shell">
+    <section class="practice-window-card output-card">
+      <div class="practice-window-heading">
+        <span class="small-label">Mate Practice</span>
+        <h1>${safeTitle}</h1>
+      </div>
+      <div id="practice-window-root">${bodyMarkup}</div>
+    </section>
+  </main>
+</body>
+</html>`);
+      doc.close();
+    } catch (error) {
+      return null;
+    }
+
+    return doc;
+  }
+
+  function writePracticeLoadingWindow(practiceWindow, count) {
+    const loadingMarkup = `
+      <article class="output-block">
+        <h3>Generating practice set</h3>
+        <p>Mate is preparing ${escapeHtml(count)} question${Number(count) === 1 ? "" : "s"}. This window will update automatically.</p>
+      </article>
+    `;
+    writePracticeWindowDocument(practiceWindow, "Generating Practice Set", loadingMarkup);
+  }
+
+  function renderPracticeInWindow(payload, practiceWindow) {
+    const questionItems = Array.isArray(payload.questions) ? payload.questions : [];
+    if (!questionItems.length) {
+      return false;
+    }
+
+    const targetWindow = practiceWindow && !practiceWindow.closed ? practiceWindow : openPracticeWindow();
+    if (!targetWindow || targetWindow.closed) {
+      return false;
+    }
+
+    const title = `${payload.outputTitle || "Generated practice set"} - ${questionItems.length} questions`;
+    const doc = writePracticeWindowDocument(targetWindow, title, buildPracticeWindowMarkup(questionItems));
+    if (!doc) {
+      return false;
+    }
+
+    initPracticeWindowExam(doc);
+    targetWindow.focus();
+    return true;
+  }
+
+  function buildPracticeLaunchMarkup(payload, opened) {
+    const questions = Array.isArray(payload.questions) ? payload.questions : [];
+    const scores = Array.isArray(payload.scores) ? payload.scores : [];
+    const scoreSummary = scores.length
+      ? `<p>${scores.map((score) => `${escapeHtml(score.label)}: ${escapeHtml(score.value)}`).join(" / ")}</p>`
+      : "";
+
+    return `
+      <article class="output-block practice-launch-card">
+        <h3>${opened ? "Practice opened in a new window" : "Practice window was blocked"}</h3>
+        <p>${opened
+          ? `${questions.length} generated question${questions.length === 1 ? "" : "s"} are ready in the separate practice window.`
+          : "Your browser blocked the practice window. Use the button below to open the generated set."}</p>
+        ${scoreSummary}
+        <button class="secondary-button" type="button" id="quiz-open-practice-window">Open practice window</button>
+      </article>
+    `;
   }
 
   function buildPracticeQuestionsMarkup(questions) {
@@ -3058,8 +3174,10 @@
 
   function clearPracticeTimer() {
     if (practiceTimerId) {
-      window.clearInterval(practiceTimerId);
+      const timerWindow = practiceTimerWindow && !practiceTimerWindow.closed ? practiceTimerWindow : window;
+      timerWindow.clearInterval(practiceTimerId);
       practiceTimerId = null;
+      practiceTimerWindow = window;
     }
   }
 
@@ -3184,6 +3302,297 @@
     updateAnsweredState();
   }
 
+  function buildPracticeWindowMarkup(questions) {
+    const totalScore = questions.reduce((sum, question) => sum + getPracticeWindowQuestionScore(question), 0);
+    const limitMinutes = Math.max(1, questions.length);
+
+    return `
+      <section class="practice-exam" aria-label="Generated practice questions" data-practice-exam data-practice-seconds="${limitMinutes * 60}">
+        <div class="practice-exam-header">
+          <div>
+            <span class="small-label">Practice Set</span>
+            <strong>${questions.length} question${questions.length === 1 ? "" : "s"} ready</strong>
+          </div>
+          <div class="practice-exam-meta">
+            <span>${"\u9650\u65f6"}: ${limitMinutes}${"\u5206\u949f"}</span>
+            <span>${"\u9898\u91cf"}: ${questions.length}${"\u9898"}</span>
+            <span>${"\u603b\u5206"}: ${totalScore}${"\u5206"}</span>
+          </div>
+        </div>
+        <div class="practice-exam-layout">
+          <div class="practice-question-area">
+            <div class="practice-question-toolbar">
+              <span data-practice-progress>1/${questions.length}</span>
+              <div>
+                <button class="practice-nav-button" type="button" data-practice-prev>${"\u4e0a\u4e00\u9898"}</button>
+                <button class="practice-nav-button" type="button" data-practice-next>${"\u4e0b\u4e00\u9898"}</button>
+              </div>
+            </div>
+            <div class="practice-question-stage">
+              ${questions.map((question, index) => buildPracticeWindowQuestionMarkup(question, index)).join("")}
+            </div>
+          </div>
+          <aside class="practice-answer-card" aria-label="Answer card">
+            <div class="practice-answer-card-top">
+              <strong>${"\u7b54\u9898\u5361"}</strong>
+              <span data-practice-completion>${"\u5b8c\u6210"}0${"\u9053"} / ${"\u5171"}${questions.length}${"\u9053"}</span>
+            </div>
+            ${buildPracticeWindowAnswerGroups(questions)}
+          </aside>
+        </div>
+        <div class="practice-submit-bar">
+          <span class="practice-timer" data-practice-timer>${formatPracticeTimer(limitMinutes * 60)}</span>
+          <span class="practice-submit-status" data-practice-submit-status>${"\u5b8c\u6210\u540e\u70b9\u51fb\u4ea4\u5377\u67e5\u770b\u7b54\u9898\u60c5\u51b5\u3002"}</span>
+          <button class="practice-submit-button" type="button" data-practice-submit>${"\u4ea4\u5377"}</button>
+        </div>
+      </section>
+    `;
+  }
+
+  function buildPracticeWindowQuestionMarkup(question, index) {
+    const number = Number(question.number || index + 1);
+    const options = Array.isArray(question.options) ? question.options : [];
+    const typeLabel = getPracticeWindowQuestionTypeLabel(question);
+    const score = getPracticeWindowQuestionScore(question);
+    const optionMarkup = options.length
+      ? `
+        <fieldset class="practice-options" aria-label="Question ${number} options">
+          ${options.map((option) => `
+            <label class="practice-choice-option">
+              <input type="radio" name="practice-question-${index}" value="${escapeAttribute(option.key || option.text || "")}" data-practice-answer>
+              <span class="practice-choice-dot" aria-hidden="true"></span>
+              <span class="practice-choice-key">${escapeHtml(option.key || "")}.</span>
+              <span class="practice-choice-text">${escapeHtml(option.text || "")}</span>
+            </label>
+          `).join("")}
+        </fieldset>
+      `
+      : "";
+    const answer = question.correctAnswer || "No model answer was returned.";
+    const explanation = question.explanation || "No explanation was returned.";
+    const questionPrefix = options.length ? '<span class="practice-question-blank">( )</span> ' : "";
+
+    return `
+      <article class="practice-question-card${index === 0 ? " is-active" : ""}" data-practice-question-index="${index}" data-practice-type="${escapeAttribute(typeLabel)}" data-practice-score="${score}">
+        <div class="practice-question-top">
+          <span class="status-chip is-file">Q${number}</span>
+          <span>[${escapeHtml(typeLabel)}] (${score}${"\u5206"})</span>
+        </div>
+        ${question.concentration ? `<p class="practice-focus">${escapeHtml(question.concentration)}</p>` : ""}
+        <h4>${questionPrefix}${escapeHtml(question.question || "")}</h4>
+        ${optionMarkup}
+        ${options.length ? "" : `
+          <label class="practice-answer-box">
+            <span>Your answer</span>
+            <textarea placeholder="Type your answer here..." data-practice-answer></textarea>
+          </label>
+        `}
+        <details class="practice-answer">
+          <summary>Show model answer and explanation</summary>
+          <div>
+            <strong>Answer</strong>
+            <p>${formatInlineMarkdown(answer)}</p>
+            <strong>Explanation</strong>
+            <p>${formatInlineMarkdown(explanation)}</p>
+          </div>
+        </details>
+      </article>
+    `;
+  }
+
+  function getPracticeWindowQuestionTypeLabel(question) {
+    const type = String(question && question.type || "").toLowerCase();
+    const options = Array.isArray(question && question.options) ? question.options : [];
+
+    if (type.includes("multi")) {
+      return "\u591a\u9009\u9898";
+    }
+
+    if (type.includes("judge") || type.includes("true") || type.includes("false")) {
+      return "\u5224\u65ad\u9898";
+    }
+
+    if (options.length) {
+      return "\u5355\u9009\u9898";
+    }
+
+    return "\u7b80\u7b54\u9898";
+  }
+
+  function getPracticeWindowQuestionScore(question) {
+    const typeLabel = getPracticeWindowQuestionTypeLabel(question);
+
+    if (typeLabel === "\u591a\u9009\u9898") {
+      return 3;
+    }
+
+    if (typeLabel === "\u7b80\u7b54\u9898") {
+      return 5;
+    }
+
+    return 2;
+  }
+
+  function buildPracticeWindowAnswerGroups(questions) {
+    const groups = [];
+
+    questions.forEach((question, index) => {
+      const label = getPracticeWindowQuestionTypeLabel(question);
+      let group = groups.find((item) => item.label === label);
+
+      if (!group) {
+        group = {
+          label,
+          score: getPracticeWindowQuestionScore(question),
+          questions: []
+        };
+        groups.push(group);
+      }
+
+      group.questions.push({
+        index,
+        number: Number(question.number || index + 1)
+      });
+    });
+
+    return groups.map((group) => `
+      <div class="practice-answer-group">
+        <div class="practice-answer-group-title">
+          <span>* [${escapeHtml(group.label)}]</span>
+          <small>${"\u6bcf\u9898"}${group.score}${"\u5206"}</small>
+        </div>
+        <div class="practice-answer-grid">
+          ${group.questions.map((item) => `
+            <button class="practice-answer-dot${item.index === 0 ? " is-active" : ""}" type="button" data-practice-jump="${item.index}">${item.number}</button>
+          `).join("")}
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function initPracticeWindowExam(container) {
+    clearPracticeTimer();
+
+    const exam = container ? container.querySelector("[data-practice-exam]") : null;
+    if (!exam) {
+      return;
+    }
+
+    const timerWindow = exam.ownerDocument && exam.ownerDocument.defaultView ? exam.ownerDocument.defaultView : window;
+    const questions = Array.from(exam.querySelectorAll("[data-practice-question-index]"));
+    const answerDots = Array.from(exam.querySelectorAll("[data-practice-jump]"));
+    const progress = exam.querySelector("[data-practice-progress]");
+    const completion = exam.querySelector("[data-practice-completion]");
+    const timer = exam.querySelector("[data-practice-timer]");
+    const status = exam.querySelector("[data-practice-submit-status]");
+    const prevButton = exam.querySelector("[data-practice-prev]");
+    const nextButton = exam.querySelector("[data-practice-next]");
+    let activeIndex = 0;
+    let remainingSeconds = Number(exam.getAttribute("data-practice-seconds") || questions.length * 60);
+
+    function isAnswered(question) {
+      const checkedOption = question.querySelector("input[type='radio'][data-practice-answer]:checked");
+      const writtenAnswer = question.querySelector("textarea[data-practice-answer]");
+      return Boolean(checkedOption || (writtenAnswer && writtenAnswer.value.trim()));
+    }
+
+    function updateAnsweredState() {
+      const answeredCount = questions.filter(isAnswered).length;
+
+      answerDots.forEach((button) => {
+        const targetIndex = Number(button.getAttribute("data-practice-jump") || 0);
+        button.classList.toggle("is-answered", Boolean(questions[targetIndex] && isAnswered(questions[targetIndex])));
+      });
+
+      if (completion) {
+        completion.textContent = `\u5b8c\u6210${answeredCount}\u9053 / \u5171${questions.length}\u9053`;
+      }
+    }
+
+    function setActiveQuestion(index) {
+      activeIndex = Math.max(0, Math.min(questions.length - 1, index));
+
+      questions.forEach((question, questionIndex) => {
+        question.classList.toggle("is-active", questionIndex === activeIndex);
+      });
+
+      answerDots.forEach((button) => {
+        button.classList.toggle("is-active", Number(button.getAttribute("data-practice-jump") || 0) === activeIndex);
+      });
+
+      const activeQuestion = questions[activeIndex];
+      if (progress && activeQuestion) {
+        const typeLabel = activeQuestion.getAttribute("data-practice-type") || "\u5355\u9009\u9898";
+        const score = activeQuestion.getAttribute("data-practice-score") || "2";
+        progress.textContent = `${activeIndex + 1}/${questions.length} [${typeLabel}] (${score}\u5206)`;
+      }
+
+      if (prevButton) {
+        prevButton.disabled = activeIndex === 0;
+      }
+
+      if (nextButton) {
+        nextButton.disabled = activeIndex === questions.length - 1;
+      }
+    }
+
+    exam.addEventListener("click", function (event) {
+      const jumpButton = event.target.closest("[data-practice-jump]");
+      const prev = event.target.closest("[data-practice-prev]");
+      const next = event.target.closest("[data-practice-next]");
+      const submit = event.target.closest("[data-practice-submit]");
+
+      if (jumpButton) {
+        setActiveQuestion(Number(jumpButton.getAttribute("data-practice-jump") || 0));
+        return;
+      }
+
+      if (prev) {
+        setActiveQuestion(activeIndex - 1);
+        return;
+      }
+
+      if (next) {
+        setActiveQuestion(activeIndex + 1);
+        return;
+      }
+
+      if (submit) {
+        clearPracticeTimer();
+        updateAnsweredState();
+        const answeredCount = questions.filter(isAnswered).length;
+        const unansweredCount = questions.length - answeredCount;
+        if (status) {
+          status.textContent = unansweredCount
+            ? `\u5df2\u4ea4\u5377\uff1a\u5b8c\u6210${answeredCount}\u9053\uff0c\u5269\u4f59${unansweredCount}\u9053\u672a\u7b54\u3002`
+            : `\u5df2\u4ea4\u5377\uff1a${questions.length}\u9053\u5168\u90e8\u5b8c\u6210\u3002`;
+        }
+      }
+    });
+
+    exam.addEventListener("change", updateAnsweredState);
+    exam.addEventListener("input", updateAnsweredState);
+
+    if (timer) {
+      timer.textContent = formatPracticeTimer(remainingSeconds);
+      practiceTimerWindow = timerWindow;
+      practiceTimerId = timerWindow.setInterval(function () {
+        remainingSeconds -= 1;
+        timer.textContent = formatPracticeTimer(remainingSeconds);
+
+        if (remainingSeconds <= 0) {
+          clearPracticeTimer();
+          if (status) {
+            status.textContent = "\u65f6\u95f4\u5230\uff0c\u8bf7\u68c0\u67e5\u7b54\u9898\u5361\u540e\u4ea4\u5377\u3002";
+          }
+        }
+      }, 1000);
+    }
+
+    setActiveQuestion(0);
+    updateAnsweredState();
+  }
+
   function renderQuizFocus(items) {
     renderAnalysisList("quiz-focus-list", items);
   }
@@ -3227,7 +3636,7 @@
     setText(
       "quiz-action-hint",
       modeKey === "quiz"
-        ? "Questions will appear in the practice panel on the right."
+        ? "Questions will open in a separate practice window."
         : "The analysis will appear in the result panel on the right."
     );
     setText("quiz-route-chip", getRuntimeRouteLabel(modeKey === "quiz" ? "quiz" : "deepSolve", mode.route));
@@ -4361,6 +4770,18 @@
       countInput.value = clampPracticeQuestionCount(countInput.value, 5);
     });
 
+    const outputBlocks = document.getElementById("quiz-output-blocks");
+    if (outputBlocks) {
+      outputBlocks.addEventListener("click", function (event) {
+        const openButton = event.target.closest("#quiz-open-practice-window");
+        if (!openButton || !latestPracticePayload) {
+          return;
+        }
+
+        renderPracticeInWindow(latestPracticePayload, openPracticeWindow());
+      });
+    }
+
     runButton.addEventListener("click", async function () {
       const mode = quizModes[currentQuizMode];
       const prompt = promptInput.value.trim();
@@ -4373,6 +4794,14 @@
         setBadge(runtimeBadge, "Add a prompt first", "is-demo");
         promptInput.focus();
         return;
+      }
+
+      let practiceWindow = null;
+      if (currentQuizMode === "quiz") {
+        practiceWindow = openPracticeWindow();
+        if (practiceWindow) {
+          writePracticeLoadingWindow(practiceWindow, count);
+        }
       }
 
       runButton.disabled = true;
@@ -4412,13 +4841,23 @@
           }
         );
 
-        renderQuizResult(payload);
+        renderQuizResult(payload, { practiceWindow });
         setBadge(
           runtimeBadge,
           payload.mode === "proxy" ? "DeepTutor live" : "Ready",
           payload.mode === "proxy" ? "is-live" : payload.mode === "mock" ? "is-file" : "is-demo"
         );
       } catch (error) {
+        if (practiceWindow && !practiceWindow.closed) {
+          writePracticeWindowDocument(
+            practiceWindow,
+            "Practice generation failed",
+            `<article class="output-block">
+              <h3>Practice request failed</h3>
+              <p>${escapeHtml(error.message || "Please try again.")}</p>
+            </article>`
+          );
+        }
         setBadge(runtimeBadge, error.message || "Practice request failed", "is-demo");
       } finally {
         runButton.disabled = false;
