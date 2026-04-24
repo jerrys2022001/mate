@@ -417,6 +417,7 @@
       sourceText: "Band 7 and above responses maintain a clear position, strong cohesion, varied vocabulary, and a high level of grammatical control.",
       tags: ["exam", "ielts", "rubric", "starter"],
       onlineName: "IELTS Writing Band Descriptors.pdf",
+      sourceOrigin: "starter",
       sourceUrl: "https://ielts.org/-/media/pdfs/writing-band-descriptors-task-2.ashx"
     },
     {
@@ -428,6 +429,7 @@
       sourceText: "Use a calm opener, state the update directly, explain the reason briefly, and end with a clear next step or request.",
       tags: ["business", "email", "tone", "starter"],
       onlineName: "Purdue OWL Sample Emails.html",
+      sourceOrigin: "starter",
       sourceUrl: "https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/business_writing_for_administrative_and_clerical_staff/sample_emails.html"
     },
     {
@@ -439,6 +441,7 @@
       sourceText: "Strong essays define the position early, develop one main idea per paragraph, and connect examples back to the thesis.",
       tags: ["essay", "writing", "examples", "starter"],
       onlineName: "British Council IELTS Writing Practice.html",
+      sourceOrigin: "starter",
       sourceUrl: "https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-english-practice-tests/writing/academic"
     }
   ];
@@ -695,6 +698,43 @@
   function getDocumentDownloadName(document) {
     const rawName = String(document && document.name ? document.name : "mate-document.txt").trim();
     return rawName || "mate-document.txt";
+  }
+
+  function getDocumentExportName(document) {
+    const rawName = getDocumentDownloadName(document);
+    const baseName = rawName.replace(/\.[a-z0-9]{1,8}$/i, "").trim() || "mate-document";
+    return `${baseName}.txt`;
+  }
+
+  function canExportDocumentLocally(document) {
+    return Boolean(document && (document.sourceText || document.summary || document.name));
+  }
+
+  function buildLocalDocumentExport(document) {
+    const lines = [
+      document.name || "Mate knowledge document",
+      "",
+      document.type ? `Type: ${document.type}` : "",
+      document.summary ? `Summary: ${document.summary}` : "",
+      document.sourceUrl ? `Source: ${document.sourceUrl}` : "",
+      "",
+      document.sourceText || "No source text is stored for this document."
+    ];
+
+    return lines.filter((line, index) => index < 2 || line).join("\n");
+  }
+
+  function saveBlobAsFile(blob, fileName) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(function () {
+      URL.revokeObjectURL(url);
+    }, 1000);
   }
 
   function truncate(value, maxLength) {
@@ -1760,7 +1800,28 @@
   }
 
   async function downloadDocumentFile(kbDocument) {
-    await ensureApiRuntime();
+    let apiError = null;
+
+    try {
+      await ensureApiRuntime();
+    } catch (error) {
+      apiError = error;
+    }
+
+    if (apiError) {
+      if (!canExportDocumentLocally(kbDocument)) {
+        throw apiError;
+      }
+
+      saveBlobAsFile(
+        new Blob([buildLocalDocumentExport(kbDocument)], { type: "text/plain; charset=utf-8" }),
+        getDocumentExportName(kbDocument)
+      );
+      return {
+        mode: "local",
+        warning: apiError.message
+      };
+    }
 
     const requestUrl = buildApiUrl(`/api/kb/documents/${encodeURIComponent(kbDocument.id)}/download`);
     const response = await fetch(requestUrl, {
@@ -1779,18 +1840,25 @@
       } catch (error) {
         // Keep the generic message for non-JSON download errors.
       }
-      throw new Error(message);
+      if (!canExportDocumentLocally(kbDocument)) {
+        throw new Error(message);
+      }
+
+      saveBlobAsFile(
+        new Blob([buildLocalDocumentExport(kbDocument)], { type: "text/plain; charset=utf-8" }),
+        getDocumentExportName(kbDocument)
+      );
+      return {
+        mode: "local",
+        warning: message
+      };
     }
 
     const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = getDocumentDownloadName(kbDocument);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    saveBlobAsFile(blob, getDocumentDownloadName(kbDocument));
+    return {
+      mode: "api"
+    };
   }
 
   function buildChatFallback(message, scenarioKey) {
@@ -6081,8 +6149,8 @@
           updateDocStatus("Preparing download", "is-file");
 
           try {
-            await downloadDocumentFile(targetDocument);
-            updateDocStatus("Download ready", "is-live");
+            const result = await downloadDocumentFile(targetDocument);
+            updateDocStatus(result && result.mode === "local" ? "Exported local note" : "Download ready", result && result.mode === "local" ? "is-file" : "is-live");
           } catch (error) {
             updateDocStatus(error.message || "Download failed", "is-demo");
           } finally {

@@ -2858,6 +2858,12 @@ function buildDownloadFileName(document) {
   return sanitizeUploadFileName(hasExt ? requested : `${requested}${fallbackExt || ".txt"}`);
 }
 
+function buildTextExportFileName(document) {
+  const requested = String(document.name || "mate-note").trim();
+  const parsed = path.parse(requested);
+  return sanitizeUploadFileName(`${parsed.name || "mate-note"}.txt`);
+}
+
 function buildDownloadPayload(document, user) {
   if (document.storagePath) {
     const absolutePath = resolveStoredWorkspacePath(document.storagePath);
@@ -2885,7 +2891,7 @@ function buildDownloadPayload(document, user) {
 
   return {
     buffer: Buffer.from(body, "utf8"),
-    fileName: buildDownloadFileName(Object.assign({}, document, { name: document.name || "mate-note.txt" })),
+    fileName: buildTextExportFileName(document),
     mimeType: "text/plain; charset=utf-8"
   };
 }
