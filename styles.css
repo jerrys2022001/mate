@@ -6662,3 +6662,27 @@ body[data-page="kb"] .workspace-shell .doc-body h4 {
     min-height: 208px;
   }
 }
+
+/* Quiz compact controls: keep the selected title and preset choices on one desktop line. */
+@media (min-width: 1101px) {
+  body[data-page="quiz"] .workspace-shell #quiz-title {
+    max-width: none;
+    white-space: nowrap;
+  }
+
+  body[data-page="quiz"] .workspace-shell #quiz-preset-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 10px;
+    width: 100%;
+    overflow: visible;
+  }
+
+  body[data-page="quiz"] .workspace-shell #quiz-preset-row .quick-chip {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    padding-inline: 10px;
+    white-space: nowrap;
+  }
+}
