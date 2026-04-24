@@ -2016,6 +2016,8 @@ function buildKnowledgeNotePayload(payload) {
   const type = String(payload.type || "Reference file").trim();
   const summary = String(payload.summary || "").trim();
   const sourceText = String(payload.sourceText || "").trim();
+  const sampleId = String(payload.sampleId || "").trim();
+  const sourceUrl = String(payload.sourceUrl || "").trim().slice(0, 2048);
   const tags = Array.isArray(payload.tags)
     ? payload.tags
     : String(payload.tags || "")
@@ -2028,8 +2030,39 @@ function buildKnowledgeNotePayload(payload) {
     type,
     summary,
     sourceText,
+    sampleId,
+    sourceUrl,
     tags: Array.from(new Set(tags)).slice(0, 6)
   };
+}
+
+function normalizeKnowledgeNoteDuplicateValue(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function getKnowledgeNoteDuplicateKey(note) {
+  const normalizedName = normalizeKnowledgeNoteDuplicateValue(note && note.name);
+  const normalizedText = normalizeKnowledgeNoteDuplicateValue(note && note.sourceText);
+
+  if (!normalizedName || !normalizedText) {
+    return "";
+  }
+
+  const textHash = crypto.createHash("sha256").update(normalizedText).digest("hex");
+  return `${normalizedName}:${textHash}`;
+}
+
+function findDuplicateKnowledgeNote(note, user) {
+  const targetKey = getKnowledgeNoteDuplicateKey(note);
+
+  if (!targetKey) {
+    return null;
+  }
+
+  return getVisibleLocalKnowledgeDocuments(user).find((document) => getKnowledgeNoteDuplicateKey(document) === targetKey) || null;
 }
 
 function sanitizeUploadFileName(value) {
@@ -2311,6 +2344,8 @@ function createLocalKbDocument(note, options) {
     status: options.status,
     summary: note.summary || "Uploaded into Mate KB",
     sourceText: note.sourceText,
+    sampleId: note.sampleId || null,
+    sourceUrl: note.sourceUrl || null,
     tags: Array.isArray(note.tags) ? note.tags.slice(0, 6) : [],
     createdAt: new Date().toISOString(),
     userId: options.userId || null,
@@ -2415,6 +2450,20 @@ async function createKnowledgeDocument(payload, user) {
 
   if (!note.name || !note.sourceText) {
     throw new Error("Both name and sourceText are required.");
+  }
+
+  const duplicateDocument = findDuplicateKnowledgeNote(note, user);
+
+  if (duplicateDocument) {
+    return {
+      mode: canUseDeepTutorKnowledgeBase() ? "proxy" : "mock",
+      duplicate: true,
+      skippedCount: 1,
+      skippedDuplicates: [note.name],
+      documentId: duplicateDocument.id,
+      message: `${note.name} is already in your knowledge base.`,
+      documents: await listKnowledgeDocuments(user)
+    };
   }
 
   if (!canUseDeepTutorKnowledgeBase()) {

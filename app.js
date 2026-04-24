@@ -415,7 +415,8 @@
       status: "Indexed and ready",
       summary: "Official scoring criteria for task response, coherence, lexical resource, and grammar.",
       sourceText: "Band 7 and above responses maintain a clear position, strong cohesion, varied vocabulary, and a high level of grammatical control.",
-      tags: ["exam", "ielts", "rubric", "starter"]
+      tags: ["exam", "ielts", "rubric", "starter"],
+      sourceUrl: "https://ielts.org/-/media/pdfs/writing-band-descriptors-task-2.ashx"
     },
     {
       id: "emails",
@@ -424,7 +425,8 @@
       status: "Synced to KB",
       summary: "Approved phrasing patterns for client updates, scheduling, escalation, and follow-up emails.",
       sourceText: "Use a calm opener, state the update directly, explain the reason briefly, and end with a clear next step or request.",
-      tags: ["business", "email", "tone", "starter"]
+      tags: ["business", "email", "tone", "starter"],
+      sourceUrl: "https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/business_writing_for_administrative_and_clerical_staff/sample_emails.html"
     },
     {
       id: "essay-bank",
@@ -433,7 +435,8 @@
       status: "Chunked into examples",
       summary: "High-quality introductions, body paragraphs, and conclusion structures for common writing prompts.",
       sourceText: "Strong essays define the position early, develop one main idea per paragraph, and connect examples back to the thesis.",
-      tags: ["essay", "writing", "examples", "starter"]
+      tags: ["essay", "writing", "examples", "starter"],
+      sourceUrl: "https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-english-practice-tests/writing/academic"
     }
   ];
 
@@ -5635,6 +5638,7 @@
     const uploadProgressDetail = document.getElementById("kb-upload-progress-detail");
     let activeDocs = kbSamples.slice();
     let queuedFiles = [];
+    const pendingSampleAdds = new Set();
 
     if (!feed || !search) {
       return;
@@ -5646,6 +5650,60 @@
 
     function updateDocStatus(text, tone) {
       setBadge(docStatus, text, tone);
+    }
+
+    function normalizeKbSampleValue(value) {
+      return String(value || "")
+        .trim()
+        .replace(/\s+/g, " ")
+        .toLowerCase();
+    }
+
+    function isUserAddedKbDocument(document) {
+      const id = String(document && document.id ? document.id : "");
+      return Boolean(
+        document
+        && (
+          document.sourceOrigin === "personal"
+          || document.userId
+          || id.startsWith("doc-")
+          || id.startsWith("demo-sample-")
+        )
+      );
+    }
+
+    function kbDocumentMatchesSample(document, sample) {
+      if (!isUserAddedKbDocument(document) || !sample) {
+        return false;
+      }
+
+      const documentName = normalizeKbSampleValue(document.name).replace(/\s+\(new upload\)$/i, "");
+      const sampleName = normalizeKbSampleValue(sample.name);
+      const documentText = normalizeKbSampleValue(document.sourceText);
+      const sampleText = normalizeKbSampleValue(sample.sourceText);
+
+      return documentName === sampleName && (!documentText || !sampleText || documentText === sampleText);
+    }
+
+    function hasAddedKbSample(sample) {
+      return activeDocs.some((document) => kbDocumentMatchesSample(document, sample));
+    }
+
+    function syncSampleAddButtons() {
+      buttons.forEach((button) => {
+        const id = button.getAttribute("data-kb-add");
+        const sample = kbSamples.find((item) => item.id === id);
+        const isPending = pendingSampleAdds.has(id);
+        const isAdded = hasAddedKbSample(sample);
+
+        button.disabled = isPending || isAdded;
+        button.classList.toggle("is-added", isAdded);
+        button.setAttribute("aria-disabled", button.disabled ? "true" : "false");
+        button.title = isAdded ? "This sample is already in your knowledge base." : "Add this sample to your knowledge base.";
+        if (button.dataset.originalLabel) {
+          button.textContent = isPending ? "Adding..." : isAdded ? "Already added" : button.dataset.originalLabel;
+        }
+      });
     }
 
     function setUploadProgress(percent, detailText) {
@@ -5809,6 +5867,7 @@
       renderKnowledgeCards(libraryCards);
       updateDocStatus(`${visibleCount} visible / ${activeDocs.length} total`, "is-file");
       updateFilterState(libraryCards.length, visibleCount);
+      syncSampleAddButtons();
     }
 
     function setQueuedFiles(fileList) {
@@ -6075,6 +6134,7 @@
     }
 
     buttons.forEach((button) => {
+      button.dataset.originalLabel = button.textContent.trim();
       button.addEventListener("click", async function () {
         const id = button.getAttribute("data-kb-add");
         const sample = kbSamples.find((item) => item.id === id);
@@ -6083,44 +6143,76 @@
           return;
         }
 
-        const payload = await requestJson(
-          "/api/kb/documents",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              name: sample.name,
-              type: sample.type,
-              summary: sample.summary,
-              sourceText: sample.sourceText
-            })
-          },
-          function () {
-            return {
-              mode: "demo",
-              documents: [
-                {
-                  id: `demo-sample-${sample.id}-${Date.now()}`,
-                  name: `${sample.name} (new upload)`,
-                  type: sample.type,
-                  summary: sample.summary,
-                  status: "Queued for indexing",
-                  tags: sample.tags || [],
-                  sourceOrigin: "personal",
-                  editable: false
-                }
-              ].concat(activeDocs)
-            };
-          }
-        );
+        if (hasAddedKbSample(sample) || pendingSampleAdds.has(id)) {
+          updateDocStatus("Sample already added", "is-file");
+          setBadge(runtimeBadge, "Already added", "is-file");
+          syncSampleAddButtons();
+          return;
+        }
 
-        activeDocs = payload.documents || activeDocs;
-        syncKnowledgeSurface();
-        setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : "Ready", payload.mode === "proxy" ? "is-live" : "is-demo");
+        pendingSampleAdds.add(id);
+        syncSampleAddButtons();
+        updateDocStatus("Adding sample", "is-file");
+
+        try {
+          const payload = await requestJson(
+            "/api/kb/documents",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                sampleId: sample.id,
+                name: sample.name,
+                type: sample.type,
+                summary: sample.summary,
+                sourceText: sample.sourceText,
+                tags: sample.tags || [],
+                sourceUrl: sample.sourceUrl || ""
+              })
+            },
+            function () {
+              if (hasAddedKbSample(sample)) {
+                return {
+                  mode: "demo",
+                  duplicate: true,
+                  documents: activeDocs
+                };
+              }
+
+              return {
+                mode: "demo",
+                documents: [
+                  {
+                    id: `demo-sample-${sample.id}-${Date.now()}`,
+                    sampleId: sample.id,
+                    name: `${sample.name} (new upload)`,
+                    type: sample.type,
+                    summary: sample.summary,
+                    status: "Queued for indexing",
+                    sourceText: sample.sourceText,
+                    sourceUrl: sample.sourceUrl || "",
+                    tags: sample.tags || [],
+                    sourceOrigin: "personal",
+                    editable: false
+                  }
+                ].concat(activeDocs)
+              };
+            }
+          );
+
+          activeDocs = payload.documents || activeDocs;
+          syncKnowledgeSurface();
+          updateDocStatus(payload.duplicate ? "Sample already in knowledge base" : "Sample added to knowledge base", payload.duplicate ? "is-file" : "is-live");
+          setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : payload.duplicate ? "Already added" : "Ready", payload.mode === "proxy" ? "is-live" : "is-file");
+        } finally {
+          pendingSampleAdds.delete(id);
+          syncSampleAddButtons();
+        }
       });
     });
+    syncSampleAddButtons();
 
     if (entryForm && entryStatus) {
       entryForm.addEventListener("submit", async function (event) {
