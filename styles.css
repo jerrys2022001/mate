@@ -4778,6 +4778,12 @@ body {
   min-height: 240px;
 }
 
+#chat-input.is-file-dragging {
+  border-color: var(--teal-strong);
+  background: var(--teal-soft);
+  box-shadow: 0 0 0 6px rgba(24, 130, 95, 0.14);
+}
+
 .workspace-shell .analysis-list li {
   padding: 16px 0;
 }

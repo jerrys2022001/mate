@@ -4745,6 +4745,8 @@
     const runtimeBadge = document.getElementById("chat-runtime");
     const starterList = document.getElementById("chat-starter-list");
     const voiceInputButton = document.getElementById("chat-voice-input");
+    const draftFileInput = document.getElementById("chat-draft-file");
+    const importDraftButton = document.getElementById("chat-import-draft");
     const readSelectionButton = document.getElementById("chat-read-selection");
     const readLatestButton = document.getElementById("chat-read-latest");
     const stopSpeechButton = document.getElementById("chat-stop-speech");
@@ -4835,6 +4837,46 @@
       textarea.value = [voiceBaseText, spokenText].filter(Boolean).join(voiceBaseText && spokenText ? " " : "");
       textarea.focus();
       textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
+
+    async function importDraftFile(file) {
+      if (!file) {
+        return;
+      }
+
+      const originalDisabled = importDraftButton ? importDraftButton.disabled : false;
+      if (importDraftButton) {
+        importDraftButton.disabled = true;
+      }
+
+      updateSpeechStatus("Reading draft file", "is-file");
+
+      try {
+        const text = (await readLocalQuestionBankText(file)).trim();
+
+        if (!text) {
+          updateSpeechStatus("No readable text found", "is-demo");
+          return;
+        }
+
+        const currentText = textarea.value.trim();
+        textarea.value = currentText ? `${currentText}\n\n${text}` : text;
+        textarea.focus();
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+        updateSpeechStatus(`Imported ${file.name}`, "is-live");
+        syncSpeechButtons();
+      } catch (error) {
+        updateSpeechStatus(error.message || "Could not import file", "is-demo");
+      } finally {
+        if (importDraftButton) {
+          importDraftButton.disabled = originalDisabled;
+        }
+      }
+    }
+
+    function getFirstDroppedFile(event) {
+      const files = event && event.dataTransfer ? Array.from(event.dataTransfer.files || []) : [];
+      return files.find((file) => file && file.size > 0) || null;
     }
 
     function clearVoiceIdleTimer() {
@@ -5067,6 +5109,39 @@
         syncSpeechButtons();
       });
     }
+
+    if (importDraftButton && draftFileInput) {
+      importDraftButton.addEventListener("click", function () {
+        draftFileInput.click();
+      });
+
+      draftFileInput.addEventListener("change", function () {
+        importDraftFile(draftFileInput.files && draftFileInput.files[0]);
+        draftFileInput.value = "";
+      });
+    }
+
+    textarea.addEventListener("dragover", function (event) {
+      if (getFirstDroppedFile(event)) {
+        event.preventDefault();
+        textarea.classList.add("is-file-dragging");
+      }
+    });
+
+    textarea.addEventListener("dragleave", function () {
+      textarea.classList.remove("is-file-dragging");
+    });
+
+    textarea.addEventListener("drop", function (event) {
+      const file = getFirstDroppedFile(event);
+      if (!file) {
+        return;
+      }
+
+      event.preventDefault();
+      textarea.classList.remove("is-file-dragging");
+      importDraftFile(file);
+    });
 
     if (voiceInputButton) {
       voiceInputButton.addEventListener("click", function () {

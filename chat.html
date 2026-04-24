@@ -89,6 +89,21 @@
             <div class="composer-top">
               <h3>Paste a draft</h3>
               <div class="composer-control-row">
+                <input
+                  id="chat-draft-file"
+                  type="file"
+                  accept=".txt,.md,.markdown,.docx,.pdf,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  hidden
+                >
+                <button class="speech-tool-button" id="chat-import-draft" type="button">
+                  <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path>
+                    <path d="M14 2v6h6"></path>
+                    <path d="M12 18v-6"></path>
+                    <path d="M9 15l3 3 3-3"></path>
+                  </svg>
+                  <span>Import draft</span>
+                </button>
                 <button class="speech-tool-button" id="chat-voice-input" type="button" aria-pressed="false">
                   <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
                     <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z"></path>
@@ -133,7 +148,7 @@
                 </button>
               </div>
             </div>
-            <textarea id="chat-input" placeholder="Paste your sentence, essay paragraph, or email draft here..."></textarea>
+            <textarea id="chat-input" placeholder="Paste text here, or import TXT / DOCX / text PDF drafts..."></textarea>
             <span class="status-chip is-file" id="chat-speech-status">Voice ready</span>
           </form>
 
