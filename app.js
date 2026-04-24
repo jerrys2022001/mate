@@ -769,6 +769,346 @@
     }
   }
 
+  function buildIconMarkup(iconName) {
+    const icons = {
+      volume: [
+        '<path d="M5 9v6h4l5 4V5L9 9H5Z"></path>',
+        '<path d="M18 9a5 5 0 0 1 0 6"></path>',
+        '<path d="M20.5 6.5a9 9 0 0 1 0 11"></path>'
+      ]
+    };
+    const paths = icons[iconName] || icons.volume;
+
+    return `<svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">${paths.join("")}</svg>`;
+  }
+
+  function sanitizeFilename(value) {
+    const fallback = "mate-export";
+    const normalized = String(value || fallback)
+      .trim()
+      .replace(/[<>:"/\\|?*\x00-\x1f]+/g, "-")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .toLowerCase();
+
+    return normalized ? normalized.slice(0, 80) : fallback;
+  }
+
+  function getExportDateStamp() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function getCleanNodeText(node) {
+    if (!node) {
+      return "";
+    }
+
+    const clone = node.cloneNode(true);
+    clone.querySelectorAll("button, svg, .message-actions, .message-role").forEach((item) => item.remove());
+    return clone.textContent.replace(/\s+/g, " ").trim();
+  }
+
+  function getElementText(selector) {
+    const node = document.querySelector(selector);
+    return node ? node.textContent.replace(/\s+/g, " ").trim() : "";
+  }
+
+  function getFieldValue(id) {
+    const node = document.getElementById(id);
+    if (!node || !("value" in node)) {
+      return "";
+    }
+
+    return String(node.value || "").trim();
+  }
+
+  function getSelectDisplayValue(id) {
+    const node = document.getElementById(id);
+    if (!node || !("selectedIndex" in node) || node.selectedIndex < 0) {
+      return getFieldValue(id);
+    }
+
+    return node.options[node.selectedIndex].textContent.trim();
+  }
+
+  function buildExportParagraphs(value) {
+    const lines = String(value || "")
+      .split(/\n+/)
+      .map((line) => line.replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+
+    if (!lines.length) {
+      return '<p class="muted">No content yet.</p>';
+    }
+
+    return lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+  }
+
+  function buildExportList(items) {
+    const normalizedItems = items.map((item) => String(item || "").trim()).filter(Boolean);
+
+    if (!normalizedItems.length) {
+      return '<p class="muted">No content yet.</p>';
+    }
+
+    return `<ul>${normalizedItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+  }
+
+  function buildExportDetails(items) {
+    const rows = items.filter((item) => item && item.value);
+
+    if (!rows.length) {
+      return '<p class="muted">No details yet.</p>';
+    }
+
+    return `
+      <table>
+        <tbody>
+          ${rows.map((item) => `
+            <tr>
+              <th>${escapeHtml(item.label)}</th>
+              <td>${escapeHtml(item.value)}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+  }
+
+  function collectCardTexts(selector, root) {
+    return Array.from((root || document).querySelectorAll(selector)).map(getCleanNodeText).filter(Boolean);
+  }
+
+  function buildExportDocument(title, sections) {
+    const sectionMarkup = sections.map((section) => `
+      <section>
+        <h2>${escapeHtml(section.heading)}</h2>
+        ${section.content || '<p class="muted">No content yet.</p>'}
+      </section>
+    `).join("");
+
+    return `<!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${escapeHtml(title)}</title>
+          <style>
+            body { font-family: Aptos, Calibri, Arial, sans-serif; color: #1f2d36; line-height: 1.55; }
+            h1 { font-size: 26px; margin: 0 0 6px; }
+            h2 { font-size: 18px; margin: 24px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #d8ded6; }
+            h3 { font-size: 15px; margin: 14px 0 4px; }
+            p { margin: 0 0 8px; }
+            ul { margin: 0 0 8px 20px; padding: 0; }
+            li { margin: 0 0 6px; }
+            table { width: 100%; border-collapse: collapse; margin: 0 0 10px; }
+            th, td { border: 1px solid #d8ded6; padding: 7px 9px; vertical-align: top; text-align: left; }
+            th { width: 28%; background: #f7f5ef; }
+            .meta, .muted { color: #667482; }
+            .turn { margin: 0 0 14px; padding: 10px 12px; border: 1px solid #d8ded6; }
+          </style>
+        </head>
+        <body>
+          <h1>${escapeHtml(title)}</h1>
+          <p class="meta">Exported from Mate on ${escapeHtml(getExportDateStamp())}</p>
+          ${sectionMarkup}
+        </body>
+      </html>`;
+  }
+
+  function downloadGeneratedDocument(title, sections) {
+    const html = buildExportDocument(title, sections);
+    const blob = new Blob(["\ufeff", html], { type: "application/msword;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${sanitizeFilename(title)}-${getExportDateStamp()}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function collectChatExportSections() {
+    const messages = Array.from(document.querySelectorAll("#chat-thread .message")).map((message) => {
+      const role = message.classList.contains("user") ? "Learner" : "Mate";
+      return `
+        <div class="turn">
+          <h3>${escapeHtml(role)}</h3>
+          ${buildExportParagraphs(getCleanNodeText(message))}
+        </div>
+      `;
+    });
+
+    const draft = getFieldValue("chat-input");
+    const suggestions = collectCardTexts("#chat-suggestions li");
+    const deliverables = collectCardTexts("#chat-deliverables .deliverable-card");
+
+    return {
+      title: `Study Chat - ${getElementText("#chat-scenario-title") || "Session"}`,
+      sections: [
+        {
+          heading: "Session",
+          content: buildExportDetails([
+            { label: "Mode", value: getElementText("#chat-scenario-title") },
+            { label: "Goal", value: getElementText("#chat-goal") },
+            { label: "Current draft", value: draft }
+          ])
+        },
+        {
+          heading: "Conversation",
+          content: messages.join("") || '<p class="muted">No chat messages yet.</p>'
+        },
+        {
+          heading: "Outputs",
+          content: buildExportList(deliverables)
+        },
+        {
+          heading: "Next steps",
+          content: buildExportList(suggestions)
+        }
+      ]
+    };
+  }
+
+  function collectKnowledgeExportSections() {
+    const libraryCards = collectCardTexts("#kb-source-grid .source-card");
+    const visibleDocuments = collectCardTexts("#kb-doc-feed .doc-item");
+    const queuedFiles = collectCardTexts("#kb-upload-queue li");
+
+    return {
+      title: "Knowledge Base",
+      sections: [
+        {
+          heading: "Library View",
+          content: buildExportDetails([
+            { label: "Filter", value: getElementText("#kb-filter-status") },
+            { label: "Visible documents", value: getElementText("#kb-doc-status") },
+            { label: "Library matches", value: getElementText("#kb-library-count") },
+            { label: "Context", value: getElementText("#kb-library-context") },
+            { label: "Search", value: getFieldValue("kb-search") }
+          ])
+        },
+        {
+          heading: "Library Cards",
+          content: buildExportList(libraryCards)
+        },
+        {
+          heading: "Recent Files",
+          content: buildExportList(visibleDocuments)
+        },
+        {
+          heading: "Draft Note",
+          content: buildExportDetails([
+            { label: "Title", value: getFieldValue("kb-entry-title") },
+            { label: "Type", value: getSelectDisplayValue("kb-entry-type") },
+            { label: "Summary", value: getFieldValue("kb-entry-summary") },
+            { label: "Tags", value: getFieldValue("kb-entry-tags") },
+            { label: "Knowledge text", value: getFieldValue("kb-entry-text") },
+            { label: "Upload queue", value: queuedFiles.join("; ") }
+          ])
+        }
+      ]
+    };
+  }
+
+  function collectQuizExportSections() {
+    const focusItems = collectCardTexts("#quiz-focus-list li");
+    const outputBlocks = collectCardTexts("#quiz-output-blocks > *");
+    const scoreItems = collectCardTexts("#quiz-score-grid .score-card");
+
+    return {
+      title: `Practice - ${getElementText("#quiz-title") || "Session"}`,
+      sections: [
+        {
+          heading: "Practice Setup",
+          content: buildExportDetails([
+            { label: "Mode", value: getElementText("#quiz-mode-chip") || getElementText("#quiz-eyebrow") },
+            { label: "Title", value: getElementText("#quiz-title") },
+            { label: "Prompt helper", value: getElementText("#quiz-prompt") },
+            { label: "Difficulty", value: getSelectDisplayValue("quiz-difficulty") },
+            { label: "Question count", value: getSelectDisplayValue("quiz-count") }
+          ])
+        },
+        {
+          heading: "Prompt",
+          content: buildExportParagraphs(getFieldValue("quiz-prompt-input"))
+        },
+        {
+          heading: "Generated Output",
+          content: buildExportList(outputBlocks)
+        },
+        {
+          heading: "Focus",
+          content: buildExportList(focusItems)
+        },
+        {
+          heading: "Metrics",
+          content: buildExportList(scoreItems)
+        }
+      ]
+    };
+  }
+
+  function getDocumentExportPayload(exportKey) {
+    if (exportKey === "chat") {
+      return collectChatExportSections();
+    }
+
+    if (exportKey === "kb") {
+      return collectKnowledgeExportSections();
+    }
+
+    if (exportKey === "quiz") {
+      return collectQuizExportSections();
+    }
+
+    return {
+      title: "Mate Export",
+      sections: [
+        {
+          heading: "Page Content",
+          content: buildExportParagraphs(document.body.textContent)
+        }
+      ]
+    };
+  }
+
+  function initDocumentExport() {
+    document.querySelectorAll("[data-export-document]").forEach((button) => {
+      button.addEventListener("click", function () {
+        const label = button.querySelector("span");
+        const originalLabel = label ? label.textContent : "";
+        const exportKey = button.getAttribute("data-export-document") || pageName;
+
+        button.disabled = true;
+        if (label) {
+          label.textContent = "Exporting";
+        }
+
+        try {
+          const payload = getDocumentExportPayload(exportKey);
+          downloadGeneratedDocument(payload.title, payload.sections);
+          if (label) {
+            label.textContent = "Exported";
+            window.setTimeout(() => {
+              label.textContent = originalLabel || "Export doc";
+            }, 1200);
+          }
+        } catch (error) {
+          if (label) {
+            label.textContent = originalLabel || "Export doc";
+          }
+          window.alert(error && error.message ? error.message : "Document export failed.");
+        } finally {
+          window.setTimeout(() => {
+            button.disabled = false;
+          }, 400);
+        }
+      });
+    });
+  }
+
   function getSurfaceRuntimeState(surfaceKey) {
     const capabilities = runtimeInfo.proxyCapabilities || {};
     const liveEnabled = Boolean(capabilities[surfaceKey]);
@@ -1727,11 +2067,22 @@
     const body = Array.isArray(content)
       ? content.map((line) => formatMessageText(line)).join("")
       : formatMessageText(content);
+    const voiceAction = role === "assistant"
+      ? `
+        <div class="message-actions">
+          <button class="message-speak-button" type="button" data-chat-speak-message>
+            ${buildIconMarkup("volume")}
+            <span>Read aloud</span>
+          </button>
+        </div>
+      `
+      : "";
 
     return `
       <article class="message ${role}">
         <span class="message-role">${role === "user" ? "Learner" : "Mate"}</span>
         ${body}
+        ${voiceAction}
       </article>
     `;
   }
@@ -2240,13 +2591,199 @@
     const textarea = document.getElementById("chat-input");
     const runtimeBadge = document.getElementById("chat-runtime");
     const starterList = document.getElementById("chat-starter-list");
+    const voiceInputButton = document.getElementById("chat-voice-input");
+    const readSelectionButton = document.getElementById("chat-read-selection");
+    const readLatestButton = document.getElementById("chat-read-latest");
+    const stopSpeechButton = document.getElementById("chat-stop-speech");
+    const speechStatus = document.getElementById("chat-speech-status");
+    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const canListen = Boolean(SpeechRecognitionCtor);
+    const canSpeak = Boolean(window.speechSynthesis && window.SpeechSynthesisUtterance);
+    let recognition = null;
+    let isListening = false;
+    let voiceBaseText = "";
+    let voiceFinalText = "";
 
     if (!thread || !form || !textarea) {
       return;
     }
 
+    function updateSpeechStatus(text, tone) {
+      if (speechStatus) {
+        setBadge(speechStatus, text, tone || "is-file");
+      }
+    }
+
+    function getSelectedSpeechText() {
+      if (document.activeElement === textarea && textarea.selectionStart !== textarea.selectionEnd) {
+        return textarea.value.slice(textarea.selectionStart, textarea.selectionEnd).trim();
+      }
+
+      const selection = window.getSelection ? window.getSelection() : null;
+      return selection ? selection.toString().trim() : "";
+    }
+
+    function getMessageSpeechText(message) {
+      if (!message) {
+        return "";
+      }
+
+      const clone = message.cloneNode(true);
+      clone.querySelectorAll(".message-actions, .message-role").forEach((node) => node.remove());
+      return clone.textContent.replace(/\s+/g, " ").trim();
+    }
+
+    function getLatestAssistantMessage() {
+      const messages = Array.from(thread.querySelectorAll(".message.assistant"));
+      return messages.length ? messages[messages.length - 1] : null;
+    }
+
+    function syncSpeechButtons() {
+      const selectedText = getSelectedSpeechText();
+      const hasLatestAssistant = Boolean(getLatestAssistantMessage());
+
+      function setButtonLabel(button, label) {
+        const labelNode = button ? button.querySelector("span") : null;
+        if (labelNode) {
+          labelNode.textContent = label;
+        } else if (button) {
+          button.textContent = label;
+        }
+      }
+
+      if (voiceInputButton) {
+        voiceInputButton.disabled = !canListen;
+        setButtonLabel(voiceInputButton, isListening ? "Stop listening" : "Voice input");
+        voiceInputButton.setAttribute("aria-pressed", isListening ? "true" : "false");
+      }
+
+      if (readSelectionButton) {
+        readSelectionButton.disabled = !canSpeak || !selectedText;
+      }
+
+      if (readLatestButton) {
+        readLatestButton.disabled = !canSpeak || !hasLatestAssistant;
+      }
+
+      if (stopSpeechButton) {
+        stopSpeechButton.disabled = !canSpeak || !window.speechSynthesis.speaking;
+      }
+    }
+
+    function setTextareaVoiceDraft(transcript) {
+      const spokenText = transcript.trim();
+      textarea.value = [voiceBaseText, spokenText].filter(Boolean).join(voiceBaseText && spokenText ? " " : "");
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    }
+
+    function ensureRecognition() {
+      if (recognition || !canListen) {
+        return recognition;
+      }
+
+      recognition = new SpeechRecognitionCtor();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = navigator.language || "en-US";
+
+      recognition.addEventListener("start", function () {
+        isListening = true;
+        voiceBaseText = textarea.value.trim();
+        voiceFinalText = "";
+        updateSpeechStatus("Listening", "is-live");
+        syncSpeechButtons();
+      });
+
+      recognition.addEventListener("result", function (event) {
+        let interimText = "";
+
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+          const transcript = event.results[index][0] ? event.results[index][0].transcript : "";
+
+          if (event.results[index].isFinal) {
+            voiceFinalText = `${voiceFinalText} ${transcript}`.trim();
+          } else {
+            interimText = `${interimText} ${transcript}`.trim();
+          }
+        }
+
+        setTextareaVoiceDraft(`${voiceFinalText} ${interimText}`);
+      });
+
+      recognition.addEventListener("error", function () {
+        updateSpeechStatus("Voice input unavailable", "is-demo");
+      });
+
+      recognition.addEventListener("end", function () {
+        isListening = false;
+        updateSpeechStatus(canSpeak ? "Read aloud ready" : "Voice input ready", "is-file");
+        syncSpeechButtons();
+      });
+
+      return recognition;
+    }
+
+    function getSpeechLanguage(text) {
+      return /[\u3400-\u9fff]/.test(text) ? "zh-CN" : "en-US";
+    }
+
+    function speakText(text, label) {
+      const speechText = String(text || "").replace(/\s+/g, " ").trim();
+
+      if (!speechText) {
+        updateSpeechStatus("Select text first", "is-demo");
+        return;
+      }
+
+      if (!canSpeak) {
+        updateSpeechStatus("Read aloud unavailable", "is-demo");
+        return;
+      }
+
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(speechText);
+      utterance.lang = getSpeechLanguage(speechText);
+      utterance.rate = 0.95;
+      utterance.pitch = 1;
+
+      utterance.addEventListener("start", function () {
+        updateSpeechStatus(label || "Reading aloud", "is-live");
+        syncSpeechButtons();
+      });
+
+      utterance.addEventListener("end", function () {
+        updateSpeechStatus("Read aloud ready", "is-file");
+        syncSpeechButtons();
+      });
+
+      utterance.addEventListener("error", function () {
+        updateSpeechStatus("Read aloud stopped", "is-demo");
+        syncSpeechButtons();
+      });
+
+      window.speechSynthesis.speak(utterance);
+      syncSpeechButtons();
+    }
+
+    function stopVoiceTools() {
+      if (isListening && recognition) {
+        recognition.stop();
+      }
+
+      if (canSpeak) {
+        window.speechSynthesis.cancel();
+      }
+
+      isListening = false;
+      updateSpeechStatus(canSpeak ? "Read aloud ready" : "Voice ready", "is-file");
+      syncSpeechButtons();
+    }
+
     renderChatScenario("essay");
     setBadge(runtimeBadge, "Checking", "is-file");
+    updateSpeechStatus(canSpeak ? "Read aloud ready" : canListen ? "Voice input ready" : "Voice unavailable", canSpeak || canListen ? "is-file" : "is-demo");
+    syncSpeechButtons();
 
     chips.forEach((chip) => {
       chip.addEventListener("click", function () {
@@ -2254,6 +2791,7 @@
         chips.forEach((item) => item.classList.remove("is-active"));
         chip.classList.add("is-active");
         renderChatScenario(key);
+        syncSpeechButtons();
       });
     });
 
@@ -2267,8 +2805,61 @@
         textarea.value = button.getAttribute("data-chat-starter") || "";
         textarea.focus();
         textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+        syncSpeechButtons();
       });
     }
+
+    if (voiceInputButton) {
+      voiceInputButton.addEventListener("click", function () {
+        if (isListening && recognition) {
+          recognition.stop();
+          return;
+        }
+
+        const nextRecognition = ensureRecognition();
+        if (!nextRecognition) {
+          updateSpeechStatus("Voice input unavailable", "is-demo");
+          syncSpeechButtons();
+          return;
+        }
+
+        try {
+          nextRecognition.start();
+        } catch (error) {
+          updateSpeechStatus("Voice input unavailable", "is-demo");
+          syncSpeechButtons();
+        }
+      });
+    }
+
+    if (readSelectionButton) {
+      readSelectionButton.addEventListener("click", function () {
+        speakText(getSelectedSpeechText(), "Reading selected text");
+      });
+    }
+
+    if (readLatestButton) {
+      readLatestButton.addEventListener("click", function () {
+        speakText(getMessageSpeechText(getLatestAssistantMessage()), "Reading latest reply");
+      });
+    }
+
+    if (stopSpeechButton) {
+      stopSpeechButton.addEventListener("click", stopVoiceTools);
+    }
+
+    thread.addEventListener("click", function (event) {
+      const button = event.target.closest("[data-chat-speak-message]");
+      if (!button) {
+        return;
+      }
+
+      speakText(getMessageSpeechText(button.closest(".message")), "Reading reply");
+    });
+
+    document.addEventListener("selectionchange", syncSpeechButtons);
+    textarea.addEventListener("keyup", syncSpeechButtons);
+    textarea.addEventListener("mouseup", syncSpeechButtons);
 
     form.addEventListener("submit", async function (event) {
       event.preventDefault();
@@ -2281,6 +2872,7 @@
 
       thread.insertAdjacentHTML("beforeend", createMessageMarkup("user", text));
       thread.insertAdjacentHTML("beforeend", createMessageMarkup("assistant", ["Mate is preparing a coaching response..."]));
+      syncSpeechButtons();
 
       const loadingMessage = thread.lastElementChild;
       textarea.value = "";
@@ -2309,6 +2901,7 @@
 
         if (loadingMessage) {
           loadingMessage.outerHTML = createMessageMarkup("assistant", payload.assistantLines || ["Mate returned an empty response."]);
+          syncSpeechButtons();
         }
 
         if (Array.isArray(payload.suggestions) && payload.suggestions.length) {
@@ -2333,6 +2926,7 @@
             error && error.message ? error.message : "Chat request failed.",
             "Reconnect DeepTutor or refresh the runtime before sending another turn."
           ]);
+          syncSpeechButtons();
         }
 
         if (runtimeBadge) {
@@ -2345,6 +2939,7 @@
 
       submitButton.disabled = false;
       thread.scrollTop = thread.scrollHeight;
+      syncSpeechButtons();
     });
   }
 
@@ -2953,6 +3548,7 @@
     initChat();
     initKnowledgeBase();
     initQuiz();
+    initDocumentExport();
     applyRuntimeSurfaceState();
   });
 })();

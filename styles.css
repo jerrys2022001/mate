@@ -6710,6 +6710,104 @@ body[data-page="kb"] .workspace-shell .doc-body h4 {
     white-space: nowrap;
   }
 }
+
+/* Study Chat voice controls. */
+.workspace-shell #chat-composer .composer-top {
+  align-items: flex-start;
+}
+
+.composer-control-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: min(100%, 560px);
+}
+
+.speech-tool-button,
+.message-speak-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--heading);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.composer-control-row .primary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.button-icon {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.speech-tool-button:hover,
+.message-speak-button:hover {
+  background: var(--warm-soft);
+  border-color: var(--line-strong);
+}
+
+.speech-tool-button[aria-pressed="true"] {
+  background: var(--teal-soft);
+  border-color: #c7e4d8;
+  color: var(--teal-strong);
+}
+
+.speech-tool-button:disabled,
+.message-speak-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.workspace-shell #chat-speech-status {
+  width: fit-content;
+}
+
+.message-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 2px;
+}
+
+.message-speak-button {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 760px) {
+  .composer-control-row {
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .composer-control-row > *,
+  .workspace-shell #chat-composer .primary-button {
+    width: 100%;
+  }
+}
+
 /* Homepage auth column: keep proof points directly under the login card. */
 .auth-column {
   display: grid;

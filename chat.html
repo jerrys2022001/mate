@@ -41,6 +41,15 @@
       </nav>
 
       <div class="header-actions">
+        <button class="secondary-button document-export-button" type="button" data-export-document="chat">
+          <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path>
+            <path d="M14 2v6h6"></path>
+            <path d="M12 18v-6"></path>
+            <path d="M9 15l3 3 3-3"></path>
+          </svg>
+          <span>Export doc</span>
+        </button>
         <a class="header-cta" href="quiz.html">Practice</a>
         <div class="account-shell" id="account-shell">
           <span class="status-chip is-file">Checking session</span>
@@ -80,11 +89,48 @@
             <div class="composer-top">
               <h3>Paste a draft</h3>
               <div class="composer-control-row">
-                <button class="speech-tool-button" id="chat-voice-input" type="button" aria-pressed="false">Voice input</button>
-                <button class="speech-tool-button" id="chat-read-selection" type="button" disabled>Read selected</button>
-                <button class="speech-tool-button" id="chat-read-latest" type="button">Read latest</button>
-                <button class="speech-tool-button" id="chat-stop-speech" type="button" disabled>Stop voice</button>
-                <button class="primary-button" type="submit">Send to Mate</button>
+                <button class="speech-tool-button" id="chat-voice-input" type="button" aria-pressed="false">
+                  <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z"></path>
+                    <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+                    <path d="M12 18v4"></path>
+                    <path d="M8 22h8"></path>
+                  </svg>
+                  <span>Voice input</span>
+                </button>
+                <button class="speech-tool-button" id="chat-read-selection" type="button" disabled>
+                  <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="M4 6h10"></path>
+                    <path d="M4 12h8"></path>
+                    <path d="M4 18h6"></path>
+                    <path d="M16 9v6"></path>
+                    <path d="M19 11v2"></path>
+                    <path d="M22 10v4"></path>
+                  </svg>
+                  <span>Read selected</span>
+                </button>
+                <button class="speech-tool-button" id="chat-read-latest" type="button">
+                  <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="M5 9v6h4l5 4V5L9 9H5Z"></path>
+                    <path d="M18 9a5 5 0 0 1 0 6"></path>
+                    <path d="M20.5 6.5a9 9 0 0 1 0 11"></path>
+                  </svg>
+                  <span>Read latest</span>
+                </button>
+                <button class="speech-tool-button" id="chat-stop-speech" type="button" disabled>
+                  <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="M8 8h8v8H8Z"></path>
+                    <path d="M4 4h16v16H4Z"></path>
+                  </svg>
+                  <span>Stop voice</span>
+                </button>
+                <button class="primary-button" type="submit">
+                  <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="m22 2-7 20-4-9-9-4 20-7Z"></path>
+                    <path d="M22 2 11 13"></path>
+                  </svg>
+                  <span>Send to Mate</span>
+                </button>
               </div>
             </div>
             <textarea id="chat-input" placeholder="Paste your sentence, essay paragraph, or email draft here..."></textarea>
