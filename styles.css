@@ -7227,3 +7227,82 @@ body[data-page="auth"] .final-cta {
     padding-bottom: 32px;
   }
 }
+
+/* Practice local bank tools. */
+.quiz-bank-card {
+  display: grid;
+  gap: 16px;
+}
+
+.quiz-bank-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.quiz-bank-head > div {
+  display: grid;
+  gap: 8px;
+}
+
+.question-bank-drop {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--heading);
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.question-bank-drop:hover {
+  border-color: var(--teal-strong);
+  background: var(--teal-soft);
+  transform: translateY(-1px);
+}
+
+.question-bank-drop input {
+  display: none;
+}
+
+.question-bank-drop span {
+  color: var(--heading);
+  font-weight: 800;
+}
+
+.question-bank-drop small {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.quiz-bank-preview {
+  margin: 0;
+}
+
+.quiz-bank-preview li {
+  align-items: start;
+}
+
+.quiz-bank-preview strong {
+  display: block;
+  color: var(--heading);
+  line-height: 1.35;
+}
+
+.quiz-bank-actions {
+  gap: 10px;
+}
+
+.quiz-bank-actions .action-hint {
+  flex: 1 1 220px;
+}
+
+@media (max-width: 760px) {
+  .quiz-bank-head {
+    display: grid;
+  }
+}

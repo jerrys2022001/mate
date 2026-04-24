@@ -112,6 +112,38 @@
               </div>
             </div>
           </article>
+
+          <article class="quiz-card quiz-bank-card reveal">
+            <div class="quiz-bank-head">
+              <div>
+                <span class="small-label">Local question bank</span>
+                <h3>Upload, draw, or simulate.</h3>
+                <p class="meta-text">Use a local JSON, CSV, TXT, or Markdown bank. Files stay in this browser.</p>
+              </div>
+              <span class="status-chip is-demo" id="quiz-bank-status">No bank loaded</span>
+            </div>
+
+            <label class="question-bank-drop" for="quiz-bank-file">
+              <input id="quiz-bank-file" type="file" accept=".json,.csv,.txt,.md,text/plain,text/csv,application/json">
+              <span>Upload question bank</span>
+              <small>JSON array, CSV headers, or text blocks with Answer / Explanation lines.</small>
+            </label>
+
+            <ul class="upload-queue quiz-bank-preview" id="quiz-bank-preview">
+              <li>No local bank loaded yet.</li>
+            </ul>
+
+            <div class="inline-actions quiz-bank-actions">
+              <button class="secondary-button" id="quiz-bank-sample" type="button">Use sample bank</button>
+              <button class="secondary-button" id="quiz-bank-clear" type="button">Clear bank</button>
+            </div>
+
+            <div class="inline-actions quiz-bank-actions">
+              <button class="primary-button" id="quiz-bank-draw" type="button">Draw from bank</button>
+              <button class="secondary-button" id="quiz-bank-simulate" type="button">Simulate new questions</button>
+              <p class="meta-text action-hint" id="quiz-bank-hint">Use the same difficulty and question count above.</p>
+            </div>
+          </article>
         </section>
 
         <aside class="quiz-side">

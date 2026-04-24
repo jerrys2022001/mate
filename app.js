@@ -3,6 +3,7 @@
   const pageName = document.body.getAttribute("data-page") || "";
   const runtimeApiStorageKey = "mate.apiBaseUrl";
   const sessionTokenStorageKey = "mate.sessionToken";
+  const practiceQuestionBankStorageKey = "mate.practiceQuestionBank";
   const defaultLocalApiBases = ["http://127.0.0.1:4317", "http://localhost:4317"];
   let runtimeInfo = {
     apiAvailable: !isFileMode,
@@ -600,6 +601,7 @@
   let practiceTimerId = null;
   let practiceTimerWindow = window;
   let latestPracticePayload = null;
+  let localPracticeQuestionBank = null;
 
   function escapeHtml(value) {
     return String(value)
@@ -2232,6 +2234,485 @@
         explanation: "Practice the target pattern, then compare your answer with the model answer and explanation."
       };
     });
+  }
+
+  function normalizeQuestionOption(option, index) {
+    const fallbackKey = String.fromCharCode(65 + index);
+
+    if (option && typeof option === "object") {
+      return {
+        key: String(option.key || option.label || option.id || fallbackKey).trim() || fallbackKey,
+        text: String(option.text || option.value || option.answer || "").trim()
+      };
+    }
+
+    return {
+      key: fallbackKey,
+      text: String(option || "").trim()
+    };
+  }
+
+  function normalizeLocalBankQuestion(item, index) {
+    const source = item && typeof item === "object" ? item : {};
+    const question = String(
+      source.question || source.prompt || source.stem || source.title || source.text || ""
+    ).replace(/\s+/g, " ").trim();
+
+    if (!question) {
+      return null;
+    }
+
+    const optionKeys = ["A", "B", "C", "D", "E", "F"];
+    let options = [];
+
+    if (Array.isArray(source.options)) {
+      options = source.options.map(normalizeQuestionOption);
+    } else if (source.options && typeof source.options === "object") {
+      options = Object.entries(source.options).map(([key, value], optionIndex) => normalizeQuestionOption({
+        key,
+        text: value
+      }, optionIndex));
+    } else {
+      options = optionKeys
+        .map((key, optionIndex) => normalizeQuestionOption(
+          source[`option${key}`] || source[`option_${key}`] || source[key] || source[key.toLowerCase()],
+          optionIndex
+        ))
+        .filter((option) => option.text);
+    }
+
+    options = options.filter((option) => option.text);
+
+    return {
+      id: String(source.id || source.question_id || `bank-${index + 1}`),
+      number: index + 1,
+      type: String(source.type || source.question_type || (options.length ? "choice" : "written")).trim() || (options.length ? "choice" : "written"),
+      difficulty: String(source.difficulty || "").trim(),
+      concentration: String(source.concentration || source.topic || source.skill || "").trim(),
+      question,
+      options,
+      correctAnswer: String(source.correctAnswer || source.correct_answer || source.answer || source.key || "").trim(),
+      explanation: String(source.explanation || source.analysis || source.reason || source.note || "").trim()
+    };
+  }
+
+  function buildPracticeQuestionBank(name, questions, fileMeta) {
+    const normalizedQuestions = questions
+      .map(normalizeLocalBankQuestion)
+      .filter(Boolean)
+      .slice(0, 500)
+      .map((question, index) => Object.assign({}, question, {
+        number: index + 1
+      }));
+
+    return {
+      name: String(name || "Local question bank").trim(),
+      importedAt: new Date().toISOString(),
+      fileSize: fileMeta && fileMeta.size ? Number(fileMeta.size) : 0,
+      questionCount: normalizedQuestions.length,
+      questions: normalizedQuestions
+    };
+  }
+
+  function parseQuestionBankJson(text, fileName, fileMeta) {
+    const parsed = JSON.parse(text);
+    const list = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray(parsed.questions)
+        ? parsed.questions
+        : Array.isArray(parsed.items)
+          ? parsed.items
+          : Array.isArray(parsed.data)
+            ? parsed.data
+            : [];
+
+    return buildPracticeQuestionBank(parsed.name || fileName, list, fileMeta);
+  }
+
+  function parseCsvRows(text) {
+    const rows = [];
+    let row = [];
+    let field = "";
+    let inQuotes = false;
+
+    for (let index = 0; index < text.length; index += 1) {
+      const char = text[index];
+      const nextChar = text[index + 1];
+
+      if (char === '"' && inQuotes && nextChar === '"') {
+        field += '"';
+        index += 1;
+        continue;
+      }
+
+      if (char === '"') {
+        inQuotes = !inQuotes;
+        continue;
+      }
+
+      if (char === "," && !inQuotes) {
+        row.push(field.trim());
+        field = "";
+        continue;
+      }
+
+      if ((char === "\n" || char === "\r") && !inQuotes) {
+        if (char === "\r" && nextChar === "\n") {
+          index += 1;
+        }
+
+        row.push(field.trim());
+        if (row.some(Boolean)) {
+          rows.push(row);
+        }
+        row = [];
+        field = "";
+        continue;
+      }
+
+      field += char;
+    }
+
+    row.push(field.trim());
+    if (row.some(Boolean)) {
+      rows.push(row);
+    }
+
+    return rows;
+  }
+
+  function parseQuestionBankCsv(text, fileName, fileMeta) {
+    const rows = parseCsvRows(text);
+    const header = rows[0] || [];
+    const headerMap = {};
+    const knownHeaders = new Set([
+      "question",
+      "prompt",
+      "stem",
+      "answer",
+      "correctanswer",
+      "correct_answer",
+      "explanation",
+      "analysis",
+      "type",
+      "difficulty",
+      "topic",
+      "\u9898\u76ee",
+      "\u7b54\u6848",
+      "\u89e3\u6790"
+    ]);
+    const hasHeader = header.some((cell) => knownHeaders.has(String(cell || "").trim().toLowerCase()));
+
+    if (hasHeader) {
+      header.forEach((cell, index) => {
+        headerMap[String(cell || "").trim().toLowerCase()] = index;
+      });
+    }
+
+    function getCell(row, keys, fallbackIndex) {
+      for (const key of keys) {
+        const mappedIndex = headerMap[key.toLowerCase()];
+        if (mappedIndex !== undefined && row[mappedIndex]) {
+          return row[mappedIndex];
+        }
+      }
+
+      return fallbackIndex === undefined ? "" : row[fallbackIndex] || "";
+    }
+
+    const dataRows = hasHeader ? rows.slice(1) : rows;
+    const questions = dataRows.map((row) => ({
+      question: getCell(row, ["question", "prompt", "stem", "\u9898\u76ee"], 0),
+      optionA: getCell(row, ["a", "optiona", "option_a", "option a"], 1),
+      optionB: getCell(row, ["b", "optionb", "option_b", "option b"], 2),
+      optionC: getCell(row, ["c", "optionc", "option_c", "option c"], 3),
+      optionD: getCell(row, ["d", "optiond", "option_d", "option d"], 4),
+      answer: getCell(row, ["answer", "correctanswer", "correct_answer", "\u7b54\u6848"], 5),
+      explanation: getCell(row, ["explanation", "analysis", "\u89e3\u6790"], 6),
+      type: getCell(row, ["type", "question_type"], undefined),
+      difficulty: getCell(row, ["difficulty", "level"], undefined),
+      topic: getCell(row, ["topic", "skill", "concentration"], undefined)
+    }));
+
+    return buildPracticeQuestionBank(fileName, questions, fileMeta);
+  }
+
+  function parseQuestionBankText(text, fileName, fileMeta) {
+    const normalized = String(text || "").replace(/\r\n/g, "\n").trim();
+    const blocks = normalized
+      .split(/\n\s*\n|^---+$/m)
+      .map((block) => block.trim())
+      .filter(Boolean);
+    const numberedBlocks = normalized
+      .split(/\n(?=\d+[\.\)]\s+)/)
+      .map((block) => block.trim())
+      .filter(Boolean);
+    const sourceBlocks = blocks.length > 1 ? blocks : numberedBlocks.length > 1 ? numberedBlocks : blocks;
+    const questions = sourceBlocks.map((block) => {
+      const options = [];
+      const questionLines = [];
+      let answer = "";
+      let explanation = "";
+
+      block.split(/\n+/).map((line) => line.trim()).filter(Boolean).forEach((line) => {
+        const optionMatch = line.match(/^([A-H])[\.\)\:\uFF1A\u3001]\s*(.+)$/i);
+        const answerMatch = line.match(/^(?:answer|ans|correct|\u7b54\u6848)\s*[:\uFF1A]\s*(.+)$/i);
+        const explanationMatch = line.match(/^(?:explanation|analysis|\u89e3\u6790|\u5206\u6790)\s*[:\uFF1A]\s*(.+)$/i);
+
+        if (optionMatch) {
+          options.push({
+            key: optionMatch[1].toUpperCase(),
+            text: optionMatch[2].trim()
+          });
+          return;
+        }
+
+        if (answerMatch) {
+          answer = answerMatch[1].trim();
+          return;
+        }
+
+        if (explanationMatch) {
+          explanation = explanationMatch[1].trim();
+          return;
+        }
+
+        questionLines.push(line.replace(/^(?:question|q\d*|\u9898\u76ee)\s*[:\uFF1A]\s*/i, ""));
+      });
+
+      return {
+        question: questionLines.join(" ").replace(/^\d+[\.\)]\s*/, "").trim(),
+        options,
+        answer,
+        explanation,
+        type: options.length ? "choice" : "written"
+      };
+    });
+
+    return buildPracticeQuestionBank(fileName, questions, fileMeta);
+  }
+
+  function parsePracticeQuestionBankFile(text, fileName, fileMeta) {
+    const trimmed = String(text || "").trim();
+    const lowerName = String(fileName || "").toLowerCase();
+
+    if (!trimmed) {
+      return buildPracticeQuestionBank(fileName, [], fileMeta);
+    }
+
+    if (lowerName.endsWith(".json") || /^[\[{]/.test(trimmed)) {
+      try {
+        return parseQuestionBankJson(trimmed, fileName, fileMeta);
+      } catch (error) {
+        if (lowerName.endsWith(".json")) {
+          throw error;
+        }
+      }
+    }
+
+    if (lowerName.endsWith(".csv") || trimmed.split(/\r?\n/, 1)[0].includes(",")) {
+      return parseQuestionBankCsv(trimmed, fileName, fileMeta);
+    }
+
+    return parseQuestionBankText(trimmed, fileName, fileMeta);
+  }
+
+  function readLocalTextFile(file) {
+    if (file && typeof file.text === "function") {
+      return file.text();
+    }
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => resolve(String(reader.result || "")));
+      reader.addEventListener("error", () => reject(reader.error || new Error("File read failed")));
+      reader.readAsText(file);
+    });
+  }
+
+  function loadStoredPracticeQuestionBank() {
+    const raw = safeReadLocalStorage(practiceQuestionBankStorageKey);
+
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      return buildPracticeQuestionBank(parsed.name, Array.isArray(parsed.questions) ? parsed.questions : [], parsed);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function persistPracticeQuestionBank(bank) {
+    if (!bank || !Array.isArray(bank.questions) || !bank.questions.length) {
+      safeWriteLocalStorage(practiceQuestionBankStorageKey, "");
+      return;
+    }
+
+    try {
+      safeWriteLocalStorage(practiceQuestionBankStorageKey, JSON.stringify(bank));
+    } catch (error) {
+      // The bank remains usable for this page session even if localStorage is full.
+    }
+  }
+
+  function buildSamplePracticeQuestionBank() {
+    return buildPracticeQuestionBank("Sample grammar bank", [
+      {
+        question: "Choose the correct answer: She ___ to school by bus every day.",
+        options: [
+          { key: "A", text: "go" },
+          { key: "B", text: "goes" },
+          { key: "C", text: "went" },
+          { key: "D", text: "going" }
+        ],
+        answer: "B. goes",
+        explanation: "Use the third-person singular verb form after she/he/it in the present simple.",
+        topic: "Subject-verb agreement"
+      },
+      {
+        question: "Fill in the blank: It is important ___ (review) your notes before a test.",
+        answer: "to review",
+        explanation: "Use the infinitive after It is + adjective.",
+        topic: "Infinitive"
+      },
+      {
+        question: "Choose the best revision: He don't like reading long articles.",
+        options: [
+          { key: "A", text: "He doesn't like reading long articles." },
+          { key: "B", text: "He don't likes reading long articles." },
+          { key: "C", text: "He not like reading long articles." },
+          { key: "D", text: "He didn't likes reading long articles." }
+        ],
+        answer: "A. He doesn't like reading long articles.",
+        explanation: "Use doesn't with he/she/it in negative present-simple sentences.",
+        topic: "Present simple"
+      }
+    ], {
+      size: 0
+    });
+  }
+
+  function shufflePracticeQuestions(questions) {
+    const items = questions.slice();
+
+    for (let index = items.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      const temp = items[index];
+      items[index] = items[swapIndex];
+      items[swapIndex] = temp;
+    }
+
+    return items;
+  }
+
+  function filterPracticeBankQuestions(bank, prompt) {
+    const questions = bank && Array.isArray(bank.questions) ? bank.questions : [];
+    const rawPrompt = String(prompt || "").trim().toLowerCase();
+
+    if (!rawPrompt) {
+      return questions;
+    }
+
+    const tokens = rawPrompt
+      .split(/[\s,.;:!?，。；：！？、/\\|]+/)
+      .map((token) => token.trim())
+      .filter((token) => token.length >= 3)
+      .slice(0, 8);
+
+    if (!tokens.length) {
+      return questions;
+    }
+
+    const matches = questions.filter((question) => {
+      const haystack = [
+        question.question,
+        question.concentration,
+        question.explanation,
+        question.correctAnswer
+      ].join(" ").toLowerCase();
+
+      return tokens.some((token) => haystack.includes(token));
+    });
+
+    return matches.length ? matches : questions;
+  }
+
+  function renumberPracticeQuestions(questions, difficulty) {
+    return questions.map((question, index) => Object.assign({}, question, {
+      id: `${question.id || "local"}-${index + 1}`,
+      number: index + 1,
+      difficulty: question.difficulty || difficulty
+    }));
+  }
+
+  function drawPracticeQuestionsFromBank(bank, count, difficulty, prompt) {
+    const pool = filterPracticeBankQuestions(bank, prompt);
+    return renumberPracticeQuestions(shufflePracticeQuestions(pool).slice(0, count), difficulty);
+  }
+
+  function buildSimulatedQuestionFromBankQuestion(question, index, difficulty, bankName, prompt) {
+    const topic = String(prompt || question.concentration || bankName || "local bank").trim();
+    const options = Array.isArray(question.options) ? question.options.map((option) => Object.assign({}, option)) : [];
+    const lead = options.length
+      ? "Choose the best answer for this same-pattern mock item:"
+      : "Answer this same-pattern mock item:";
+
+    return {
+      id: `simulated-${index + 1}`,
+      number: index + 1,
+      type: question.type || (options.length ? "choice" : "written"),
+      difficulty: question.difficulty || difficulty,
+      concentration: `Simulated from ${bankName}${topic ? ` - ${topic}` : ""}`,
+      question: `${lead} ${question.question}`,
+      options,
+      correctAnswer: question.correctAnswer || "Use the same rule as the source item.",
+      explanation: question.explanation
+        ? `Same rule as the source bank item: ${question.explanation}`
+        : "This simulated item keeps the source bank's skill pattern so the answer can be checked against the same rule."
+    };
+  }
+
+  function simulatePracticeQuestionsFromBank(bank, count, difficulty, prompt) {
+    const pool = shufflePracticeQuestions(filterPracticeBankQuestions(bank, prompt));
+
+    if (!pool.length) {
+      return [];
+    }
+
+    return Array.from({ length: count }).map((_, index) => {
+      const source = pool[index % pool.length];
+      return buildSimulatedQuestionFromBankQuestion(source, index, difficulty, bank.name, prompt);
+    });
+  }
+
+  function buildLocalPracticePayload(mode, bank, questions, difficulty) {
+    const isSimulated = mode === "simulate";
+
+    return {
+      mode: "local-bank",
+      backendLabel: "Mate local bank",
+      routeLabel: "Local file",
+      outputTitle: isSimulated ? "Simulated from local bank" : "Drawn from local bank",
+      blocks: [
+        {
+          heading: isSimulated ? "Simulation source" : "Draw source",
+          text: `${questions.length} question${questions.length === 1 ? "" : "s"} ${isSimulated ? "simulated from" : "drawn from"} ${bank.name}.`
+        },
+        {
+          heading: "Practice flow",
+          text: "The set opens in a separate practice window with navigation, answer card, timer, and model answers."
+        }
+      ],
+      questions,
+      scores: [
+        { value: String(questions.length), label: "questions" },
+        { value: difficulty, label: "difficulty" },
+        { value: bank.name, label: "source" }
+      ]
+    };
   }
 
   function initGlobalVoiceInputs() {
@@ -4732,6 +5213,14 @@
     const promptInput = document.getElementById("quiz-prompt-input");
     const difficultySelect = document.getElementById("quiz-difficulty");
     const countInput = document.getElementById("quiz-count");
+    const bankFileInput = document.getElementById("quiz-bank-file");
+    const bankStatus = document.getElementById("quiz-bank-status");
+    const bankPreview = document.getElementById("quiz-bank-preview");
+    const bankSampleButton = document.getElementById("quiz-bank-sample");
+    const bankClearButton = document.getElementById("quiz-bank-clear");
+    const bankDrawButton = document.getElementById("quiz-bank-draw");
+    const bankSimulateButton = document.getElementById("quiz-bank-simulate");
+    const bankHint = document.getElementById("quiz-bank-hint");
 
     if (!tabs.length || !runButton || !promptInput || !difficultySelect || !countInput) {
       return;
@@ -4739,6 +5228,116 @@
 
     applyQuizPreset(currentQuizPreset);
     setBadge(runtimeBadge, "Checking", "is-file");
+    localPracticeQuestionBank = loadStoredPracticeQuestionBank();
+
+    function updateLocalQuestionBankUi(message, tone) {
+      const bank = localPracticeQuestionBank;
+      const hasBank = Boolean(bank && Array.isArray(bank.questions) && bank.questions.length);
+
+      if (bankStatus) {
+        setBadge(
+          bankStatus,
+          message || (hasBank ? `${bank.questions.length} questions loaded` : "No bank loaded"),
+          tone || (hasBank ? "is-file" : "is-demo")
+        );
+      }
+
+      if (bankPreview) {
+        if (!hasBank) {
+          bankPreview.innerHTML = "<li>No local bank loaded yet.</li>";
+        } else {
+          bankPreview.innerHTML = bank.questions.slice(0, 4).map((question) => `
+            <li>
+              <strong>${escapeHtml(question.question)}</strong>
+              <span class="file-meta">${escapeHtml(question.concentration || question.type || "Practice item")}${question.correctAnswer ? ` - Answer: ${escapeHtml(question.correctAnswer)}` : ""}</span>
+            </li>
+          `).join("");
+        }
+      }
+
+      if (bankDrawButton) {
+        bankDrawButton.disabled = !hasBank;
+      }
+
+      if (bankSimulateButton) {
+        bankSimulateButton.disabled = !hasBank;
+      }
+
+      if (bankClearButton) {
+        bankClearButton.disabled = !hasBank;
+      }
+
+      if (bankHint) {
+        bankHint.textContent = hasBank
+          ? `Using ${bank.name}. Draw picks existing items; simulate creates same-pattern mock items.`
+          : "Upload a local bank or load the sample bank first.";
+      }
+    }
+
+    async function importQuestionBankFile(file) {
+      if (!file) {
+        return;
+      }
+
+      if (bankStatus) {
+        setBadge(bankStatus, "Reading file", "is-file");
+      }
+
+      try {
+        const text = await readLocalTextFile(file);
+        const bank = parsePracticeQuestionBankFile(text, file.name, file);
+
+        if (!bank.questions.length) {
+          localPracticeQuestionBank = null;
+          updateLocalQuestionBankUi("No valid questions found", "is-demo");
+          return;
+        }
+
+        localPracticeQuestionBank = bank;
+        persistPracticeQuestionBank(bank);
+        updateLocalQuestionBankUi(`${bank.questions.length} questions loaded`, "is-live");
+      } catch (error) {
+        localPracticeQuestionBank = null;
+        updateLocalQuestionBankUi(error.message || "Could not parse bank", "is-demo");
+      }
+    }
+
+    function runLocalQuestionBank(mode) {
+      const bank = localPracticeQuestionBank;
+
+      if (!bank || !Array.isArray(bank.questions) || !bank.questions.length) {
+        updateLocalQuestionBankUi("Upload a bank first", "is-demo");
+        return;
+      }
+
+      const count = clampPracticeQuestionCount(countInput.value, 5);
+      const difficulty = difficultySelect.value;
+      const prompt = promptInput.value.trim();
+      const questions = mode === "simulate"
+        ? simulatePracticeQuestionsFromBank(bank, count, difficulty, prompt)
+        : drawPracticeQuestionsFromBank(bank, Math.min(count, bank.questions.length), difficulty, prompt);
+
+      countInput.value = mode === "simulate" ? count : questions.length;
+
+      if (!questions.length) {
+        updateLocalQuestionBankUi("No matching questions found", "is-demo");
+        return;
+      }
+
+      const practiceWindow = openPracticeWindow();
+      if (practiceWindow) {
+        writePracticeLoadingWindow(practiceWindow, questions.length);
+      }
+
+      renderQuizResult(buildLocalPracticePayload(mode, bank, questions, difficulty), { practiceWindow });
+      renderQuizFocus(mode === "simulate"
+        ? ["Simulated from local bank patterns", "Keeps source answer keys visible for checking", "Use the prompt box to filter or steer topic"]
+        : ["Random draw from local uploaded bank", "Uses the selected question count", "Keeps answers and explanations from the bank"]);
+      setBadge(runtimeBadge, mode === "simulate" ? "Local simulation" : "Local draw", "is-file");
+      updateLocalQuestionBankUi();
+    }
+
+    updateLocalQuestionBankUi();
 
     tabs.forEach((tab) => {
       tab.addEventListener("click", function () {
@@ -4779,6 +5378,41 @@
         }
 
         renderPracticeInWindow(latestPracticePayload, openPracticeWindow());
+      });
+    }
+
+    if (bankFileInput) {
+      bankFileInput.addEventListener("change", function () {
+        importQuestionBankFile(bankFileInput.files && bankFileInput.files[0]);
+        bankFileInput.value = "";
+      });
+    }
+
+    if (bankSampleButton) {
+      bankSampleButton.addEventListener("click", function () {
+        localPracticeQuestionBank = buildSamplePracticeQuestionBank();
+        persistPracticeQuestionBank(localPracticeQuestionBank);
+        updateLocalQuestionBankUi("Sample bank loaded", "is-live");
+      });
+    }
+
+    if (bankClearButton) {
+      bankClearButton.addEventListener("click", function () {
+        localPracticeQuestionBank = null;
+        persistPracticeQuestionBank(null);
+        updateLocalQuestionBankUi("Bank cleared", "is-demo");
+      });
+    }
+
+    if (bankDrawButton) {
+      bankDrawButton.addEventListener("click", function () {
+        runLocalQuestionBank("draw");
+      });
+    }
+
+    if (bankSimulateButton) {
+      bankSimulateButton.addEventListener("click", function () {
+        runLocalQuestionBank("simulate");
       });
     }
 
