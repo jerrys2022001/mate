@@ -53,28 +53,7 @@
         <p class="eyebrow">Study Chat</p>
         <h1>Rewrite, fix, and polish in one place.</h1>
         <p class="hero-lead">Paste a draft. Revise fast.</p>
-        <div class="hero-actions">
-          <span class="status-chip" id="chat-runtime">Checking</span>
-        </div>
       </div>
-    </section>
-
-    <section class="workspace-brief">
-      <article class="workspace-brief-card reveal">
-        <span class="small-label">Mode</span>
-        <strong id="chat-surface-chip">Essay rewrite</strong>
-      </article>
-      <article class="workspace-brief-card reveal">
-        <span class="small-label">Status</span>
-        <strong id="chat-engine">Checking</strong>
-      </article>
-      <article class="workspace-brief-card reveal">
-        <span class="small-label">Next</span>
-        <div class="workspace-link-row">
-          <a class="secondary-button" href="knowledge-base.html">Open Knowledge Base</a>
-          <a class="secondary-button" href="quiz.html">Open Practice</a>
-        </div>
-      </article>
     </section>
 
     <main class="app-shell workspace-shell">
@@ -100,9 +79,16 @@
           <form class="composer-card reveal" id="chat-composer">
             <div class="composer-top">
               <h3>Paste a draft</h3>
-              <button class="primary-button" type="submit">Send to Mate</button>
+              <div class="composer-control-row">
+                <button class="speech-tool-button" id="chat-voice-input" type="button" aria-pressed="false">Voice input</button>
+                <button class="speech-tool-button" id="chat-read-selection" type="button" disabled>Read selected</button>
+                <button class="speech-tool-button" id="chat-read-latest" type="button">Read latest</button>
+                <button class="speech-tool-button" id="chat-stop-speech" type="button" disabled>Stop voice</button>
+                <button class="primary-button" type="submit">Send to Mate</button>
+              </div>
             </div>
             <textarea id="chat-input" placeholder="Paste your sentence, essay paragraph, or email draft here..."></textarea>
+            <span class="status-chip is-file" id="chat-speech-status">Voice ready</span>
           </form>
 
           <article class="analysis-card reveal">

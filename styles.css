@@ -6332,6 +6332,23 @@ body[data-page="quiz"] .workspace-link-row {
   gap: 10px;
 }
 
+/* Keep the homepage scenario summary on one clean line. */
+.hero-story-inline {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.hero-story-inline .story-badge {
+  flex: 0 0 auto;
+}
+
+.hero-story-inline h2 {
+  max-width: none;
+  margin: 0;
+  white-space: nowrap;
+}
+
 body[data-page="kb"] .kb-library-summary {
   display: grid;
   gap: 4px;
