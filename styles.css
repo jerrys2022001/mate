@@ -3836,6 +3836,17 @@ textarea {
   min-width: 140px;
 }
 
+.workspace-shell #chat-composer .composer-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.workspace-shell #chat-composer .primary-button {
+  flex: 0 0 auto;
+}
+
 .workspace-shell .score-grid.score-grid-compact {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
@@ -5221,6 +5232,291 @@ textarea {
   .header-actions > .header-cta {
     justify-self: stretch;
     width: 100%;
+  }
+}
+
+/* Flow verification lock: keep live AI output complete and usable across pages. */
+.quiz-layout.workspace-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.78fr);
+  align-items: start;
+  gap: clamp(24px, 4vw, 56px);
+}
+
+.workspace-shell .quiz-main,
+.workspace-shell .quiz-side,
+.workspace-shell .quiz-card,
+.workspace-shell .output-card,
+.workspace-shell .output-block,
+.workspace-shell .rich-output {
+  min-width: 0;
+}
+
+.workspace-shell .quiz-main {
+  padding-right: clamp(16px, 3vw, 36px);
+}
+
+.workspace-shell .quiz-side {
+  padding-left: clamp(16px, 2.6vw, 30px);
+  border-left: 1px solid var(--line);
+}
+
+.workspace-shell .output-card {
+  position: sticky;
+  top: 96px;
+}
+
+.workspace-shell .quiz-workbench {
+  gap: 18px;
+}
+
+.workspace-shell .inline-actions {
+  align-items: center;
+}
+
+.workspace-shell #quiz-run-button {
+  position: static;
+  width: fit-content;
+  white-space: nowrap;
+}
+
+.workspace-shell #quiz-prompt-input {
+  min-height: 220px;
+  resize: vertical;
+}
+
+.workspace-shell .rich-output {
+  display: grid;
+  gap: 10px;
+}
+
+.workspace-shell .rich-output p,
+.workspace-shell .rich-output blockquote,
+.workspace-shell .rich-output ul {
+  max-width: 100%;
+}
+
+.workspace-shell .rich-output strong {
+  color: var(--heading);
+}
+
+.message-heading {
+  margin: 14px 0 2px;
+  color: var(--heading);
+  font-family: var(--font-display);
+  font-size: 1.06rem;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+.message-heading:first-child {
+  margin-top: 0;
+}
+
+.message-list-ordered {
+  padding-left: 24px;
+}
+
+.workspace-shell .output-block p,
+.workspace-shell .output-block li,
+.workspace-shell .output-block blockquote {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+@media (max-width: 1100px) {
+  .quiz-layout.workspace-layout {
+    grid-template-columns: 1fr !important;
+    gap: 28px;
+  }
+
+  .workspace-shell .quiz-main,
+  .workspace-shell .quiz-side {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    border-left: 0 !important;
+  }
+
+  .workspace-shell .quiz-side {
+    padding-top: 24px !important;
+    border-top: 1px solid var(--line) !important;
+    background: transparent !important;
+  }
+
+  .workspace-shell .output-card {
+    position: static;
+  }
+
+  .workspace-shell #quiz-run-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 760px) {
+  .workspace-shell .mode-switcher,
+  .workspace-shell .quick-chip-row,
+  .workspace-shell .field-row {
+    width: 100%;
+  }
+
+  .workspace-shell .mode-switcher,
+  .workspace-shell .quick-chip-row {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-shell .field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-shell .mode-tab,
+  .workspace-shell .quick-chip {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .workspace-shell #quiz-prompt-input {
+    min-height: 180px !important;
+  }
+}
+
+/* Runtime polish: keep generated content and document controls fully readable. */
+.workspace-shell .chat-thread {
+  align-items: start;
+  max-height: min(62vh, 680px);
+  overflow-y: auto;
+  padding-right: 6px;
+  overscroll-behavior: contain;
+}
+
+.workspace-shell .chat-card {
+  max-height: min(78vh, 820px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.workspace-shell .message {
+  max-width: min(100%, 920px) !important;
+  width: fit-content;
+  min-width: min(100%, 280px);
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.workspace-shell .message.assistant {
+  width: min(100%, 920px);
+}
+
+.message-line,
+.message blockquote,
+.message-list {
+  margin: 0;
+}
+
+.message-line + .message-line,
+.message-line + blockquote,
+.message-line + .message-list,
+.message blockquote + .message-line,
+.message-list + .message-line {
+  margin-top: 10px;
+}
+
+.message blockquote {
+  padding: 12px 14px;
+  border-left: 3px solid var(--teal);
+  background: rgba(19, 139, 111, 0.06);
+  border-radius: 8px;
+}
+
+.message-list {
+  padding-left: 20px;
+}
+
+.message strong {
+  color: var(--heading);
+}
+
+.doc-item,
+.source-card,
+.output-block {
+  min-width: 0;
+}
+
+.doc-top,
+.doc-footer,
+.doc-actions {
+  gap: 10px 12px;
+}
+
+.doc-copy,
+.doc-copy strong,
+.file-meta,
+.source-meta,
+.doc-origin {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.doc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.doc-action-button {
+  min-height: 36px;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.status-chip {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.site-header,
+.header-actions,
+.account-shell,
+.account-pill {
+  min-width: 0;
+}
+
+.account-pill {
+  max-width: min(100%, 280px);
+}
+
+.account-copy {
+  min-width: 0;
+}
+
+.account-copy strong,
+.account-copy span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 980px) {
+  .workspace-shell .message,
+  .workspace-shell .message.assistant {
+    width: 100%;
+    max-width: 100% !important;
+  }
+
+  .workspace-shell #chat-composer .composer-top {
+    align-items: stretch;
+  }
+
+  .workspace-shell #chat-composer .primary-button {
+    width: 100%;
+  }
+
+  .doc-footer,
+  .doc-actions {
+    justify-content: flex-start;
   }
 }
 

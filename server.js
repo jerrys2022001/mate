@@ -191,12 +191,59 @@ function getPort() {
   return Number(process.env.PORT || DEFAULT_PORT);
 }
 
+const defaultCorsAllowedOrigins = [
+  "null",
+  "https://mate.velocai.net",
+  "https://www.mate.velocai.net",
+  "http://127.0.0.1:4317",
+  "http://localhost:4317"
+];
+
+const configuredCorsAllowedOrigins = String(process.env.CORS_ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+const corsAllowedOrigins = Array.from(new Set(defaultCorsAllowedOrigins.concat(configuredCorsAllowedOrigins)));
+
+function isAllowedCorsOrigin(origin) {
+  const normalized = String(origin || "").trim();
+
+  if (!normalized) {
+    return false;
+  }
+
+  if (normalized === "null") {
+    return true;
+  }
+
+  if (corsAllowedOrigins.includes(normalized)) {
+    return true;
+  }
+
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalized);
+}
+
+function buildCorsHeaders(origin) {
+  const headers = {
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS"
+  };
+
+  if (isAllowedCorsOrigin(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+    headers["Access-Control-Allow-Credentials"] = "true";
+    headers.Vary = "Origin";
+    return headers;
+  }
+
+  headers["Access-Control-Allow-Origin"] = "*";
+  return headers;
+}
+
 function sendJson(res, statusCode, payload, extraHeaders) {
   const body = JSON.stringify(payload);
-  res.writeHead(statusCode, Object.assign({
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-    "Access-Control-Allow-Origin": "*",
+  res.writeHead(statusCode, Object.assign(buildCorsHeaders(res.__mateOrigin), {
     "Content-Length": Buffer.byteLength(body),
     "Content-Type": "application/json; charset=utf-8"
   }, extraHeaders || {}));
@@ -204,10 +251,19 @@ function sendJson(res, statusCode, payload, extraHeaders) {
 }
 
 function sendText(res, statusCode, text) {
-  res.writeHead(statusCode, {
+  res.writeHead(statusCode, Object.assign(buildCorsHeaders(res.__mateOrigin), {
     "Content-Type": "text/plain; charset=utf-8"
-  });
+  }));
   res.end(text);
+}
+
+function sendBinary(res, statusCode, buffer, headers) {
+  const body = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || "");
+  res.writeHead(statusCode, Object.assign(buildCorsHeaders(res.__mateOrigin), {
+    "Content-Length": body.length,
+    "Content-Type": "application/octet-stream"
+  }, headers || {}));
+  res.end(body);
 }
 
 function parseJson(req) {
@@ -509,10 +565,20 @@ function removeSession(token) {
   }
 }
 
+function getBearerToken(req) {
+  const header = String(req.headers.authorization || "").trim();
+
+  if (!header.toLowerCase().startsWith("bearer ")) {
+    return "";
+  }
+
+  return header.slice(7).trim();
+}
+
 function getAuthContext(req) {
   pruneExpiredSessions();
   const cookies = parseCookies(req);
-  const token = cookies[SESSION_COOKIE_NAME];
+  const token = cookies[SESSION_COOKIE_NAME] || getBearerToken(req);
 
   if (!token) {
     return {
@@ -819,14 +885,14 @@ function splitIntoParagraphs(text, limit) {
 
   const paragraphs = normalized
     .split(/\n\s*\n/)
-    .map((chunk) => chunk.replace(/\s+/g, " ").trim())
+    .map((chunk) => chunk.trim())
     .filter(Boolean);
 
   if (!paragraphs.length) {
-    return [truncate(normalized, 320)];
+    return [normalized];
   }
 
-  return paragraphs.slice(0, limit || 3).map((paragraph) => truncate(paragraph, 320));
+  return paragraphs.slice(0, limit || paragraphs.length);
 }
 
 function sanitizeFileBase(value) {
@@ -1313,7 +1379,7 @@ async function proxyChatToDeepTutor(payload, user) {
         engineLabel: "Mate writing coach",
         sessionId: collected.sessionId,
         sources: collected.sources,
-        assistantLines: splitIntoParagraphs(collected.result || collected.stream, 3),
+        assistantLines: splitIntoParagraphs(collected.result || collected.stream),
         suggestions: buildChatSuggestions(scenario)
       };
     }
@@ -1333,10 +1399,15 @@ async function proxyChatToDeepTutor(payload, user) {
 }
 
 function buildSolveProxyResponse(resultEvent, payload) {
-  const blocks = splitIntoParagraphs(resultEvent.final_answer, 3).map((paragraph, index) => ({
-    heading: index === 0 ? "DeepTutor answer" : `Detail ${index}`,
-    text: paragraph
-  }));
+  const finalAnswer = String(resultEvent.final_answer || "").trim();
+  const blocks = finalAnswer
+    ? [
+        {
+          heading: "DeepTutor answer",
+          text: finalAnswer
+        }
+      ]
+    : [];
 
   if (resultEvent.output_dir_name) {
     blocks.push({
@@ -1350,7 +1421,7 @@ function buildSolveProxyResponse(resultEvent, payload) {
     backendLabel: "Mate BFF",
     routeLabel: `WS ${deepTutorConfig.solveWsPath}`,
     outputTitle: "DeepTutor solve result",
-    blocks: blocks.slice(0, 3),
+    blocks,
     scores: [
       { value: resultEvent.session_id ? "1" : "0", label: "solve session" },
       { value: resultEvent.output_dir_name ? "1" : "0", label: "artifact folders" },
@@ -1676,9 +1747,12 @@ function deriveKnowledgeDocumentTags(document) {
 }
 
 function decorateKnowledgeDocument(document, user) {
+  const isDeepTutorDocument = document.id && String(document.id).startsWith("deeptutor:");
+
   return Object.assign({}, document, {
     editable: isUserOwnedKnowledgeDocument(document, user),
-    sourceOrigin: document.userId ? "personal" : document.id && String(document.id).startsWith("deeptutor:") ? "deeptutor" : "starter",
+    downloadable: !isDeepTutorDocument,
+    sourceOrigin: document.userId ? "personal" : isDeepTutorDocument ? "deeptutor" : "starter",
     tags: deriveKnowledgeDocumentTags(document)
   });
 }
@@ -1993,6 +2067,59 @@ function getKnowledgeDocumentForUser(documentId, user) {
   return kbDocuments.find((document) => document.id === documentId && document.userId === user.id) || null;
 }
 
+function getDownloadableKnowledgeDocument(documentId, user) {
+  return getVisibleLocalKnowledgeDocuments(user).find((document) => document.id === documentId) || null;
+}
+
+function buildDownloadFileName(document) {
+  const fallbackExt = document.storagePath ? path.extname(document.storagePath) : ".txt";
+  const requested = String(document.name || "mate-document").trim();
+  const hasExt = Boolean(path.extname(requested));
+  return sanitizeUploadFileName(hasExt ? requested : `${requested}${fallbackExt || ".txt"}`);
+}
+
+function buildDownloadPayload(document, user) {
+  if (document.storagePath) {
+    const absolutePath = resolveStoredWorkspacePath(document.storagePath);
+
+    if (!absolutePath || !absolutePath.startsWith(FILE_CACHE_DIR) || !fs.existsSync(absolutePath)) {
+      throw new Error("Stored file is no longer available.");
+    }
+
+    return {
+      buffer: fs.readFileSync(absolutePath),
+      fileName: buildDownloadFileName(document),
+      mimeType: document.mimeType || "application/octet-stream"
+    };
+  }
+
+  const body = [
+    document.name || "Mate knowledge document",
+    "",
+    document.summary || "",
+    "",
+    document.sourceText || "No source text is stored for this document.",
+    "",
+    user && user.email ? `Exported from Mate for ${user.email}` : "Exported from Mate"
+  ].filter((line, index) => index < 2 || line).join("\n");
+
+  return {
+    buffer: Buffer.from(body, "utf8"),
+    fileName: buildDownloadFileName(Object.assign({}, document, { name: document.name || "mate-note.txt" })),
+    mimeType: "text/plain; charset=utf-8"
+  };
+}
+
+function downloadKnowledgeDocument(documentId, user) {
+  const document = getDownloadableKnowledgeDocument(documentId, user);
+
+  if (!document || String(document.id || "").startsWith("deeptutor:")) {
+    throw new Error("Document is not available for download from Mate.");
+  }
+
+  return buildDownloadPayload(document, user);
+}
+
 async function renameKnowledgeDocument(documentId, payload, user) {
   const document = getKnowledgeDocumentForUser(documentId, user);
   if (!document) {
@@ -2042,11 +2169,12 @@ async function searchKnowledgeCards(query, user) {
   };
 }
 
-function buildAuthResponse(user) {
+function buildAuthResponse(user, sessionToken) {
   return {
     ok: true,
     authenticated: true,
-    user: sanitizeUserRecord(user)
+    user: sanitizeUserRecord(user),
+    sessionToken: String(sessionToken || "")
   };
 }
 
@@ -2102,7 +2230,7 @@ async function handleSignup(req, res) {
   saveUserRecords();
 
   const session = createSession(user.id);
-  sendJson(res, 200, buildAuthResponse(user), {
+  sendJson(res, 200, buildAuthResponse(user, session.token), {
     "Set-Cookie": createSessionCookie(session.token)
   });
 }
@@ -2122,7 +2250,7 @@ async function handleLogin(req, res) {
   }
 
   const session = createSession(user.id);
-  sendJson(res, 200, buildAuthResponse(user), {
+  sendJson(res, 200, buildAuthResponse(user, session.token), {
     "Set-Cookie": createSessionCookie(session.token)
   });
 }
@@ -2149,7 +2277,7 @@ function handleSession(req, res, authContext) {
     return;
   }
 
-  sendJson(res, 200, buildAuthResponse(authContext.user));
+  sendJson(res, 200, buildAuthResponse(authContext.user, authContext.token));
 }
 
 async function serveStatic(req, res, urlPath) {
@@ -2339,6 +2467,24 @@ async function handleApi(req, res, pathname) {
   }
 
   const kbDocumentMatch = pathname.match(/^\/api\/kb\/documents\/([^/]+)$/);
+  const kbDocumentDownloadMatch = pathname.match(/^\/api\/kb\/documents\/([^/]+)\/download$/);
+
+  if (kbDocumentDownloadMatch && req.method === "GET") {
+    try {
+      const download = downloadKnowledgeDocument(decodeURIComponent(kbDocumentDownloadMatch[1]), authContext.user);
+      sendBinary(res, 200, download.buffer, {
+        "Content-Disposition": `attachment; filename="${download.fileName}"`,
+        "Content-Type": download.mimeType
+      });
+    } catch (error) {
+      sendJson(res, 404, {
+        ok: false,
+        error: error.message
+      });
+    }
+    return;
+  }
+
   if (kbDocumentMatch && req.method === "PUT") {
     try {
       const payload = await parseJson(req);
@@ -2378,6 +2524,7 @@ async function handleApi(req, res, pathname) {
 
 const server = http.createServer(async (req, res) => {
   try {
+    res.__mateOrigin = String(req.headers.origin || "").trim();
     const parsedUrl = new URL(req.url, "http://127.0.0.1");
     const pathname = parsedUrl.pathname;
 

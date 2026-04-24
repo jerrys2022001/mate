@@ -1,8 +1,12 @@
 (function () {
   const isFileMode = window.location.protocol === "file:";
   const pageName = document.body.getAttribute("data-page") || "";
+  const runtimeApiStorageKey = "mate.apiBaseUrl";
+  const sessionTokenStorageKey = "mate.sessionToken";
+  const defaultLocalApiBases = ["http://127.0.0.1:4317", "http://localhost:4317"];
   let runtimeInfo = {
     apiAvailable: !isFileMode,
+    apiBaseUrl: !isFileMode ? window.location.origin : "",
     mode: isFileMode ? "file" : "checking",
     proxyEnabled: false,
     backendLabel: isFileMode ? "Local file preview" : "Mate BFF",
@@ -10,14 +14,192 @@
     upstreamReachable: false,
     websocketClientAvailable: false,
     endpoints: {},
-    proxyCapabilities: {}
+    proxyCapabilities: {},
+    checkedApiBases: [],
+    lastError: ""
   };
   let sessionInfo = {
     authenticated: false,
-    user: null
+    user: null,
+    sessionToken: safeReadLocalStorage(sessionTokenStorageKey)
   };
   let chatSessions = {};
   let authRedirecting = false;
+
+  function isLocalHostName(hostname) {
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  }
+
+  function normalizeApiBaseUrl(value) {
+    const raw = String(value || "").trim();
+
+    if (!raw) {
+      return "";
+    }
+
+    try {
+      const fallbackBase = isFileMode ? "http://127.0.0.1:4317/" : `${window.location.origin}/`;
+      const url = new URL(raw, fallbackBase);
+
+      if (!/^https?:$/.test(url.protocol)) {
+        return "";
+      }
+
+      return `${url.protocol}//${url.host}`;
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function safeReadLocalStorage(key) {
+    try {
+      return window.localStorage.getItem(key) || "";
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function safeWriteLocalStorage(key, value) {
+    try {
+      if (!value) {
+        window.localStorage.removeItem(key);
+        return;
+      }
+
+      window.localStorage.setItem(key, value);
+    } catch (error) {
+      // Ignore storage failures in restricted browser contexts.
+    }
+  }
+
+  function pushApiBaseCandidate(list, value) {
+    const normalized = normalizeApiBaseUrl(value);
+
+    if (normalized && !list.includes(normalized)) {
+      list.push(normalized);
+    }
+  }
+
+  function buildApiBaseCandidates() {
+    const candidates = [];
+    const query = new URLSearchParams(window.location.search);
+    const explicitFromQuery = normalizeApiBaseUrl(query.get("api"));
+    const explicitFromMeta = normalizeApiBaseUrl(document.querySelector('meta[name="mate-api-base"]')?.getAttribute("content"));
+    const explicitFromWindow = normalizeApiBaseUrl(typeof window.__MATE_API_BASE__ === "string" ? window.__MATE_API_BASE__ : "");
+    const explicitFromStorage = normalizeApiBaseUrl(safeReadLocalStorage(runtimeApiStorageKey));
+
+    if (explicitFromQuery) {
+      safeWriteLocalStorage(runtimeApiStorageKey, explicitFromQuery);
+    }
+
+    [explicitFromQuery, explicitFromMeta, explicitFromWindow, explicitFromStorage].forEach(function (value) {
+      pushApiBaseCandidate(candidates, value);
+    });
+
+    if (!isFileMode) {
+      pushApiBaseCandidate(candidates, window.location.origin);
+
+      if (!isLocalHostName(window.location.hostname) && !String(window.location.hostname || "").startsWith("api.")) {
+        pushApiBaseCandidate(candidates, `${window.location.protocol}//api.${window.location.host}`);
+      }
+    }
+
+    if (isFileMode || window.location.protocol === "http:" || isLocalHostName(window.location.hostname)) {
+      defaultLocalApiBases.forEach(function (value) {
+        pushApiBaseCandidate(candidates, value);
+      });
+    }
+
+    return candidates;
+  }
+
+  function getRequestCredentials(url) {
+    try {
+      return new URL(url).origin === window.location.origin ? "same-origin" : "include";
+    } catch (error) {
+      return "same-origin";
+    }
+  }
+
+  function getStoredSessionToken() {
+    return String((sessionInfo && sessionInfo.sessionToken) || safeReadLocalStorage(sessionTokenStorageKey) || "").trim();
+  }
+
+  function persistSessionToken(value) {
+    const normalized = String(value || "").trim();
+    safeWriteLocalStorage(sessionTokenStorageKey, normalized);
+    sessionInfo.sessionToken = normalized;
+  }
+
+  function buildAuthHeaders(headers) {
+    const nextHeaders = Object.assign({}, headers || {});
+    const token = getStoredSessionToken();
+
+    if (token && !nextHeaders.Authorization) {
+      nextHeaders.Authorization = `Bearer ${token}`;
+    }
+
+    return nextHeaders;
+  }
+
+  function buildApiUrl(path) {
+    const normalizedPath = String(path || "").replace(/^\/+/, "");
+    const baseUrl = normalizeApiBaseUrl(runtimeInfo.apiBaseUrl) || (!isFileMode ? window.location.origin : "");
+
+    if (!baseUrl) {
+      return `/${normalizedPath}`;
+    }
+
+    return new URL(normalizedPath, `${baseUrl}/`).toString();
+  }
+
+  function setRuntimeUnavailable(reason, checkedApiBases) {
+    runtimeInfo = {
+      apiAvailable: false,
+      apiBaseUrl: "",
+      mode: isFileMode ? "file" : "demo",
+      proxyEnabled: false,
+      backendLabel: isFileMode ? "Local file preview" : "Mate UI fallback",
+      configured: false,
+      upstreamReachable: false,
+      websocketClientAvailable: false,
+      endpoints: {},
+      proxyCapabilities: {},
+      checkedApiBases: Array.isArray(checkedApiBases) ? checkedApiBases.slice() : [],
+      lastError: String(reason || "").trim()
+    };
+
+    return runtimeInfo;
+  }
+
+  function formatApiBaseSummary() {
+    const checked = Array.isArray(runtimeInfo.checkedApiBases) ? runtimeInfo.checkedApiBases.filter(Boolean) : [];
+    return checked.length ? ` Checked: ${checked.join(", ")}.` : "";
+  }
+
+  function buildApiUnavailableMessage() {
+    if (isFileMode) {
+      return `Mate BFF was not detected for this file preview.${formatApiBaseSummary()} Start the local Node server or provide ?api=https://your-bff-origin.`;
+    }
+
+    return `Mate BFF is unreachable from this page.${formatApiBaseSummary()} Deploy the Node BFF with this site or provide ?api=https://your-bff-origin.`;
+  }
+
+  async function probeApiBase(apiBaseUrl) {
+    const healthUrl = new URL("api/health", `${apiBaseUrl}/`).toString();
+    const response = await fetch(healthUrl, {
+      headers: buildAuthHeaders({
+        Accept: "application/json"
+      }),
+      credentials: getRequestCredentials(healthUrl)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Health check failed for ${apiBaseUrl}`);
+    }
+
+    return response.json();
+  }
 
   const painStories = {
     ielts: {
@@ -391,6 +573,85 @@
       .replace(/'/g, "&#39;");
   }
 
+  function escapeAttribute(value) {
+    return escapeHtml(value).replace(/`/g, "&#96;");
+  }
+
+  function formatInlineMarkdown(value) {
+    return escapeHtml(value)
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  }
+
+  function isUnorderedListLine(line) {
+    return /^[-*]\s+/.test(line);
+  }
+
+  function isOrderedListLine(line) {
+    return /^\d+[.)]\s+/.test(line);
+  }
+
+  function renderFormattedList(lines, ordered) {
+    const tag = ordered ? "ol" : "ul";
+    const className = ordered ? "message-list message-list-ordered" : "message-list";
+    const markerPattern = ordered ? /^\d+[.)]\s+/ : /^[-*]\s+/;
+    const items = lines.map((line) => line.replace(markerPattern, "").trim());
+
+    return `<${tag} class="${className}">${items.map((item) => `<li>${formatInlineMarkdown(item)}</li>`).join("")}</${tag}>`;
+  }
+
+  function formatMessageText(value) {
+    const text = String(value || "").trim();
+
+    if (!text) {
+      return "<p class=\"message-line\">Mate returned an empty response.</p>";
+    }
+
+    return text
+      .split(/\n{2,}/)
+      .map((chunk) => chunk.trim())
+      .filter(Boolean)
+      .map((chunk) => {
+        const lines = chunk.split(/\n/).map((line) => line.trim()).filter(Boolean);
+        const headingMatch = chunk.match(/^(#{1,4})\s+(.+)$/);
+
+        if (headingMatch) {
+          return `<h4 class="message-heading">${formatInlineMarkdown(headingMatch[2])}</h4>`;
+        }
+
+        if (lines.length && lines.every((line) => line.startsWith(">"))) {
+          const quote = lines.map((line) => formatInlineMarkdown(line.replace(/^>\s*/, ""))).join("<br>");
+          return `<blockquote>${quote}</blockquote>`;
+        }
+
+        if (lines.length > 1 && lines.slice(1).every(isUnorderedListLine)) {
+          const intro = `<p class="message-line">${formatInlineMarkdown(lines[0])}</p>`;
+          return `${intro}${renderFormattedList(lines.slice(1), false)}`;
+        }
+
+        if (lines.length > 1 && lines.slice(1).every(isOrderedListLine)) {
+          const intro = `<p class="message-line">${formatInlineMarkdown(lines[0])}</p>`;
+          return `${intro}${renderFormattedList(lines.slice(1), true)}`;
+        }
+
+        if (lines.length && lines.every(isUnorderedListLine)) {
+          return renderFormattedList(lines, false);
+        }
+
+        if (lines.length && lines.every(isOrderedListLine)) {
+          return renderFormattedList(lines, true);
+        }
+
+        return `<p class="message-line">${formatInlineMarkdown(chunk)}</p>`;
+      })
+      .join("");
+  }
+
+  function getDocumentDownloadName(document) {
+    const rawName = String(document && document.name ? document.name : "mate-document.txt").trim();
+    return rawName || "mate-document.txt";
+  }
+
   function truncate(value, maxLength) {
     const text = String(value || "");
     if (text.length <= maxLength) {
@@ -539,12 +800,12 @@
   }
 
   function getChatRuntimeEngineLabel() {
-    if (isFileMode || !runtimeInfo.apiAvailable) {
-      return "Mate UI fallback";
+    if (!runtimeInfo.apiAvailable) {
+      return isFileMode ? "Mate local preview" : "Mate UI fallback";
     }
 
     if (runtimeInfo.proxyEnabled) {
-      return "DeepTutor Chat";
+      return "Mate writing coach";
     }
 
     if (runtimeInfo.configured && runtimeInfo.websocketClientAvailable === false) {
@@ -657,34 +918,38 @@
   }
 
   function handleUnauthorized() {
+    persistSessionToken("");
     sessionInfo = {
       authenticated: false,
-      user: null
+      user: null,
+      sessionToken: ""
     };
     renderAccountShell();
     syncAuthPageState();
 
-    if (!isFileMode && runtimeInfo.apiAvailable && pageRequiresAuth() && !authRedirecting) {
+    if (runtimeInfo.apiAvailable && pageRequiresAuth() && !authRedirecting) {
       authRedirecting = true;
       window.location.href = buildLoginPath();
     }
   }
 
   async function restoreSession() {
-    if (isFileMode || !runtimeInfo.apiAvailable) {
+    if (!runtimeInfo.apiAvailable) {
       sessionInfo = {
         authenticated: false,
-        user: null
+        user: null,
+        sessionToken: getStoredSessionToken()
       };
       return sessionInfo;
     }
 
     try {
-      const response = await fetch("/api/auth/session", {
-        headers: {
+      const requestUrl = buildApiUrl("/api/auth/session");
+      const response = await fetch(requestUrl, {
+        headers: buildAuthHeaders({
           Accept: "application/json"
-        },
-        credentials: "same-origin"
+        }),
+        credentials: getRequestCredentials(requestUrl)
       });
 
       if (!response.ok) {
@@ -692,16 +957,20 @@
       }
 
       const payload = await response.json();
+      persistSessionToken(payload.sessionToken || getStoredSessionToken());
       sessionInfo = {
         authenticated: Boolean(payload.authenticated && payload.user),
-        user: payload.user || null
+        user: payload.user || null,
+        sessionToken: getStoredSessionToken()
       };
       loadChatSessions();
     } catch (error) {
       sessionInfo = {
         authenticated: false,
-        user: null
+        user: null,
+        sessionToken: getStoredSessionToken()
       };
+      setRuntimeUnavailable(error.message || "Session restore failed", runtimeInfo.checkedApiBases);
     }
 
     return sessionInfo;
@@ -804,21 +1073,26 @@
   }
 
   async function submitAuthRequest(path, body, statusNode, successLabel) {
-    if (isFileMode || !runtimeInfo.apiAvailable) {
-      setFormStatus(statusNode, "Open Mate through the local Node server to use auth", "is-demo");
-      return null;
+    if (!runtimeInfo.apiAvailable) {
+      await bootstrapRuntime();
+
+      if (!runtimeInfo.apiAvailable) {
+        setFormStatus(statusNode, buildApiUnavailableMessage(), "is-demo");
+        return null;
+      }
     }
 
     setFormStatus(statusNode, "Saving account", "is-file");
 
     try {
-      const response = await fetch(path, {
+      const requestUrl = buildApiUrl(path);
+      const response = await fetch(requestUrl, {
         method: "POST",
-        headers: {
+        headers: buildAuthHeaders({
           "Content-Type": "application/json",
           Accept: "application/json"
-        },
-        credentials: "same-origin",
+        }),
+        credentials: getRequestCredentials(requestUrl),
         body: JSON.stringify(body)
       });
       const payload = await response.json();
@@ -829,8 +1103,10 @@
 
       sessionInfo = {
         authenticated: Boolean(payload.authenticated && payload.user),
-        user: payload.user || null
+        user: payload.user || null,
+        sessionToken: String(payload.sessionToken || "").trim()
       };
+      persistSessionToken(payload.sessionToken);
       loadChatSessions();
       renderAccountShell();
       syncAuthPageState();
@@ -846,14 +1122,15 @@
   async function handleLogout() {
     const previousStorageKey = getChatSessionStorageKey();
 
-    if (!isFileMode && runtimeInfo.apiAvailable) {
+    if (runtimeInfo.apiAvailable) {
       try {
-        await fetch("/api/auth/logout", {
+        const requestUrl = buildApiUrl("/api/auth/logout");
+        await fetch(requestUrl, {
           method: "POST",
-          headers: {
+          headers: buildAuthHeaders({
             Accept: "application/json"
-          },
-          credentials: "same-origin"
+          }),
+          credentials: getRequestCredentials(requestUrl)
         });
       } catch (error) {
         // Ignore logout transport failures and clear the local state anyway.
@@ -864,9 +1141,11 @@
       window.sessionStorage.removeItem(previousStorageKey);
     }
 
+    persistSessionToken("");
     sessionInfo = {
       authenticated: false,
-      user: null
+      user: null,
+      sessionToken: ""
     };
     chatSessions = {};
     renderAccountShell();
@@ -882,74 +1161,56 @@
   }
 
   async function bootstrapRuntime() {
-    if (isFileMode) {
-      runtimeInfo = {
-        apiAvailable: false,
-        mode: "file",
-        proxyEnabled: false,
-        backendLabel: "Local file preview",
-        configured: false,
-        upstreamReachable: false,
-        websocketClientAvailable: false,
-        endpoints: {},
-        proxyCapabilities: {}
-      };
-      return runtimeInfo;
-    }
+    const candidates = buildApiBaseCandidates();
+    let lastError = "";
 
-    try {
-      const response = await fetch("/api/health", {
-        headers: {
-          Accept: "application/json"
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error("BFF health check failed");
+    for (const apiBaseUrl of candidates) {
+      try {
+        const payload = await probeApiBase(apiBaseUrl);
+        runtimeInfo = {
+          apiAvailable: true,
+          apiBaseUrl,
+          mode: payload.mode || "mock",
+          proxyEnabled: Boolean(payload.proxyEnabled),
+          backendLabel: payload.backendLabel || "Mate BFF",
+          configured: Boolean(payload.configured),
+          upstreamReachable: Boolean(payload.upstreamReachable),
+          websocketClientAvailable: Boolean(payload.websocketClientAvailable),
+          endpoints: payload.endpoints && typeof payload.endpoints === "object" ? payload.endpoints : {},
+          proxyCapabilities: payload.proxyCapabilities && typeof payload.proxyCapabilities === "object" ? payload.proxyCapabilities : {},
+          checkedApiBases: candidates.slice(),
+          lastError: ""
+        };
+        safeWriteLocalStorage(runtimeApiStorageKey, apiBaseUrl);
+        return runtimeInfo;
+      } catch (error) {
+        lastError = error && error.message ? error.message : String(error || "");
       }
-
-      const payload = await response.json();
-      runtimeInfo = {
-        apiAvailable: true,
-        mode: payload.mode || "mock",
-        proxyEnabled: Boolean(payload.proxyEnabled),
-        backendLabel: payload.backendLabel || "Mate BFF",
-        configured: Boolean(payload.configured),
-        upstreamReachable: Boolean(payload.upstreamReachable),
-        websocketClientAvailable: Boolean(payload.websocketClientAvailable),
-        endpoints: payload.endpoints && typeof payload.endpoints === "object" ? payload.endpoints : {},
-        proxyCapabilities: payload.proxyCapabilities && typeof payload.proxyCapabilities === "object" ? payload.proxyCapabilities : {}
-      };
-    } catch (error) {
-      runtimeInfo = {
-        apiAvailable: false,
-        mode: "demo",
-        proxyEnabled: false,
-        backendLabel: "Mate UI fallback",
-        configured: false,
-        upstreamReachable: false,
-        websocketClientAvailable: false,
-        endpoints: {},
-        proxyCapabilities: {}
-      };
     }
 
-    return runtimeInfo;
+    return setRuntimeUnavailable(lastError || "Mate BFF health check failed", candidates);
   }
 
   async function requestJson(path, options, fallbackFactory) {
     const requestOptions = Object.assign(
       {
         method: "GET",
-        credentials: "same-origin",
         headers: {}
       },
       options || {}
     );
 
-    if (!isFileMode && runtimeInfo.apiAvailable) {
+    if (!runtimeInfo.apiAvailable) {
+      await bootstrapRuntime();
+    }
+
+    if (runtimeInfo.apiAvailable) {
       try {
-        const response = await fetch(path, requestOptions);
+        const requestUrl = buildApiUrl(path);
+        const response = await fetch(requestUrl, Object.assign({}, requestOptions, {
+          headers: buildAuthHeaders(requestOptions.headers),
+          credentials: requestOptions.credentials || getRequestCredentials(requestUrl)
+        }));
 
         if (response.status === 401) {
           handleUnauthorized();
@@ -962,33 +1223,48 @@
 
         return await response.json();
       } catch (error) {
-        runtimeInfo.apiAvailable = false;
-        runtimeInfo.mode = "demo";
-        runtimeInfo.proxyEnabled = false;
-        runtimeInfo.backendLabel = "Mate UI fallback";
-        runtimeInfo.upstreamReachable = false;
-        runtimeInfo.proxyCapabilities = {};
+        setRuntimeUnavailable(error.message || "Request failed", runtimeInfo.checkedApiBases);
       }
     }
 
     return fallbackFactory();
   }
 
-  async function requestJsonStrict(path, options) {
-    if (isFileMode || !runtimeInfo.apiAvailable) {
-      throw new Error("Mate BFF is not available in file preview mode.");
+  async function ensureApiRuntime() {
+    if (!runtimeInfo.apiAvailable) {
+      await bootstrapRuntime();
     }
+
+    if (!runtimeInfo.apiAvailable) {
+      throw new Error(buildApiUnavailableMessage());
+    }
+
+    return runtimeInfo;
+  }
+
+  async function requestJsonStrict(path, options) {
+    await ensureApiRuntime();
 
     const requestOptions = Object.assign(
       {
         method: "GET",
-        credentials: "same-origin",
         headers: {}
       },
       options || {}
     );
 
-    const response = await fetch(path, requestOptions);
+    const requestUrl = buildApiUrl(path);
+    let response;
+
+    try {
+      response = await fetch(requestUrl, Object.assign({}, requestOptions, {
+        headers: buildAuthHeaders(requestOptions.headers),
+        credentials: requestOptions.credentials || getRequestCredentials(requestUrl)
+      }));
+    } catch (error) {
+      setRuntimeUnavailable(error.message || "Request failed", runtimeInfo.checkedApiBases);
+      throw new Error(buildApiUnavailableMessage());
+    }
 
     if (response.status === 401) {
       handleUnauthorized();
@@ -1015,20 +1291,24 @@
   }
 
   async function uploadFilesWithProgress(path, files, onProgress) {
-    if (isFileMode || !runtimeInfo.apiAvailable) {
-      throw new Error("Mate BFF is not available in file preview mode.");
-    }
+    await ensureApiRuntime();
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       const formData = new FormData();
+      const requestUrl = buildApiUrl(path);
 
       files.forEach((file) => {
         formData.append("files", file, file.name);
       });
 
-      xhr.open("POST", path, true);
+      xhr.open("POST", requestUrl, true);
       xhr.withCredentials = true;
+      const token = getStoredSessionToken();
+
+      if (token) {
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      }
 
       xhr.upload.addEventListener("progress", function (event) {
         if (typeof onProgress !== "function") {
@@ -1080,11 +1360,46 @@
       });
 
       xhr.addEventListener("error", function () {
-        reject(new Error("Upload failed"));
+        setRuntimeUnavailable("Upload failed", runtimeInfo.checkedApiBases);
+        reject(new Error(buildApiUnavailableMessage()));
       });
 
       xhr.send(formData);
     });
+  }
+
+  async function downloadDocumentFile(kbDocument) {
+    await ensureApiRuntime();
+
+    const requestUrl = buildApiUrl(`/api/kb/documents/${encodeURIComponent(kbDocument.id)}/download`);
+    const response = await fetch(requestUrl, {
+      method: "GET",
+      headers: buildAuthHeaders({
+        Accept: "application/octet-stream"
+      }),
+      credentials: getRequestCredentials(requestUrl)
+    });
+
+    if (!response.ok) {
+      let message = "Download failed";
+      try {
+        const payload = await response.json();
+        message = payload.error || message;
+      } catch (error) {
+        // Keep the generic message for non-JSON download errors.
+      }
+      throw new Error(message);
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = getDocumentDownloadName(kbDocument);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   }
 
   function buildChatFallback(message, scenarioKey) {
@@ -1343,8 +1658,8 @@
 
   function createMessageMarkup(role, content) {
     const body = Array.isArray(content)
-      ? `<ul>${content.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>`
-      : `<p>${escapeHtml(content)}</p>`;
+      ? content.map((line) => formatMessageText(line)).join("")
+      : formatMessageText(content);
 
     return `
       <article class="message ${role}">
@@ -1501,7 +1816,9 @@
           </div>
         </div>
         <div class="doc-group-list">
-          ${group.documents.map((document) => `
+          ${group.documents.map((document) => {
+            const canDownload = document.downloadable !== false && !String(document.id || "").startsWith("deeptutor:");
+            return `
             <article class="doc-item">
               <div class="doc-top">
                 <span class="doc-icon">${escapeHtml(buildDocumentIcon(document))}</span>
@@ -1519,15 +1836,16 @@
               ` : ""}
               <div class="doc-footer">
                 <span class="doc-origin">${escapeHtml(document.sourceOrigin || "personal")}</span>
-                ${document.editable ? `
-                  <div class="doc-actions">
-                    <button class="secondary-button doc-action-button" type="button" data-doc-action="rename" data-doc-id="${escapeHtml(document.id)}">Rename</button>
-                    <button class="secondary-button doc-action-button is-danger" type="button" data-doc-action="delete" data-doc-id="${escapeHtml(document.id)}">Delete</button>
-                  </div>
-                ` : `<span class="doc-lock">Managed by Mate</span>`}
+                <div class="doc-actions">
+                  ${canDownload ? `<button class="secondary-button doc-action-button" type="button" data-doc-action="download" data-doc-id="${escapeAttribute(document.id)}">Download</button>` : ""}
+                  ${document.editable ? `
+                    <button class="secondary-button doc-action-button" type="button" data-doc-action="rename" data-doc-id="${escapeAttribute(document.id)}">Rename</button>
+                    <button class="secondary-button doc-action-button is-danger" type="button" data-doc-action="delete" data-doc-id="${escapeAttribute(document.id)}">Delete</button>
+                  ` : canDownload ? "" : `<span class="doc-lock">Managed by Mate</span>`}
+                </div>
               </div>
             </article>
-          `).join("")}
+          `; }).join("")}
         </div>
       </li>
     `).join("");
@@ -1582,7 +1900,7 @@
       blocks.innerHTML = blockItems.map((block) => `
         <article class="output-block">
           <h3>${escapeHtml(block.heading)}</h3>
-          <p>${escapeHtml(block.text)}</p>
+          <div class="rich-output">${formatMessageText(block.text)}</div>
         </article>
       `).join("");
     }
@@ -2015,6 +2333,21 @@
           return;
         }
 
+        if (action === "download") {
+          button.disabled = true;
+          updateDocStatus("Preparing download", "is-file");
+
+          try {
+            await downloadDocumentFile(targetDocument);
+            updateDocStatus("Download ready", "is-live");
+          } catch (error) {
+            updateDocStatus(error.message || "Download failed", "is-demo");
+          } finally {
+            button.disabled = false;
+          }
+          return;
+        }
+
         if (action === "rename") {
           const nextName = window.prompt("Rename this document", targetDocument.name);
           if (!nextName || nextName.trim() === targetDocument.name) {
@@ -2138,14 +2471,13 @@
 
         let payload;
 
-        if (!isFileMode && runtimeInfo.apiAvailable) {
+        if (runtimeInfo.apiAvailable) {
           try {
             payload = await uploadFilesWithProgress("/api/kb/documents", queuedFiles, function (progress) {
               setUploadProgress(progress.percent, `Uploaded ${formatBytes(progress.loaded)} of ${progress.total ? formatBytes(progress.total) : "?"}`);
             });
           } catch (error) {
-            runtimeInfo.apiAvailable = false;
-            runtimeInfo.mode = "demo";
+            setRuntimeUnavailable(error.message || "Upload failed", runtimeInfo.checkedApiBases);
           }
         }
 
@@ -2399,27 +2731,32 @@
           preference: activePreset ? activePreset.label : "Targeted practice for English learning"
         };
 
-      const payload = await requestJson(
-        currentQuizMode === "solve" ? "/api/deep-solve" : "/api/quiz",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
+      try {
+        const payload = await requestJson(
+          currentQuizMode === "solve" ? "/api/deep-solve" : "/api/quiz",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(requestPayload)
           },
-          body: JSON.stringify(requestPayload)
-        },
-        function () {
-          return buildQuizFallback(currentQuizMode, requestPayload);
-        }
-      );
+          function () {
+            return buildQuizFallback(currentQuizMode, requestPayload);
+          }
+        );
 
-      renderQuizResult(payload);
-      setBadge(
-        runtimeBadge,
-        payload.mode === "proxy" ? "DeepTutor live" : payload.mode === "mock" ? "BFF mock mode" : "Demo fallback",
-        payload.mode === "proxy" ? "is-live" : payload.mode === "mock" ? "is-file" : "is-demo"
-      );
-      runButton.disabled = false;
+        renderQuizResult(payload);
+        setBadge(
+          runtimeBadge,
+          payload.mode === "proxy" ? "DeepTutor live" : payload.mode === "mock" ? "BFF mock mode" : "Demo fallback",
+          payload.mode === "proxy" ? "is-live" : payload.mode === "mock" ? "is-file" : "is-demo"
+        );
+      } catch (error) {
+        setBadge(runtimeBadge, error.message || "Practice request failed", "is-demo");
+      } finally {
+        runButton.disabled = false;
+      }
     });
   }
 
@@ -2429,7 +2766,7 @@
     renderAccountShell();
     syncAuthPageState();
 
-    if (!isFileMode && runtimeInfo.apiAvailable && pageRequiresAuth() && !sessionInfo.authenticated) {
+    if (runtimeInfo.apiAvailable && pageRequiresAuth() && !sessionInfo.authenticated) {
       handleUnauthorized();
       return;
     }
