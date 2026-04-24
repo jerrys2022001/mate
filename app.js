@@ -751,6 +751,22 @@
     return Boolean(document && document.sourceUrl && /^https?:\/\//i.test(String(document.sourceUrl)));
   }
 
+  function shouldUseDirectSourceDownload(document) {
+    return Boolean(hasSourceDownloadUrl(document) && !document.storagePath && !document.fileSize);
+  }
+
+  function buildDirectSourceDownloadMarkup(document, label) {
+    return `
+      <a
+        class="secondary-button doc-action-button"
+        href="${escapeAttribute(document.sourceUrl)}"
+        target="_blank"
+        rel="noopener noreferrer"
+        download="${escapeAttribute(getDocumentDownloadName(document))}"
+      >${escapeHtml(label || "Download")}</a>
+    `;
+  }
+
   function downloadFromSourceUrl(document) {
     const link = document.createElement("a");
     link.href = document.sourceUrl;
@@ -3871,6 +3887,11 @@
             const canDownload = document.downloadable !== false && !String(document.id || "").startsWith("deeptutor:");
             const canDelete = canDeleteKnowledgeDocument(document);
             const downloadLabel = canExportDocumentLocally(document) && !hasSourceDownloadUrl(document) ? "Export note" : "Download";
+            const downloadAction = canDownload
+              ? shouldUseDirectSourceDownload(document)
+                ? buildDirectSourceDownloadMarkup(document, downloadLabel)
+                : `<button class="secondary-button doc-action-button" type="button" data-doc-action="download" data-doc-id="${escapeAttribute(document.id)}">${escapeHtml(downloadLabel)}</button>`
+              : "";
             return `
             <article class="doc-item">
               <div class="doc-top">
@@ -3890,7 +3911,7 @@
               <div class="doc-footer">
                 <span class="doc-origin">${escapeHtml(document.sourceOrigin || "personal")}</span>
                 <div class="doc-actions">
-                  ${canDownload ? `<button class="secondary-button doc-action-button" type="button" data-doc-action="download" data-doc-id="${escapeAttribute(document.id)}">${downloadLabel}</button>` : ""}
+                  ${downloadAction}
                   ${document.editable ? `
                     <button class="secondary-button doc-action-button" type="button" data-doc-action="rename" data-doc-id="${escapeAttribute(document.id)}">Rename</button>
                     <button class="secondary-button doc-action-button is-danger" type="button" data-doc-action="delete" data-doc-id="${escapeAttribute(document.id)}">Delete</button>
