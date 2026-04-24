@@ -5582,6 +5582,10 @@
     const bankDrawButton = document.getElementById("quiz-bank-draw");
     const bankSimulateButton = document.getElementById("quiz-bank-simulate");
     const bankHint = document.getElementById("quiz-bank-hint");
+    const sourceStatus = document.getElementById("quiz-source-status");
+    const sourceList = document.getElementById("quiz-source-list");
+    const sourceSelectAllButton = document.getElementById("quiz-source-select-all");
+    const sourceClearButton = document.getElementById("quiz-source-clear");
 
     if (!tabs.length || !runButton || !promptInput || !difficultySelect || !countInput) {
       return;
@@ -5590,6 +5594,8 @@
     applyQuizPreset(currentQuizPreset);
     setBadge(runtimeBadge, "Checking", "is-file");
     localPracticeQuestionBank = loadStoredPracticeQuestionBank();
+    let practiceSourceDocuments = [];
+    let selectedPracticeSourceIds = new Set();
 
     function updateLocalQuestionBankUi(message, tone) {
       const bank = localPracticeQuestionBank;
@@ -5635,6 +5641,128 @@
       }
     }
 
+    function isSelectablePracticeSourceDocument(kbDocument) {
+      if (!kbDocument || String(kbDocument.id || "").startsWith("deeptutor:")) {
+        return false;
+      }
+
+      return kbDocument.sourceOrigin === "personal" || Boolean(kbDocument.fileSize || kbDocument.storagePath || kbDocument.editable);
+    }
+
+    function getPracticeSourceMeta(kbDocument) {
+      const type = kbDocument.type || "Uploaded file";
+      const tags = getDocumentTags(kbDocument);
+      const summary = kbDocument.summary || "Saved in Mate knowledge base.";
+      return [type, summary, tags.length ? `Tags: ${tags.join(", ")}` : ""].filter(Boolean).join(" - ");
+    }
+
+    function getSelectedPracticeSources() {
+      return practiceSourceDocuments.filter((kbDocument) => selectedPracticeSourceIds.has(String(kbDocument.id || "")));
+    }
+
+    function buildPracticeSourceContext(sources) {
+      if (!sources.length) {
+        return "";
+      }
+
+      return sources.map((kbDocument, index) => {
+        const lines = [
+          `[${index + 1}] ${kbDocument.name || "Uploaded file"}`,
+          `Type: ${kbDocument.type || "Reference file"}`,
+          kbDocument.summary ? `Summary: ${kbDocument.summary}` : "",
+          kbDocument.sourceText ? `Text excerpt: ${truncate(kbDocument.sourceText, 1200)}` : ""
+        ].filter(Boolean);
+
+        return lines.join("\n");
+      }).join("\n\n");
+    }
+
+    function buildPromptWithPracticeSources(prompt, sources) {
+      const context = buildPracticeSourceContext(sources || getSelectedPracticeSources());
+
+      if (!context) {
+        return prompt;
+      }
+
+      return `${prompt}\n\nUse these selected uploaded files as context for this Practice request:\n${context}`;
+    }
+
+    function buildPracticeSourceRequestMetadata(sources) {
+      return sources.map((kbDocument) => ({
+        id: kbDocument.id,
+        name: kbDocument.name,
+        type: kbDocument.type,
+        summary: kbDocument.summary || "",
+        tags: getDocumentTags(kbDocument)
+      }));
+    }
+
+    function renderPracticeSourceList(message, tone) {
+      const selectedCount = getSelectedPracticeSources().length;
+      const availableCount = practiceSourceDocuments.length;
+
+      if (sourceStatus) {
+        setBadge(
+          sourceStatus,
+          message || (availableCount ? `${selectedCount}/${availableCount} selected` : "No uploaded files"),
+          tone || (availableCount ? "is-file" : "is-demo")
+        );
+      }
+
+      if (sourceList) {
+        if (!availableCount) {
+          sourceList.innerHTML = '<span class="source-meta">No uploaded files found. Add files in Knowledge Base, then refresh Practice.</span>';
+        } else {
+          sourceList.innerHTML = practiceSourceDocuments.map((kbDocument) => {
+            const id = String(kbDocument.id || "");
+            return `
+              <label class="practice-source-option">
+                <input type="checkbox" data-practice-source-id="${escapeAttribute(id)}" ${selectedPracticeSourceIds.has(id) ? "checked" : ""}>
+                <span>
+                  <strong>${escapeHtml(kbDocument.name || "Uploaded file")}</strong>
+                  <span>${escapeHtml(getPracticeSourceMeta(kbDocument))}</span>
+                </span>
+              </label>
+            `;
+          }).join("");
+        }
+      }
+
+      if (sourceSelectAllButton) {
+        sourceSelectAllButton.disabled = !availableCount;
+      }
+
+      if (sourceClearButton) {
+        sourceClearButton.disabled = !selectedCount;
+      }
+    }
+
+    async function loadPracticeSources() {
+      renderPracticeSourceList("Loading files", "is-file");
+
+      const payload = await requestJson(
+        "/api/kb/documents",
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json"
+          }
+        },
+        function () {
+          return {
+            mode: "demo",
+            documents: []
+          };
+        }
+      );
+
+      const nextDocuments = (payload.documents || []).filter(isSelectablePracticeSourceDocument);
+      const nextIds = new Set(nextDocuments.map((kbDocument) => String(kbDocument.id || "")));
+      selectedPracticeSourceIds = new Set(Array.from(selectedPracticeSourceIds).filter((id) => nextIds.has(id)));
+      practiceSourceDocuments = nextDocuments;
+      renderPracticeSourceList();
+    }
+
     async function importQuestionBankFile(file) {
       if (!file) {
         return;
@@ -5673,7 +5801,8 @@
 
       const count = clampPracticeQuestionCount(countInput.value, 5);
       const difficulty = difficultySelect.value;
-      const prompt = promptInput.value.trim();
+      const selectedSources = getSelectedPracticeSources();
+      const prompt = buildPromptWithPracticeSources(promptInput.value.trim(), selectedSources);
       const questions = mode === "simulate"
         ? simulatePracticeQuestionsFromBank(bank, count, difficulty, prompt)
         : drawPracticeQuestionsFromBank(bank, Math.min(count, bank.questions.length), difficulty, prompt);
@@ -5691,14 +5820,18 @@
       }
 
       renderQuizResult(buildLocalPracticePayload(mode, bank, questions, difficulty), { practiceWindow });
-      renderQuizFocus(mode === "simulate"
+      renderQuizFocus((selectedSources.length
+        ? [`Using uploaded files: ${selectedSources.map((source) => source.name).join(", ")}`]
+        : []
+      ).concat(mode === "simulate"
         ? ["Simulated from local bank patterns", "Keeps source answer keys visible for checking", "Use the prompt box to filter or steer topic"]
-        : ["Random draw from local uploaded bank", "Uses the selected question count", "Keeps answers and explanations from the bank"]);
+        : ["Random draw from local uploaded bank", "Uses the selected question count", "Keeps answers and explanations from the bank"]));
       setBadge(runtimeBadge, mode === "simulate" ? "Local simulation" : "Local draw", "is-file");
       updateLocalQuestionBankUi();
     }
 
     updateLocalQuestionBankUi();
+    loadPracticeSources();
 
     tabs.forEach((tab) => {
       tab.addEventListener("click", function () {
@@ -5739,6 +5872,38 @@
         }
 
         renderPracticeInWindow(latestPracticePayload, openPracticeWindow());
+      });
+    }
+
+    if (sourceList) {
+      sourceList.addEventListener("change", function (event) {
+        const checkbox = event.target.closest("[data-practice-source-id]");
+        if (!checkbox) {
+          return;
+        }
+
+        const sourceId = checkbox.getAttribute("data-practice-source-id");
+        if (checkbox.checked) {
+          selectedPracticeSourceIds.add(sourceId);
+        } else {
+          selectedPracticeSourceIds.delete(sourceId);
+        }
+
+        renderPracticeSourceList();
+      });
+    }
+
+    if (sourceSelectAllButton) {
+      sourceSelectAllButton.addEventListener("click", function () {
+        selectedPracticeSourceIds = new Set(practiceSourceDocuments.map((kbDocument) => String(kbDocument.id || "")));
+        renderPracticeSourceList();
+      });
+    }
+
+    if (sourceClearButton) {
+      sourceClearButton.addEventListener("click", function () {
+        selectedPracticeSourceIds.clear();
+        renderPracticeSourceList();
       });
     }
 
@@ -5783,6 +5948,9 @@
       const difficulty = difficultySelect.value;
       const count = clampPracticeQuestionCount(countInput.value, 5);
       const activePreset = quizPresets[currentQuizPreset];
+      const selectedSources = getSelectedPracticeSources();
+      const contextualPrompt = buildPromptWithPracticeSources(prompt, selectedSources);
+      const sourceMetadata = buildPracticeSourceRequestMetadata(selectedSources);
       countInput.value = count;
 
       if (!prompt) {
@@ -5803,21 +5971,25 @@
       const requestPayload = currentQuizMode === "solve"
         ? {
             mode: currentQuizMode,
-            prompt: prompt,
-            question: prompt,
+            prompt: contextualPrompt,
+            question: contextualPrompt,
             detailedAnswer: false,
             audience: "English learners",
             difficulty: difficulty,
             preference: activePreset ? activePreset.label : mode.title,
+            sourceDocumentIds: selectedSources.map((source) => source.id),
+            sourceDocuments: sourceMetadata,
             tools: []
           }
         : {
           mode: currentQuizMode,
-          prompt: prompt,
-          topic: prompt,
+          prompt: contextualPrompt,
+          topic: contextualPrompt,
           difficulty: difficulty,
           count: count,
           questionType: "mixed",
+          sourceDocumentIds: selectedSources.map((source) => source.id),
+          sourceDocuments: sourceMetadata,
           preference: activePreset ? activePreset.label : "Targeted practice for English learning"
         };
 
@@ -5837,6 +6009,13 @@
         );
 
         renderQuizResult(payload, { practiceWindow });
+        if (selectedSources.length) {
+          renderQuizFocus([
+            `Using uploaded files: ${selectedSources.map((source) => source.name).join(", ")}`,
+            "Selected file summaries and text excerpts were added to this request.",
+            currentQuizMode === "quiz" ? "Generated questions should reflect the selected source material." : "Deep Solve should use the selected source material."
+          ]);
+        }
         setBadge(
           runtimeBadge,
           payload.mode === "proxy" ? "DeepTutor live" : "Ready",

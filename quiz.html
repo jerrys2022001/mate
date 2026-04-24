@@ -82,6 +82,22 @@
                   <button class="quick-chip is-active" type="button" data-quiz-preset="grammar-drill">Grammar Drill</button>
                   <button class="quick-chip" type="button" data-quiz-preset="email-template">Email Practice</button>
                 </div>
+                <section class="practice-source-panel" aria-label="Uploaded files for practice context">
+                  <div class="practice-source-head">
+                    <div>
+                      <span class="small-label">Uploaded files</span>
+                      <p class="meta-text">Select saved files to use as context for Deep Solve and Quiz Builder.</p>
+                    </div>
+                    <span class="status-chip is-demo" id="quiz-source-status">Loading files</span>
+                  </div>
+                  <div class="practice-source-list" id="quiz-source-list">
+                    <span class="source-meta">Loading uploaded files...</span>
+                  </div>
+                  <div class="inline-actions practice-source-actions">
+                    <button class="secondary-button" id="quiz-source-select-all" type="button">Select all</button>
+                    <button class="secondary-button" id="quiz-source-clear" type="button">Clear files</button>
+                  </div>
+                </section>
               </div>
               <div>
                 <h3 id="quiz-title">Build practice from real mistakes.</h3>
