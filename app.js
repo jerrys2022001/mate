@@ -597,6 +597,7 @@
   let currentQuizMode = "quiz";
   let currentQuizPreset = "grammar-drill";
   let currentKbFilter = "all";
+  let practiceTimerId = null;
 
   function escapeHtml(value) {
     return String(value)
@@ -1033,7 +1034,7 @@
             { label: "Title", value: getElementText("#quiz-title") },
             { label: "Prompt helper", value: getElementText("#quiz-prompt") },
             { label: "Difficulty", value: getSelectDisplayValue("quiz-difficulty") },
-            { label: "Question count", value: getSelectDisplayValue("quiz-count") }
+            { label: "Question count", value: getFieldValue("quiz-count") }
           ])
         },
         {
@@ -1990,7 +1991,7 @@
     const numericValue = Number(value);
     const resolvedValue = Number.isFinite(numericValue) ? numericValue : fallbackNumber;
 
-    return Math.max(1, Math.min(20, Math.round(resolvedValue)));
+    return Math.max(1, Math.min(50, Math.round(resolvedValue)));
   }
 
   function parsePracticeQuestionCount(value) {
@@ -2860,30 +2861,70 @@
     const scoreItems = Array.isArray(payload.scores) ? payload.scores : [];
 
     if (blocks) {
-      const practiceMarkup = questionItems.length ? buildPracticeQuestionsMarkup(questionItems) : "";
       const blockMarkup = blockItems.map((block) => `
         <article class="output-block">
           <h3>${escapeHtml(block.heading)}</h3>
           <div class="rich-output">${formatMessageText(block.text)}</div>
         </article>
       `).join("");
-      blocks.innerHTML = `${practiceMarkup}${blockMarkup}`;
+
+      if (questionItems.length) {
+        blocks.innerHTML = buildPracticeQuestionsMarkup(questionItems);
+        initPracticeExam(blocks);
+      } else {
+        clearPracticeTimer();
+        blocks.innerHTML = blockMarkup;
+      }
     }
 
     if (scores) {
-      scores.innerHTML = buildScoreCardsMarkup(scoreItems);
+      scores.innerHTML = questionItems.length ? "" : buildScoreCardsMarkup(scoreItems);
     }
   }
 
   function buildPracticeQuestionsMarkup(questions) {
+    const totalScore = questions.reduce((sum, question) => sum + getPracticeQuestionScore(question), 0);
+    const limitMinutes = Math.max(1, questions.length);
+
     return `
-      <section class="practice-set" aria-label="Practice questions">
-        <div class="practice-set-header">
-          <span class="small-label">Practice Set</span>
-          <strong>${questions.length} question${questions.length === 1 ? "" : "s"} ready</strong>
-          <p>Write your answer first. Then open the answer panel to compare with Mate.</p>
+      <section class="practice-exam" aria-label="Generated practice questions" data-practice-exam data-practice-seconds="${limitMinutes * 60}">
+        <div class="practice-exam-header">
+          <div>
+            <span class="small-label">Practice Set</span>
+            <strong>${questions.length} question${questions.length === 1 ? "" : "s"} ready</strong>
+          </div>
+          <div class="practice-exam-meta">
+            <span>限时：${limitMinutes}分钟</span>
+            <span>题量：${questions.length}题</span>
+            <span>总分：${totalScore}分</span>
+          </div>
         </div>
-        ${questions.map((question, index) => buildPracticeQuestionMarkup(question, index)).join("")}
+        <div class="practice-exam-layout">
+          <div class="practice-question-area">
+            <div class="practice-question-toolbar">
+              <span data-practice-progress>1/${questions.length}</span>
+              <div>
+                <button class="practice-nav-button" type="button" data-practice-prev>上一题</button>
+                <button class="practice-nav-button" type="button" data-practice-next>下一题</button>
+              </div>
+            </div>
+            <div class="practice-question-stage">
+              ${questions.map((question, index) => buildPracticeQuestionMarkup(question, index)).join("")}
+            </div>
+          </div>
+          <aside class="practice-answer-card" aria-label="Answer card">
+            <div class="practice-answer-card-top">
+              <strong>答题卡</strong>
+              <span data-practice-completion>完成0道 / 共${questions.length}道</span>
+            </div>
+            ${buildPracticeAnswerGroups(questions)}
+          </aside>
+        </div>
+        <div class="practice-submit-bar">
+          <span class="practice-timer" data-practice-timer>${formatPracticeTimer(limitMinutes * 60)}</span>
+          <span class="practice-submit-status" data-practice-submit-status>完成后点击交卷查看答题情况。</span>
+          <button class="practice-submit-button" type="button" data-practice-submit>交卷</button>
+        </div>
       </section>
     `;
   }
@@ -2891,34 +2932,40 @@
   function buildPracticeQuestionMarkup(question, index) {
     const number = Number(question.number || index + 1);
     const options = Array.isArray(question.options) ? question.options : [];
+    const typeLabel = getPracticeQuestionTypeLabel(question);
+    const score = getPracticeQuestionScore(question);
     const optionMarkup = options.length
       ? `
-        <ul class="practice-options">
+        <fieldset class="practice-options" aria-label="Question ${number} options">
           ${options.map((option) => `
-            <li>
-              <span>${escapeHtml(option.key || "")}</span>
-              <p>${escapeHtml(option.text || "")}</p>
-            </li>
+            <label class="practice-choice-option">
+              <input type="radio" name="practice-question-${index}" value="${escapeAttribute(option.key || option.text || "")}" data-practice-answer>
+              <span class="practice-choice-dot" aria-hidden="true"></span>
+              <span class="practice-choice-key">${escapeHtml(option.key || "")}.</span>
+              <span class="practice-choice-text">${escapeHtml(option.text || "")}</span>
+            </label>
           `).join("")}
-        </ul>
+        </fieldset>
       `
       : "";
     const answer = question.correctAnswer || "No model answer was returned.";
     const explanation = question.explanation || "No explanation was returned.";
 
     return `
-      <article class="practice-question-card">
+      <article class="practice-question-card${index === 0 ? " is-active" : ""}" data-practice-question-index="${index}" data-practice-type="${escapeAttribute(typeLabel)}" data-practice-score="${score}">
         <div class="practice-question-top">
           <span class="status-chip is-file">Q${number}</span>
-          <span>${escapeHtml(question.type || "written")}${question.difficulty ? ` - ${escapeHtml(question.difficulty)}` : ""}</span>
+          <span>[${escapeHtml(typeLabel)}]（${score}分）</span>
         </div>
         ${question.concentration ? `<p class="practice-focus">${escapeHtml(question.concentration)}</p>` : ""}
-        <h4>${escapeHtml(question.question || "")}</h4>
+        <h4>（ ）${escapeHtml(question.question || "")}</h4>
         ${optionMarkup}
-        <label class="practice-answer-box">
-          <span>Your answer</span>
-          <textarea placeholder="Type your answer here before opening the model answer..."></textarea>
-        </label>
+        ${options.length ? "" : `
+          <label class="practice-answer-box">
+            <span>Your answer</span>
+            <textarea placeholder="Type your answer here..." data-practice-answer></textarea>
+          </label>
+        `}
         <details class="practice-answer">
           <summary>Show model answer and explanation</summary>
           <div>
@@ -2930,6 +2977,211 @@
         </details>
       </article>
     `;
+  }
+
+  function getPracticeQuestionTypeLabel(question) {
+    const type = String(question && question.type || "").toLowerCase();
+    const options = Array.isArray(question && question.options) ? question.options : [];
+
+    if (type.includes("multi")) {
+      return "多选题";
+    }
+
+    if (type.includes("judge") || type.includes("true") || type.includes("false")) {
+      return "判断题";
+    }
+
+    if (options.length) {
+      return "单选题";
+    }
+
+    return "简答题";
+  }
+
+  function getPracticeQuestionScore(question) {
+    const typeLabel = getPracticeQuestionTypeLabel(question);
+
+    if (typeLabel === "多选题") {
+      return 3;
+    }
+
+    if (typeLabel === "简答题") {
+      return 5;
+    }
+
+    return 2;
+  }
+
+  function buildPracticeAnswerGroups(questions) {
+    const groups = [];
+
+    questions.forEach((question, index) => {
+      const label = getPracticeQuestionTypeLabel(question);
+      let group = groups.find((item) => item.label === label);
+
+      if (!group) {
+        group = {
+          label,
+          score: getPracticeQuestionScore(question),
+          questions: []
+        };
+        groups.push(group);
+      }
+
+      group.questions.push({
+        index,
+        number: Number(question.number || index + 1)
+      });
+    });
+
+    return groups.map((group) => `
+      <div class="practice-answer-group">
+        <div class="practice-answer-group-title">
+          <span>☆ [${escapeHtml(group.label)}]</span>
+          <small>每题${group.score}分</small>
+        </div>
+        <div class="practice-answer-grid">
+          ${group.questions.map((item) => `
+            <button class="practice-answer-dot${item.index === 0 ? " is-active" : ""}" type="button" data-practice-jump="${item.index}">${item.number}</button>
+          `).join("")}
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function formatPracticeTimer(totalSeconds) {
+    const safeSeconds = Math.max(0, Math.round(Number(totalSeconds) || 0));
+    const minutes = Math.floor(safeSeconds / 60);
+    const seconds = safeSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  function clearPracticeTimer() {
+    if (practiceTimerId) {
+      window.clearInterval(practiceTimerId);
+      practiceTimerId = null;
+    }
+  }
+
+  function initPracticeExam(container) {
+    clearPracticeTimer();
+
+    const exam = container ? container.querySelector("[data-practice-exam]") : null;
+    if (!exam) {
+      return;
+    }
+
+    const questions = Array.from(exam.querySelectorAll("[data-practice-question-index]"));
+    const answerDots = Array.from(exam.querySelectorAll("[data-practice-jump]"));
+    const progress = exam.querySelector("[data-practice-progress]");
+    const completion = exam.querySelector("[data-practice-completion]");
+    const timer = exam.querySelector("[data-practice-timer]");
+    const status = exam.querySelector("[data-practice-submit-status]");
+    const prevButton = exam.querySelector("[data-practice-prev]");
+    const nextButton = exam.querySelector("[data-practice-next]");
+    let activeIndex = 0;
+    let remainingSeconds = Number(exam.getAttribute("data-practice-seconds") || questions.length * 60);
+
+    function isAnswered(question) {
+      const checkedOption = question.querySelector("input[type='radio'][data-practice-answer]:checked");
+      const writtenAnswer = question.querySelector("textarea[data-practice-answer]");
+      return Boolean(checkedOption || (writtenAnswer && writtenAnswer.value.trim()));
+    }
+
+    function updateAnsweredState() {
+      const answeredCount = questions.filter(isAnswered).length;
+
+      answerDots.forEach((button) => {
+        const targetIndex = Number(button.getAttribute("data-practice-jump") || 0);
+        button.classList.toggle("is-answered", Boolean(questions[targetIndex] && isAnswered(questions[targetIndex])));
+      });
+
+      if (completion) {
+        completion.textContent = `完成${answeredCount}道 / 共${questions.length}道`;
+      }
+    }
+
+    function setActiveQuestion(index) {
+      activeIndex = Math.max(0, Math.min(questions.length - 1, index));
+
+      questions.forEach((question, questionIndex) => {
+        question.classList.toggle("is-active", questionIndex === activeIndex);
+      });
+
+      answerDots.forEach((button) => {
+        button.classList.toggle("is-active", Number(button.getAttribute("data-practice-jump") || 0) === activeIndex);
+      });
+
+      const activeQuestion = questions[activeIndex];
+      if (progress && activeQuestion) {
+        const typeLabel = activeQuestion.getAttribute("data-practice-type") || "单选题";
+        const score = activeQuestion.getAttribute("data-practice-score") || "2";
+        progress.textContent = `${activeIndex + 1}/${questions.length} [${typeLabel}]（${score}分）`;
+      }
+
+      if (prevButton) {
+        prevButton.disabled = activeIndex === 0;
+      }
+
+      if (nextButton) {
+        nextButton.disabled = activeIndex === questions.length - 1;
+      }
+    }
+
+    exam.addEventListener("click", function (event) {
+      const jumpButton = event.target.closest("[data-practice-jump]");
+      const prev = event.target.closest("[data-practice-prev]");
+      const next = event.target.closest("[data-practice-next]");
+      const submit = event.target.closest("[data-practice-submit]");
+
+      if (jumpButton) {
+        setActiveQuestion(Number(jumpButton.getAttribute("data-practice-jump") || 0));
+        return;
+      }
+
+      if (prev) {
+        setActiveQuestion(activeIndex - 1);
+        return;
+      }
+
+      if (next) {
+        setActiveQuestion(activeIndex + 1);
+        return;
+      }
+
+      if (submit) {
+        clearPracticeTimer();
+        updateAnsweredState();
+        const answeredCount = questions.filter(isAnswered).length;
+        const unansweredCount = questions.length - answeredCount;
+        if (status) {
+          status.textContent = unansweredCount
+            ? `已交卷：完成${answeredCount}道，剩余${unansweredCount}道未答。`
+            : `已交卷：${questions.length}道全部完成。`;
+        }
+      }
+    });
+
+    exam.addEventListener("change", updateAnsweredState);
+    exam.addEventListener("input", updateAnsweredState);
+
+    if (timer) {
+      timer.textContent = formatPracticeTimer(remainingSeconds);
+      practiceTimerId = window.setInterval(function () {
+        remainingSeconds -= 1;
+        timer.textContent = formatPracticeTimer(remainingSeconds);
+
+        if (remainingSeconds <= 0) {
+          clearPracticeTimer();
+          if (status) {
+            status.textContent = "时间到，请检查答题卡后交卷。";
+          }
+        }
+      }, 1000);
+    }
+
+    setActiveQuestion(0);
+    updateAnsweredState();
   }
 
   function renderQuizFocus(items) {
@@ -3002,7 +3254,7 @@
       helperText: preset.helper
     });
     setSelectValue("quiz-difficulty", preset.difficulty);
-    setSelectValue("quiz-count", preset.count);
+    setValue("quiz-count", preset.count);
     renderQuizFocus(preset.focus);
     syncQuizPresetButtons(presetKey);
   }
@@ -4070,9 +4322,9 @@
     const runtimeBadge = document.getElementById("quiz-runtime");
     const promptInput = document.getElementById("quiz-prompt-input");
     const difficultySelect = document.getElementById("quiz-difficulty");
-    const countSelect = document.getElementById("quiz-count");
+    const countInput = document.getElementById("quiz-count");
 
-    if (!tabs.length || !runButton || !promptInput || !difficultySelect || !countSelect) {
+    if (!tabs.length || !runButton || !promptInput || !difficultySelect || !countInput) {
       return;
     }
 
@@ -4105,12 +4357,17 @@
       });
     });
 
+    countInput.addEventListener("change", function () {
+      countInput.value = clampPracticeQuestionCount(countInput.value, 5);
+    });
+
     runButton.addEventListener("click", async function () {
       const mode = quizModes[currentQuizMode];
       const prompt = promptInput.value.trim();
       const difficulty = difficultySelect.value;
-      const count = Math.max(1, Number(countSelect.value || 5));
+      const count = clampPracticeQuestionCount(countInput.value, 5);
       const activePreset = quizPresets[currentQuizPreset];
+      countInput.value = count;
 
       if (!prompt) {
         setBadge(runtimeBadge, "Add a prompt first", "is-demo");

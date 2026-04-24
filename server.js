@@ -83,6 +83,10 @@ const kbSeedDocuments = [
 ];
 
 const deepTutorConfig = createDeepTutorConfig();
+let deepTutorProbeCache = {
+  checked: false,
+  reachable: false
+};
 let kbDocuments = loadKbDocuments();
 let userRecords = loadUserRecords();
 let sessionRecords = loadSessionRecords();
@@ -693,13 +697,21 @@ function hasWebSocketClient() {
   return typeof WebSocket === "function";
 }
 
-  function canUseDeepTutorRealtime() {
-    return isDeepTutorConfigured() && hasWebSocketClient();
+function canUseDeepTutorRealtime() {
+  if (!isDeepTutorConfigured() || !hasWebSocketClient()) {
+    return false;
   }
 
-  function canUseDeepTutorKnowledgeBase() {
-    return isDeepTutorConfigured() && deepTutorConfig.enableKbProxy;
+  if (deepTutorProbeCache.checked) {
+    return deepTutorProbeCache.reachable;
   }
+
+  return true;
+}
+
+function canUseDeepTutorKnowledgeBase() {
+  return isDeepTutorConfigured() && deepTutorConfig.enableKbProxy;
+}
 
 function buildDeepTutorHttpUrl(routePath) {
   return new URL(routePath, `${deepTutorConfig.baseUrl}/`).toString();
@@ -1161,7 +1173,7 @@ function clampPracticeQuestionCount(value, fallback) {
   const numericValue = Number(value);
   const resolvedValue = Number.isFinite(numericValue) ? numericValue : fallbackNumber;
 
-  return Math.max(1, Math.min(20, Math.round(resolvedValue)));
+  return Math.max(1, Math.min(50, Math.round(resolvedValue)));
 }
 
 function parseChinesePracticeCount(value) {
@@ -1389,6 +1401,11 @@ function buildQuizMock(payload) {
 
 async function probeDeepTutor() {
   if (!isDeepTutorConfigured()) {
+    deepTutorProbeCache = {
+      checked: true,
+      reachable: false
+    };
+
     return {
       configured: false,
       reachable: false
@@ -1403,12 +1420,22 @@ async function probeDeepTutor() {
       }
     });
 
+    deepTutorProbeCache = {
+      checked: true,
+      reachable: true
+    };
+
     return {
       configured: true,
       reachable: true,
       payload
     };
   } catch (error) {
+    deepTutorProbeCache = {
+      checked: true,
+      reachable: false
+    };
+
     return {
       configured: true,
       reachable: false,
