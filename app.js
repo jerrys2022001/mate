@@ -4279,9 +4279,13 @@
             <strong>${questions.length} question${questions.length === 1 ? "" : "s"} ready</strong>
           </div>
           <div class="practice-exam-meta">
-            <span>${"\u9650\u65f6"}: ${limitMinutes}${"\u5206\u949f"}</span>
+            <label class="practice-meta-control">
+              <span>${"\u9650\u65f6"}</span>
+              <input type="number" min="1" max="999" step="1" value="${limitMinutes}" data-practice-limit-minutes>
+              <span>${"\u5206\u949f"}</span>
+            </label>
             <span>${"\u9898\u91cf"}: ${questions.length}${"\u9898"}</span>
-            <span>${"\u603b\u5206"}: ${totalScore}${"\u5206"}</span>
+            <span data-practice-total-score>${"\u603b\u5206"}: ${totalScore}${"\u5206"}</span>
           </div>
         </div>
         <div class="practice-exam-layout">
@@ -4302,12 +4306,16 @@
               <strong>${"\u7b54\u9898\u5361"}</strong>
               <span data-practice-completion>${"\u5b8c\u6210"}0${"\u9053"} / ${"\u5171"}${questions.length}${"\u9053"}</span>
             </div>
+            <div class="practice-score-summary" data-practice-score-summary hidden></div>
+            <div class="practice-question-results" data-practice-question-results hidden></div>
             ${buildPracticeWindowAnswerGroups(questions)}
           </aside>
         </div>
         <div class="practice-submit-bar">
           <span class="practice-timer" data-practice-timer>${formatPracticeTimer(limitMinutes * 60)}</span>
-          <span class="practice-submit-status" data-practice-submit-status>${"\u5b8c\u6210\u540e\u70b9\u51fb\u4ea4\u5377\u67e5\u770b\u7b54\u9898\u60c5\u51b5\u3002"}</span>
+          <button class="practice-start-button" type="button" data-practice-start>${"\u5f00\u59cb"}</button>
+          <span class="practice-submit-status" data-practice-submit-status>${"\u70b9\u51fb\u5f00\u59cb\u540e\u8ba1\u65f6\uff0c\u4ea4\u5377\u540e\u67e5\u770b\u5bf9\u9519\u548c\u5f97\u5206\u3002"}</span>
+          <button class="practice-export-button" type="button" data-practice-export>${"\u5bfc\u51fa\u7ec3\u4e60"}</button>
           <button class="practice-submit-button" type="button" data-practice-submit>${"\u4ea4\u5377"}</button>
         </div>
       </section>
@@ -4338,10 +4346,10 @@
     const questionPrefix = options.length ? '<span class="practice-question-blank">( )</span> ' : "";
 
     return `
-      <article class="practice-question-card${index === 0 ? " is-active" : ""}" data-practice-question-index="${index}" data-practice-type="${escapeAttribute(typeLabel)}" data-practice-score="${score}">
+      <article class="practice-question-card${index === 0 ? " is-active" : ""}" data-practice-question-index="${index}" data-practice-number="${number}" data-practice-type="${escapeAttribute(typeLabel)}" data-practice-score="${score}" data-practice-correct-answer="${escapeAttribute(answer)}">
         <div class="practice-question-top">
           <span class="status-chip is-file">Q${number}</span>
-          <span>[${escapeHtml(typeLabel)}] (${score}${"\u5206"})</span>
+          <span data-practice-question-score-label>[${escapeHtml(typeLabel)}] (${score}${"\u5206"})</span>
         </div>
         ${question.concentration ? `<p class="practice-focus">${escapeHtml(question.concentration)}</p>` : ""}
         <h4>${questionPrefix}${escapeHtml(question.question || "")}</h4>
@@ -4424,7 +4432,11 @@
       <div class="practice-answer-group">
         <div class="practice-answer-group-title">
           <span>* [${escapeHtml(group.label)}]</span>
-          <small>${"\u6bcf\u9898"}${group.score}${"\u5206"}</small>
+          <label class="practice-score-control">
+            <span>${"\u6bcf\u9898"}</span>
+            <input type="number" min="0" max="100" step="1" value="${group.score}" data-practice-type-score="${escapeAttribute(group.label)}">
+            <span>${"\u5206"}</span>
+          </label>
         </div>
         <div class="practice-answer-grid">
           ${group.questions.map((item) => `
@@ -4449,11 +4461,193 @@
     const progress = exam.querySelector("[data-practice-progress]");
     const completion = exam.querySelector("[data-practice-completion]");
     const timer = exam.querySelector("[data-practice-timer]");
+    const limitInput = exam.querySelector("[data-practice-limit-minutes]");
+    const scoreInputs = Array.from(exam.querySelectorAll("[data-practice-type-score]"));
+    const totalScoreNode = exam.querySelector("[data-practice-total-score]");
+    const scoreSummary = exam.querySelector("[data-practice-score-summary]");
+    const resultList = exam.querySelector("[data-practice-question-results]");
     const status = exam.querySelector("[data-practice-submit-status]");
     const prevButton = exam.querySelector("[data-practice-prev]");
     const nextButton = exam.querySelector("[data-practice-next]");
+    const startButton = exam.querySelector("[data-practice-start]");
+    const exportButton = exam.querySelector("[data-practice-export]");
     let activeIndex = 0;
-    let remainingSeconds = Number(exam.getAttribute("data-practice-seconds") || questions.length * 60);
+    let remainingSeconds = readLimitSeconds();
+    let submitted = false;
+
+    function clampPracticeNumber(value, fallback, min, max) {
+      const parsed = Number(value);
+      const fallbackNumber = Number.isFinite(Number(fallback)) ? Number(fallback) : min;
+      const resolved = Number.isFinite(parsed) ? parsed : fallbackNumber;
+
+      return Math.max(min, Math.min(max, Math.round(resolved)));
+    }
+
+    function readLimitSeconds() {
+      const minutes = clampPracticeNumber(limitInput ? limitInput.value : "", Math.max(1, questions.length), 1, 999);
+      return minutes * 60;
+    }
+
+    function getQuestionScore(question) {
+      return clampPracticeNumber(question.getAttribute("data-practice-score"), 0, 0, 100);
+    }
+
+    function getTotalScore() {
+      return questions.reduce((sum, question) => sum + getQuestionScore(question), 0);
+    }
+
+    function updateTimerDisplay() {
+      if (timer) {
+        timer.textContent = formatPracticeTimer(remainingSeconds);
+      }
+    }
+
+    function normalizeAnswerText(value) {
+      return String(value || "")
+        .toLowerCase()
+        .replace(/^[a-f][\.\)]\s*/i, "")
+        .replace(/[“”"']/g, "")
+        .replace(/[.,;:!?，。；：！？]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function getChoiceKey(value) {
+      const match = String(value || "").trim().match(/^([a-f])(?:[\.\)]|\b)/i);
+      return match ? match[1].toUpperCase() : "";
+    }
+
+    function getUserAnswer(question) {
+      const checkedOption = question.querySelector("input[type='radio'][data-practice-answer]:checked");
+      const writtenAnswer = question.querySelector("textarea[data-practice-answer]");
+
+      if (checkedOption) {
+        const optionLabel = checkedOption.closest(".practice-choice-option");
+        const optionText = optionLabel ? optionLabel.textContent.replace(/\s+/g, " ").trim() : checkedOption.value;
+        return {
+          key: String(checkedOption.value || "").trim().toUpperCase(),
+          text: optionText
+        };
+      }
+
+      return {
+        key: "",
+        text: writtenAnswer ? writtenAnswer.value.trim() : ""
+      };
+    }
+
+    function isQuestionCorrect(question) {
+      const correctAnswer = question.getAttribute("data-practice-correct-answer") || "";
+      const userAnswer = getUserAnswer(question);
+      const checkedOption = question.querySelector("input[type='radio'][data-practice-answer]:checked");
+
+      if (checkedOption) {
+        const correctKey = getChoiceKey(correctAnswer);
+
+        if (correctKey) {
+          return userAnswer.key === correctKey;
+        }
+
+        return normalizeAnswerText(correctAnswer).includes(normalizeAnswerText(userAnswer.text));
+      }
+
+      const userText = normalizeAnswerText(userAnswer.text);
+      const correctText = normalizeAnswerText(correctAnswer);
+
+      if (!userText || !correctText) {
+        return false;
+      }
+
+      return userText === correctText || (userText.length >= 3 && correctText.includes(userText));
+    }
+
+    function gradeQuestions() {
+      return questions.map((question, index) => {
+        const correct = isQuestionCorrect(question);
+        const score = getQuestionScore(question);
+        const userAnswer = getUserAnswer(question);
+
+        return {
+          index,
+          number: question.getAttribute("data-practice-number") || String(index + 1),
+          type: question.getAttribute("data-practice-type") || "",
+          score,
+          earned: correct ? score : 0,
+          correct,
+          userAnswer: userAnswer.text,
+          correctAnswer: question.getAttribute("data-practice-correct-answer") || ""
+        };
+      });
+    }
+
+    function updateScoreSettings() {
+      scoreInputs.forEach((input) => {
+        const typeLabel = input.getAttribute("data-practice-type-score") || "";
+        const score = clampPracticeNumber(input.value, 0, 0, 100);
+        input.value = score;
+
+        questions
+          .filter((question) => question.getAttribute("data-practice-type") === typeLabel)
+          .forEach((question) => {
+            const label = question.querySelector("[data-practice-question-score-label]");
+            question.setAttribute("data-practice-score", String(score));
+
+            if (label) {
+              label.textContent = `[${typeLabel}] (${score}\u5206)`;
+            }
+          });
+      });
+
+      if (totalScoreNode) {
+        totalScoreNode.textContent = `\u603b\u5206: ${getTotalScore()}\u5206`;
+      }
+
+      setActiveQuestion(activeIndex);
+
+      if (submitted) {
+        applyResults();
+      }
+    }
+
+    function applyResults() {
+      const results = gradeQuestions();
+      const correctCount = results.filter((result) => result.correct).length;
+      const earnedScore = results.reduce((sum, result) => sum + result.earned, 0);
+      const totalScore = getTotalScore();
+      const accuracy = questions.length ? Math.round((correctCount / questions.length) * 100) : 0;
+
+      answerDots.forEach((button) => {
+        const targetIndex = Number(button.getAttribute("data-practice-jump") || 0);
+        const result = results[targetIndex];
+        button.classList.toggle("is-correct", Boolean(result && result.correct));
+        button.classList.toggle("is-wrong", Boolean(result && !result.correct));
+        button.setAttribute("title", result && result.correct ? `Q${result.number} \u6b63\u786e` : `Q${result ? result.number : targetIndex + 1} \u9519\u8bef`);
+      });
+
+      if (scoreSummary) {
+        scoreSummary.hidden = false;
+        scoreSummary.innerHTML = `
+          <strong>${"\u6b63\u786e\u7387"}: ${accuracy}%</strong>
+          <span>${"\u5f97\u5206"}: ${earnedScore}/${totalScore}${"\u5206"}</span>
+          <span>${"\u6b63\u786e"}: ${correctCount}/${questions.length}${"\u9898"}</span>
+        `;
+      }
+
+      if (resultList) {
+        resultList.hidden = false;
+        resultList.innerHTML = results.map((result) => `
+          <button class="practice-result-row${result.correct ? " is-correct" : " is-wrong"}" type="button" data-practice-jump="${result.index}">
+            <span>Q${escapeHtml(result.number)}</span>
+            <strong>${result.correct ? "\u6b63\u786e" : "\u9519\u8bef"}</strong>
+            <em>${result.earned}/${result.score}${"\u5206"}</em>
+          </button>
+        `).join("");
+      }
+
+      if (status) {
+        status.textContent = `\u5df2\u4ea4\u5377\uff1a\u6b63\u786e\u7387 ${accuracy}%\uff0c\u5f97\u5206 ${earnedScore}/${totalScore}\u5206\u3002`;
+      }
+    }
 
     function isAnswered(question) {
       const checkedOption = question.querySelector("input[type='radio'][data-practice-answer]:checked");
@@ -4471,6 +4665,10 @@
 
       if (completion) {
         completion.textContent = `\u5b8c\u6210${answeredCount}\u9053 / \u5171${questions.length}\u9053`;
+      }
+
+      if (submitted) {
+        applyResults();
       }
     }
 
@@ -4505,6 +4703,8 @@
       const jumpButton = event.target.closest("[data-practice-jump]");
       const prev = event.target.closest("[data-practice-prev]");
       const next = event.target.closest("[data-practice-next]");
+      const start = event.target.closest("[data-practice-start]");
+      const exportPractice = event.target.closest("[data-practice-export]");
       const submit = event.target.closest("[data-practice-submit]");
 
       if (jumpButton) {
@@ -4522,38 +4722,163 @@
         return;
       }
 
+      if (start) {
+        clearPracticeTimer();
+        remainingSeconds = readLimitSeconds();
+        updateTimerDisplay();
+        practiceTimerWindow = timerWindow;
+        practiceTimerId = timerWindow.setInterval(function () {
+          remainingSeconds -= 1;
+          updateTimerDisplay();
+
+          if (remainingSeconds <= 0) {
+            clearPracticeTimer();
+            if (status) {
+              status.textContent = "\u65f6\u95f4\u5230\uff0c\u8bf7\u68c0\u67e5\u7b54\u9898\u5361\u540e\u4ea4\u5377\u3002";
+            }
+          }
+        }, 1000);
+
+        start.disabled = true;
+        start.textContent = "\u8ba1\u65f6\u4e2d";
+        if (status) {
+          status.textContent = "\u5df2\u5f00\u59cb\u8ba1\u65f6\uff0c\u5b8c\u6210\u540e\u70b9\u51fb\u4ea4\u5377\u3002";
+        }
+        return;
+      }
+
+      if (exportPractice) {
+        exportPracticeSet();
+        return;
+      }
+
       if (submit) {
         clearPracticeTimer();
+        submitted = true;
         updateAnsweredState();
-        const answeredCount = questions.filter(isAnswered).length;
-        const unansweredCount = questions.length - answeredCount;
-        if (status) {
-          status.textContent = unansweredCount
-            ? `\u5df2\u4ea4\u5377\uff1a\u5b8c\u6210${answeredCount}\u9053\uff0c\u5269\u4f59${unansweredCount}\u9053\u672a\u7b54\u3002`
-            : `\u5df2\u4ea4\u5377\uff1a${questions.length}\u9053\u5168\u90e8\u5b8c\u6210\u3002`;
+        applyResults();
+        exam.classList.add("is-submitted");
+        if (startButton) {
+          startButton.disabled = true;
+          startButton.textContent = "\u5df2\u505c\u6b62";
         }
       }
     });
 
-    exam.addEventListener("change", updateAnsweredState);
-    exam.addEventListener("input", updateAnsweredState);
+    function buildExportWordDocument() {
+      const results = gradeQuestions();
+      const correctCount = results.filter((result) => result.correct).length;
+      const earnedScore = results.reduce((sum, result) => sum + result.earned, 0);
+      const totalScore = getTotalScore();
+      const accuracy = questions.length ? Math.round((correctCount / questions.length) * 100) : 0;
+      const timeLimit = limitInput ? limitInput.value : Math.ceil(remainingSeconds / 60);
+      const questionRows = questions.map((question, index) => {
+        const result = results[index];
+        const options = Array.from(question.querySelectorAll(".practice-choice-option"))
+          .map((option) => option.textContent.replace(/\s+/g, " ").trim())
+          .filter(Boolean);
+        const prompt = question.querySelector("h4") ? question.querySelector("h4").textContent.replace(/\s+/g, " ").trim() : "";
+        const answerBlock = question.querySelector(".practice-answer div");
+        const explanation = answerBlock ? answerBlock.textContent.replace(/\s+/g, " ").trim() : "";
 
-    if (timer) {
-      timer.textContent = formatPracticeTimer(remainingSeconds);
-      practiceTimerWindow = timerWindow;
-      practiceTimerId = timerWindow.setInterval(function () {
-        remainingSeconds -= 1;
-        timer.textContent = formatPracticeTimer(remainingSeconds);
+        return `
+          <section class="question">
+            <h2>Q${escapeHtml(result.number)} [${escapeHtml(result.type)}] ${result.correct ? "\u6b63\u786e" : "\u9519\u8bef"} (${result.earned}/${result.score}${"\u5206"})</h2>
+            <p><strong>${"\u9898\u76ee"}:</strong> ${escapeHtml(prompt)}</p>
+            ${options.length ? `
+              <p><strong>${"\u9009\u9879"}:</strong></p>
+              <ul>${options.map((option) => `<li>${escapeHtml(option)}</li>`).join("")}</ul>
+            ` : ""}
+            <table>
+              <tbody>
+                <tr>
+                  <th>${"\u6211\u7684\u7b54\u6848"}</th>
+                  <td>${escapeHtml(result.userAnswer || "\u672a\u4f5c\u7b54")}</td>
+                </tr>
+                <tr>
+                  <th>${"\u6807\u51c6\u7b54\u6848"}</th>
+                  <td>${escapeHtml(result.correctAnswer || "\u65e0")}</td>
+                </tr>
+                <tr>
+                  <th>${"\u89e3\u6790"}</th>
+                  <td>${escapeHtml(explanation || "\u65e0")}</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        `;
+      }).join("");
 
-        if (remainingSeconds <= 0) {
-          clearPracticeTimer();
-          if (status) {
-            status.textContent = "\u65f6\u95f4\u5230\uff0c\u8bf7\u68c0\u67e5\u7b54\u9898\u5361\u540e\u4ea4\u5377\u3002";
-          }
-        }
-      }, 1000);
+      return `<!doctype html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Mate Practice Export</title>
+            <style>
+              body { font-family: Aptos, Calibri, Arial, sans-serif; color: #1f2d36; line-height: 1.55; }
+              h1 { font-size: 26px; margin: 0 0 8px; }
+              h2 { font-size: 18px; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #d8ded6; }
+              p { margin: 0 0 8px; }
+              ul { margin: 0 0 10px 22px; padding: 0; }
+              li { margin: 0 0 5px; }
+              table { width: 100%; border-collapse: collapse; margin: 8px 0 14px; }
+              th, td { border: 1px solid #d8ded6; padding: 8px 10px; vertical-align: top; text-align: left; }
+              th { width: 24%; background: #f7f5ef; }
+              .meta { color: #667482; margin-bottom: 16px; }
+              .summary th { width: 28%; }
+              .question { page-break-inside: avoid; margin-top: 14px; }
+            </style>
+          </head>
+          <body>
+            <h1>Mate Practice Export</h1>
+            <p class="meta">Exported from Mate on ${escapeHtml(getExportDateStamp())}</p>
+            <table class="summary">
+              <tbody>
+                <tr><th>${"\u9898\u91cf"}</th><td>${questions.length}${"\u9898"}</td></tr>
+                <tr><th>${"\u9650\u65f6"}</th><td>${escapeHtml(timeLimit)}${"\u5206\u949f"}</td></tr>
+                <tr><th>${"\u5f97\u5206"}</th><td>${earnedScore}/${totalScore}${"\u5206"}</td></tr>
+                <tr><th>${"\u6b63\u786e\u7387"}</th><td>${accuracy}%</td></tr>
+                <tr><th>${"\u6b63\u786e\u9898\u6570"}</th><td>${correctCount}/${questions.length}${"\u9898"}</td></tr>
+              </tbody>
+            </table>
+            ${questionRows}
+          </body>
+        </html>`;
     }
 
+    function exportPracticeSet() {
+      const ownerDocument = exam.ownerDocument || document;
+      const ownerWindow = ownerDocument.defaultView || window;
+      const blob = new ownerWindow.Blob(["\ufeff", buildExportWordDocument()], { type: "application/msword;charset=utf-8" });
+      const url = ownerWindow.URL.createObjectURL(blob);
+      const link = ownerDocument.createElement("a");
+
+      link.href = url;
+      link.download = `mate-practice-${new Date().toISOString().slice(0, 10)}.doc`;
+      ownerDocument.body.appendChild(link);
+      link.click();
+      link.remove();
+      ownerWindow.setTimeout(() => ownerWindow.URL.revokeObjectURL(url), 500);
+    }
+
+    exam.addEventListener("change", updateAnsweredState);
+    exam.addEventListener("input", function (event) {
+      if (event.target.closest("[data-practice-type-score]")) {
+        updateScoreSettings();
+        return;
+      }
+
+      if (event.target.closest("[data-practice-limit-minutes]")) {
+        remainingSeconds = readLimitSeconds();
+        updateTimerDisplay();
+        return;
+      }
+
+      updateAnsweredState();
+    });
+
+    updateScoreSettings();
+    updateTimerDisplay();
     setActiveQuestion(0);
     updateAnsweredState();
   }
