@@ -5708,6 +5708,7 @@
     const sourceStatus = document.getElementById("quiz-source-status");
     const sourceList = document.getElementById("quiz-source-list");
     const sourceSelectAllButton = document.getElementById("quiz-source-select-all");
+    const sourceImportBankButton = document.getElementById("quiz-source-import-bank");
     const sourceClearButton = document.getElementById("quiz-source-clear");
 
     if (!tabs.length || !runButton || !promptInput || !difficultySelect || !countInput) {
@@ -5719,10 +5720,13 @@
     localPracticeQuestionBank = loadStoredPracticeQuestionBank();
     let practiceSourceDocuments = [];
     let selectedPracticeSourceIds = new Set();
+    let onlineQuestionGenerationActive = false;
 
     function updateLocalQuestionBankUi(message, tone) {
       const bank = localPracticeQuestionBank;
       const hasBank = Boolean(bank && Array.isArray(bank.questions) && bank.questions.length);
+      const selectedSourceCount = getSelectedPracticeSources().length;
+      const canGenerateOnline = hasBank || selectedSourceCount > 0;
 
       if (bankStatus) {
         setBadge(
@@ -5750,7 +5754,7 @@
       }
 
       if (bankSimulateButton) {
-        bankSimulateButton.disabled = !hasBank;
+        bankSimulateButton.disabled = onlineQuestionGenerationActive || !canGenerateOnline;
       }
 
       if (bankClearButton) {
@@ -5758,9 +5762,15 @@
       }
 
       if (bankHint) {
-        bankHint.textContent = hasBank
-          ? `Using ${bank.name}. Draw picks existing items; simulate creates same-pattern mock items.`
-          : "Upload a local bank or load the sample bank first.";
+        if (hasBank && selectedSourceCount) {
+          bankHint.textContent = `Online blends ${bank.name} with ${selectedSourceCount} selected file${selectedSourceCount === 1 ? "" : "s"}. Draw stays offline.`;
+        } else if (selectedSourceCount) {
+          bankHint.textContent = `Online uses ${selectedSourceCount} selected uploaded file${selectedSourceCount === 1 ? "" : "s"}. Draw needs a local bank.`;
+        } else if (hasBank) {
+          bankHint.textContent = `Online generates from ${bank.name}; Draw picks existing offline items.`;
+        } else {
+          bankHint.textContent = "Upload a local bank, load the sample bank, or select uploaded files first.";
+        }
       }
     }
 
@@ -5820,6 +5830,41 @@
       }));
     }
 
+    function buildLocalBankOnlineContext(bank) {
+      if (!bank || !Array.isArray(bank.questions) || !bank.questions.length) {
+        return "";
+      }
+
+      const examples = bank.questions.slice(0, 10).map((question, index) => {
+        const lines = [
+          `${index + 1}. ${question.question}`,
+          question.correctAnswer ? `Answer: ${question.correctAnswer}` : "",
+          question.explanation ? `Explanation: ${truncate(question.explanation, 260)}` : ""
+        ].filter(Boolean);
+
+        return lines.join("\n");
+      }).join("\n\n");
+
+      return [
+        `Local question bank: ${bank.name || "Uploaded question bank"}`,
+        `Available items: ${bank.questions.length}`,
+        "Use these examples as patterns, but generate fresh questions that respond to the current prompt.",
+        examples
+      ].filter(Boolean).join("\n");
+    }
+
+    function buildOnlinePracticePrompt(basePrompt, bank, sources) {
+      const prompt = String(basePrompt || "").trim() || "Generate targeted English practice from the selected materials.";
+      const bankContext = buildLocalBankOnlineContext(bank);
+      const sourcePrompt = buildPromptWithPracticeSources(prompt, sources);
+
+      if (!bankContext) {
+        return sourcePrompt;
+      }
+
+      return `${sourcePrompt}\n\nUse this local question bank as generation guidance:\n${bankContext}`;
+    }
+
     function renderPracticeSourceList(message, tone) {
       const selectedCount = getSelectedPracticeSources().length;
       const availableCount = practiceSourceDocuments.length;
@@ -5858,6 +5903,62 @@
       if (sourceClearButton) {
         sourceClearButton.disabled = !selectedCount;
       }
+
+      if (sourceImportBankButton) {
+        sourceImportBankButton.disabled = !selectedCount;
+      }
+    }
+
+    function buildQuestionBankTextFromSources(sources) {
+      return sources.map((kbDocument, index) => {
+        const text = [
+          kbDocument.name ? `Source ${index + 1}: ${kbDocument.name}` : "",
+          kbDocument.summary ? `Summary: ${kbDocument.summary}` : "",
+          kbDocument.sourceText || ""
+        ].filter(Boolean).join("\n");
+
+        return text.trim();
+      }).filter(Boolean).join("\n\n---\n\n");
+    }
+
+    function importSelectedSourcesAsQuestionBank() {
+      const selectedSources = getSelectedPracticeSources();
+
+      if (!selectedSources.length) {
+        renderPracticeSourceList("Select files first", "is-demo");
+        return;
+      }
+
+      const sourceText = buildQuestionBankTextFromSources(selectedSources);
+      if (!sourceText) {
+        updateLocalQuestionBankUi("Selected files have no text", "is-demo");
+        return;
+      }
+
+      try {
+        const bank = parsePracticeQuestionBankFile(
+          sourceText,
+          `${selectedSources.length} selected uploaded file${selectedSources.length === 1 ? "" : "s"}.txt`,
+          {
+            name: "Selected uploaded files",
+            size: sourceText.length
+          }
+        );
+
+        if (!bank.questions.length) {
+          updateLocalQuestionBankUi("No valid questions found", "is-demo");
+          renderPracticeSourceList("Use Generate online instead", "is-demo");
+          return;
+        }
+
+        localPracticeQuestionBank = bank;
+        persistPracticeQuestionBank(bank);
+        updateLocalQuestionBankUi(`${bank.questions.length} questions imported`, "is-live");
+        renderPracticeSourceList("Imported as bank", "is-live");
+      } catch (error) {
+        updateLocalQuestionBankUi("Could not import bank", "is-demo");
+        renderPracticeSourceList("Use Generate online instead", "is-demo");
+      }
     }
 
     async function loadPracticeSources() {
@@ -5884,6 +5985,7 @@
       selectedPracticeSourceIds = new Set(Array.from(selectedPracticeSourceIds).filter((id) => nextIds.has(id)));
       practiceSourceDocuments = nextDocuments;
       renderPracticeSourceList();
+      updateLocalQuestionBankUi();
     }
 
     async function importQuestionBankFile(file) {
@@ -5953,6 +6055,107 @@
       updateLocalQuestionBankUi();
     }
 
+    async function runOnlineQuestionBank() {
+      const bank = localPracticeQuestionBank;
+      const hasBank = Boolean(bank && Array.isArray(bank.questions) && bank.questions.length);
+      const selectedSources = getSelectedPracticeSources();
+
+      if (!hasBank && !selectedSources.length) {
+        updateLocalQuestionBankUi("Choose a bank or uploaded files", "is-demo");
+        return;
+      }
+
+      const count = clampPracticeQuestionCount(countInput.value, 5);
+      const difficulty = difficultySelect.value;
+      const activePreset = quizPresets[currentQuizPreset];
+      const contextualPrompt = buildOnlinePracticePrompt(promptInput.value, bank, selectedSources);
+      const sourceMetadata = buildPracticeSourceRequestMetadata(selectedSources);
+      const practiceWindow = openPracticeWindow();
+
+      countInput.value = count;
+      if (practiceWindow) {
+        writePracticeLoadingWindow(practiceWindow, count);
+      }
+
+      onlineQuestionGenerationActive = true;
+      setBadge(runtimeBadge, "Generating online", "is-file");
+      updateLocalQuestionBankUi("Online generation", "is-file");
+
+      const requestPayload = {
+        mode: "quiz",
+        prompt: contextualPrompt,
+        topic: contextualPrompt,
+        difficulty: difficulty,
+        count: count,
+        questionType: "mixed",
+        preference: activePreset
+          ? `${activePreset.label}; generate fresh questions from selected files and local bank patterns`
+          : "Generate fresh targeted practice from selected files and local bank patterns",
+        sourceDocumentIds: selectedSources.map((source) => source.id),
+        sourceDocuments: sourceMetadata,
+        localQuestionBank: hasBank
+          ? {
+              name: bank.name,
+              questionCount: bank.questions.length
+            }
+          : null
+      };
+
+      try {
+        const payload = await requestJson(
+          "/api/quiz",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(requestPayload)
+          },
+          function () {
+            if (hasBank) {
+              return buildLocalPracticePayload(
+                "simulate",
+                bank,
+                simulatePracticeQuestionsFromBank(bank, count, difficulty, contextualPrompt),
+                difficulty
+              );
+            }
+
+            return buildQuizFallback("quiz", requestPayload);
+          }
+        );
+
+        renderQuizResult(payload, { practiceWindow });
+        renderQuizFocus([
+          payload.mode === "proxy" ? "Generated online through DeepTutor." : payload.mode === "mock" ? "Generated through the local BFF fallback." : "Generated with offline fallback.",
+          hasBank ? `Used local question bank patterns: ${bank.name}.` : "No local bank selected.",
+          selectedSources.length
+            ? `Used uploaded files: ${selectedSources.map((source) => source.name).join(", ")}.`
+            : "No uploaded files selected."
+        ]);
+        setBadge(
+          runtimeBadge,
+          payload.mode === "proxy" ? "Online generated" : payload.mode === "mock" ? "Local BFF generated" : "Offline fallback",
+          payload.mode === "proxy" ? "is-live" : payload.mode === "mock" ? "is-file" : "is-demo"
+        );
+      } catch (error) {
+        if (practiceWindow && !practiceWindow.closed) {
+          writePracticeWindowDocument(
+            practiceWindow,
+            "Practice generation failed",
+            `<article class="output-block">
+              <h3>Online generation failed</h3>
+              <p>${escapeHtml(error.message || "Please try again.")}</p>
+            </article>`
+          );
+        }
+        setBadge(runtimeBadge, error.message || "Online generation failed", "is-demo");
+      } finally {
+        onlineQuestionGenerationActive = false;
+        updateLocalQuestionBankUi();
+      }
+    }
+
     updateLocalQuestionBankUi();
     loadPracticeSources();
 
@@ -6013,6 +6216,7 @@
         }
 
         renderPracticeSourceList();
+        updateLocalQuestionBankUi();
       });
     }
 
@@ -6020,13 +6224,19 @@
       sourceSelectAllButton.addEventListener("click", function () {
         selectedPracticeSourceIds = new Set(practiceSourceDocuments.map((kbDocument) => String(kbDocument.id || "")));
         renderPracticeSourceList();
+        updateLocalQuestionBankUi();
       });
+    }
+
+    if (sourceImportBankButton) {
+      sourceImportBankButton.addEventListener("click", importSelectedSourcesAsQuestionBank);
     }
 
     if (sourceClearButton) {
       sourceClearButton.addEventListener("click", function () {
         selectedPracticeSourceIds.clear();
         renderPracticeSourceList();
+        updateLocalQuestionBankUi();
       });
     }
 
@@ -6061,7 +6271,7 @@
 
     if (bankSimulateButton) {
       bankSimulateButton.addEventListener("click", function () {
-        runLocalQuestionBank("simulate");
+        runOnlineQuestionBank();
       });
     }
 
