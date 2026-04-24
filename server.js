@@ -14,6 +14,7 @@ const FILE_CACHE_DIR = path.join(DATA_DIR, "mate-kb-files");
 const DEFAULT_PORT = 4317;
 const JSON_LIMIT_BYTES = 1024 * 1024;
 const MULTIPART_LIMIT_BYTES = 20 * 1024 * 1024;
+const ONLINE_IMPORT_LIMIT_BYTES = 20 * 1024 * 1024;
 const SESSION_COOKIE_NAME = "mate_session";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const PASSWORD_ITERATIONS = 120000;
@@ -2150,6 +2151,131 @@ function getUploadDuplicateKeys(name, size, mimeType, fileHash) {
   return keys;
 }
 
+function normalizeOnlineSourceUrl(value) {
+  return String(value || "")
+    .trim()
+    .replace(/#.*$/, "")
+    .replace(/\/+$/, "")
+    .toLowerCase();
+}
+
+function isBlockedOnlineImportHostname(hostname) {
+  const normalized = String(hostname || "").trim().toLowerCase().replace(/^\[|\]$/g, "");
+
+  if (!normalized) {
+    return true;
+  }
+
+  if (normalized === "localhost" || normalized.endsWith(".localhost")) {
+    return true;
+  }
+
+  if (normalized === "::1" || normalized === "0:0:0:0:0:0:0:1" || normalized === "0.0.0.0") {
+    return true;
+  }
+
+  if (/^127\./.test(normalized) || /^10\./.test(normalized) || /^192\.168\./.test(normalized) || /^169\.254\./.test(normalized)) {
+    return true;
+  }
+
+  const private172Match = normalized.match(/^172\.(\d{1,2})\./);
+  return Boolean(private172Match && Number(private172Match[1]) >= 16 && Number(private172Match[1]) <= 31);
+}
+
+function parseOnlineImportUrl(value) {
+  const rawUrl = String(value || "").trim();
+
+  if (!rawUrl) {
+    throw new Error("Online source URL is required.");
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch (error) {
+    throw new Error("Online source URL is invalid.");
+  }
+
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new Error("Only HTTP and HTTPS online sources can be imported.");
+  }
+
+  if (isBlockedOnlineImportHostname(parsed.hostname)) {
+    throw new Error("This online source host is not allowed.");
+  }
+
+  return parsed;
+}
+
+function inferFileExtensionFromMimeType(mimeType) {
+  const normalized = String(mimeType || "").split(";")[0].trim().toLowerCase();
+  const extensionMap = {
+    "application/pdf": ".pdf",
+    "application/msword": ".doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "application/vnd.ms-powerpoint": ".ppt",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+    "text/csv": ".csv",
+    "text/html": ".html",
+    "text/markdown": ".md",
+    "text/plain": ".txt"
+  };
+
+  return extensionMap[normalized] || (normalized.startsWith("text/") ? ".txt" : ".bin");
+}
+
+function getFileNameFromContentDisposition(value) {
+  const header = String(value || "");
+  const encodedMatch = header.match(/filename\*=UTF-8''([^;]+)/i);
+
+  if (encodedMatch) {
+    try {
+      return decodeURIComponent(encodedMatch[1].trim().replace(/^"|"$/g, ""));
+    } catch (error) {
+      return encodedMatch[1].trim().replace(/^"|"$/g, "");
+    }
+  }
+
+  const plainMatch = header.match(/filename="?([^";]+)"?/i);
+  return plainMatch ? plainMatch[1].trim() : "";
+}
+
+function getOnlineImportFileName(payload, response, sourceUrl, mimeType) {
+  const requestedName = String(payload.name || "").trim();
+
+  if (requestedName) {
+    return sanitizeUploadFileName(requestedName);
+  }
+
+  const dispositionName = getFileNameFromContentDisposition(response.headers.get("content-disposition"));
+
+  if (dispositionName) {
+    return sanitizeUploadFileName(dispositionName);
+  }
+
+  const pathnameName = path.basename(decodeURIComponent(sourceUrl.pathname || ""));
+
+  if (pathnameName && pathnameName !== "/" && pathnameName !== ".") {
+    const hasExt = Boolean(path.extname(pathnameName));
+    return sanitizeUploadFileName(hasExt ? pathnameName : `${pathnameName}${inferFileExtensionFromMimeType(mimeType)}`);
+  }
+
+  return sanitizeUploadFileName(`online-source-${Date.now()}${inferFileExtensionFromMimeType(mimeType)}`);
+}
+
+function findDuplicateOnlineKnowledgeSource(sourceUrl, user) {
+  const normalizedUrl = normalizeOnlineSourceUrl(sourceUrl);
+
+  if (!normalizedUrl) {
+    return null;
+  }
+
+  return getVisibleLocalKnowledgeDocuments(user).find((document) => {
+    return normalizeOnlineSourceUrl(document.sourceUrl) === normalizedUrl
+      && (document.importedFromUrl || document.storagePath || document.fileSize);
+  }) || null;
+}
+
 function getKnowledgeUploadDuplicateKeySet(user) {
   const keys = new Set();
 
@@ -2351,7 +2477,10 @@ function createLocalKbDocument(note, options) {
     userId: options.userId || null,
     fileSize: options.fileSize || null,
     mimeType: options.mimeType || null,
+    fileHash: options.fileHash || null,
+    originalFileName: options.originalFileName || null,
     storagePath: options.storagePath || null,
+    importedFromUrl: Boolean(options.importedFromUrl),
     upstream: options.upstream || null
   };
 }
@@ -2544,9 +2673,12 @@ async function createKnowledgeDocumentsFromFiles(files, user) {
       document: createLocalKbDocument(
         {
           name: file.originalName,
-          type: inferKnowledgeTypeFromFile(file.originalName, file.mimeType),
-          summary: `${inferKnowledgeTypeFromFile(file.originalName, file.mimeType)} uploaded from your device. ${formatFileSize(file.size)} ready for indexing.`,
-          sourceText: extractTextPreviewFromFile(file)
+          type: file.knowledgeType || inferKnowledgeTypeFromFile(file.originalName, file.mimeType),
+          summary: file.summary || `${inferKnowledgeTypeFromFile(file.originalName, file.mimeType)} ${file.sourceUrl ? "imported from an online source" : "uploaded from your device"}. ${formatFileSize(file.size)} ready for indexing.`,
+          sourceText: file.sourceTextPreview || extractTextPreviewFromFile(file),
+          sampleId: file.sampleId || "",
+          sourceUrl: file.sourceUrl || "",
+          tags: Array.isArray(file.tags) ? file.tags : []
         },
         {
           status: "Saved to local KB store",
@@ -2555,7 +2687,8 @@ async function createKnowledgeDocumentsFromFiles(files, user) {
           mimeType: file.mimeType,
           fileHash,
           originalFileName: file.originalName,
-          storagePath: storedFile.relativePath
+          storagePath: storedFile.relativePath,
+          importedFromUrl: Boolean(file.sourceUrl)
         }
       )
     });
@@ -2621,6 +2754,93 @@ async function createKnowledgeDocumentsFromFiles(files, user) {
       warning: error.message
     };
   }
+}
+
+async function fetchOnlineKnowledgeFile(payload) {
+  const sourceUrl = parseOnlineImportUrl(payload.sourceUrl || payload.url);
+  const timeout = createTimeoutController(deepTutorConfig.requestTimeoutMs);
+
+  try {
+    const response = await fetch(sourceUrl.toString(), {
+      method: "GET",
+      redirect: "follow",
+      headers: {
+        Accept: "application/pdf,text/html,text/plain,text/markdown,text/csv,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,*/*"
+      },
+      signal: timeout.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(`Online source returned HTTP ${response.status}.`);
+    }
+
+    const contentLength = Number(response.headers.get("content-length") || 0);
+    if (contentLength > ONLINE_IMPORT_LIMIT_BYTES) {
+      throw new Error(`Online source is larger than ${formatFileSize(ONLINE_IMPORT_LIMIT_BYTES)}.`);
+    }
+
+    const mimeType = String(response.headers.get("content-type") || "application/octet-stream").split(";")[0].trim() || "application/octet-stream";
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    if (!buffer.length) {
+      throw new Error("Online source was empty.");
+    }
+
+    if (buffer.length > ONLINE_IMPORT_LIMIT_BYTES) {
+      throw new Error(`Online source is larger than ${formatFileSize(ONLINE_IMPORT_LIMIT_BYTES)}.`);
+    }
+
+    const originalName = getOnlineImportFileName(payload, response, sourceUrl, mimeType);
+    const sourceTextPreview = String(payload.sourceText || "").trim();
+    const summary = String(payload.summary || "").trim();
+
+    return {
+      originalName,
+      mimeType,
+      buffer,
+      size: buffer.length,
+      sampleId: String(payload.sampleId || "").trim(),
+      sourceUrl: sourceUrl.toString(),
+      knowledgeType: String(payload.type || "").trim() || inferKnowledgeTypeFromFile(originalName, mimeType),
+      summary: summary || `${inferKnowledgeTypeFromFile(originalName, mimeType)} imported from ${sourceUrl.hostname}. ${formatFileSize(buffer.length)} ready for indexing.`,
+      sourceTextPreview,
+      tags: Array.isArray(payload.tags) ? payload.tags : []
+    };
+  } catch (error) {
+    if (error && error.name === "AbortError") {
+      throw new Error("Online source import timed out.");
+    }
+
+    throw error;
+  } finally {
+    timeout.cancel();
+  }
+}
+
+async function createKnowledgeDocumentFromOnlineSource(payload, user) {
+  const sourceUrl = parseOnlineImportUrl(payload.sourceUrl || payload.url).toString();
+  const duplicateSource = findDuplicateOnlineKnowledgeSource(sourceUrl, user);
+
+  if (duplicateSource) {
+    return {
+      mode: canUseDeepTutorKnowledgeBase() ? "proxy" : "mock",
+      duplicate: true,
+      skippedCount: 1,
+      skippedDuplicates: [duplicateSource.name],
+      documentId: duplicateSource.id,
+      message: `${duplicateSource.name} is already in your knowledge base.`,
+      documents: await listKnowledgeDocuments(user)
+    };
+  }
+
+  const onlineFile = await fetchOnlineKnowledgeFile(Object.assign({}, payload, { sourceUrl }));
+  const result = await createKnowledgeDocumentsFromFiles([onlineFile], user);
+
+  if (!result.uploadedCount && result.skippedCount) {
+    result.duplicate = true;
+  }
+
+  return result;
 }
 
 function getKnowledgeDocumentForUser(documentId, user) {
@@ -3005,6 +3225,19 @@ async function handleApi(req, res, pathname) {
 
       const payload = await parseJson(req);
       sendJson(res, 200, await createKnowledgeDocument(payload, authContext.user));
+    } catch (error) {
+      sendJson(res, 400, {
+        ok: false,
+        error: error.message
+      });
+    }
+    return;
+  }
+
+  if (pathname === "/api/kb/online-source" && req.method === "POST") {
+    try {
+      const payload = await parseJson(req);
+      sendJson(res, 200, await createKnowledgeDocumentFromOnlineSource(payload, authContext.user));
     } catch (error) {
       sendJson(res, 400, {
         ok: false,

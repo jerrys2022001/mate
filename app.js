@@ -416,6 +416,7 @@
       summary: "Official scoring criteria for task response, coherence, lexical resource, and grammar.",
       sourceText: "Band 7 and above responses maintain a clear position, strong cohesion, varied vocabulary, and a high level of grammatical control.",
       tags: ["exam", "ielts", "rubric", "starter"],
+      onlineName: "IELTS Writing Band Descriptors.pdf",
       sourceUrl: "https://ielts.org/-/media/pdfs/writing-band-descriptors-task-2.ashx"
     },
     {
@@ -426,6 +427,7 @@
       summary: "Approved phrasing patterns for client updates, scheduling, escalation, and follow-up emails.",
       sourceText: "Use a calm opener, state the update directly, explain the reason briefly, and end with a clear next step or request.",
       tags: ["business", "email", "tone", "starter"],
+      onlineName: "Purdue OWL Sample Emails.html",
       sourceUrl: "https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/business_writing_for_administrative_and_clerical_staff/sample_emails.html"
     },
     {
@@ -436,6 +438,7 @@
       summary: "High-quality introductions, body paragraphs, and conclusion structures for common writing prompts.",
       sourceText: "Strong essays define the position early, develop one main idea per paragraph, and connect examples back to the thesis.",
       tags: ["essay", "writing", "examples", "starter"],
+      onlineName: "British Council IELTS Writing Practice.html",
       sourceUrl: "https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-english-practice-tests/writing/academic"
     }
   ];
@@ -5655,6 +5658,7 @@
   function initKnowledgeBase() {
     const feed = document.getElementById("kb-doc-feed");
     const buttons = Array.from(document.querySelectorAll("[data-kb-add]"));
+    const onlineButtons = Array.from(document.querySelectorAll("[data-kb-online-add]"));
     const filterButtons = Array.from(document.querySelectorAll("[data-kb-filter]"));
     const search = document.getElementById("kb-search");
     const runtimeBadge = document.getElementById("kb-runtime");
@@ -5678,6 +5682,7 @@
     let activeDocs = kbSamples.slice();
     let queuedFiles = [];
     const pendingSampleAdds = new Set();
+    const pendingOnlineAdds = new Set();
 
     if (!feed || !search) {
       return;
@@ -5696,6 +5701,18 @@
         .trim()
         .replace(/\s+/g, " ")
         .toLowerCase();
+    }
+
+    function normalizeKbSourceUrl(value) {
+      return String(value || "")
+        .trim()
+        .replace(/#.*$/, "")
+        .replace(/\/+$/, "")
+        .toLowerCase();
+    }
+
+    function getOnlineSampleName(sample) {
+      return sample && (sample.onlineName || sample.name) ? sample.onlineName || sample.name : "Online source";
     }
 
     function isUserAddedKbDocument(document) {
@@ -5728,6 +5745,31 @@
       return activeDocs.some((document) => kbDocumentMatchesSample(document, sample));
     }
 
+    function kbDocumentMatchesOnlineSample(document, sample) {
+      if (!document || !sample || !sample.sourceUrl) {
+        return false;
+      }
+
+      const documentUrl = normalizeKbSourceUrl(document.sourceUrl);
+      const sampleUrl = normalizeKbSourceUrl(sample.sourceUrl);
+
+      return Boolean(
+        documentUrl
+        && sampleUrl
+        && documentUrl === sampleUrl
+        && (
+          document.importedFromUrl
+          || document.storagePath
+          || document.fileSize
+          || String(document.id || "").startsWith("demo-online-")
+        )
+      );
+    }
+
+    function hasAddedOnlineKbSample(sample) {
+      return activeDocs.some((document) => kbDocumentMatchesOnlineSample(document, sample));
+    }
+
     function syncSampleAddButtons() {
       buttons.forEach((button) => {
         const id = button.getAttribute("data-kb-add");
@@ -5741,6 +5783,23 @@
         button.title = isAdded ? "This sample is already in your knowledge base." : "Add this sample to your knowledge base.";
         if (button.dataset.originalLabel) {
           button.textContent = isPending ? "Adding..." : isAdded ? "Already added" : button.dataset.originalLabel;
+        }
+      });
+    }
+
+    function syncOnlineAddButtons() {
+      onlineButtons.forEach((button) => {
+        const id = button.getAttribute("data-kb-online-add");
+        const sample = kbSamples.find((item) => item.id === id);
+        const isPending = pendingOnlineAdds.has(id);
+        const isAdded = hasAddedOnlineKbSample(sample);
+
+        button.disabled = isPending || isAdded;
+        button.classList.toggle("is-added", isAdded);
+        button.setAttribute("aria-disabled", button.disabled ? "true" : "false");
+        button.title = isAdded ? "This online source is already in your knowledge base." : "Import this online source into your knowledge base.";
+        if (button.dataset.originalLabel) {
+          button.textContent = isPending ? "Importing..." : isAdded ? "Online added" : button.dataset.originalLabel;
         }
       });
     }
@@ -5907,6 +5966,7 @@
       updateDocStatus(`${visibleCount} visible / ${activeDocs.length} total`, "is-file");
       updateFilterState(libraryCards.length, visibleCount);
       syncSampleAddButtons();
+      syncOnlineAddButtons();
     }
 
     async function deleteKnowledgeDocumentFromUi(documentId, button) {
@@ -6278,7 +6338,65 @@
         }
       });
     });
+    onlineButtons.forEach((button) => {
+      button.dataset.originalLabel = button.textContent.trim();
+      button.addEventListener("click", async function () {
+        const id = button.getAttribute("data-kb-online-add");
+        const sample = kbSamples.find((item) => item.id === id);
+
+        if (!sample || !sample.sourceUrl) {
+          updateDocStatus("Online source is missing", "is-demo");
+          return;
+        }
+
+        if (hasAddedOnlineKbSample(sample) || pendingOnlineAdds.has(id)) {
+          updateDocStatus("Online source already added", "is-file");
+          setBadge(runtimeBadge, "Already added", "is-file");
+          syncOnlineAddButtons();
+          return;
+        }
+
+        pendingOnlineAdds.add(id);
+        syncOnlineAddButtons();
+        updateDocStatus("Importing online source", "is-file");
+        setBadge(runtimeBadge, "Importing online source", "is-file");
+
+        try {
+          const payload = await requestJsonStrict(
+            "/api/kb/online-source",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json"
+              },
+              body: JSON.stringify({
+                sampleId: sample.id,
+                sourceUrl: sample.sourceUrl,
+                name: getOnlineSampleName(sample),
+                type: sample.type,
+                summary: sample.summary,
+                sourceText: sample.sourceText,
+                tags: sample.tags || []
+              })
+            }
+          );
+
+          activeDocs = payload.documents || activeDocs;
+          syncKnowledgeSurface();
+          updateDocStatus(payload.duplicate ? "Online source already in knowledge base" : "Online source added to knowledge base", payload.duplicate ? "is-file" : "is-live");
+          setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : payload.duplicate ? "Already added" : "Ready", payload.mode === "proxy" ? "is-live" : "is-file");
+        } catch (error) {
+          updateDocStatus(error.message || "Online import failed", "is-demo");
+          setBadge(runtimeBadge, "Online import failed", "is-demo");
+        } finally {
+          pendingOnlineAdds.delete(id);
+          syncOnlineAddButtons();
+        }
+      });
+    });
     syncSampleAddButtons();
+    syncOnlineAddButtons();
 
     if (entryForm && entryStatus) {
       entryForm.addEventListener("submit", async function (event) {
