@@ -1109,6 +1109,40 @@ textarea {
   color: var(--heading);
 }
 
+.upload-queue-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.upload-queue-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.upload-queue-copy strong {
+  overflow-wrap: anywhere;
+}
+
+.upload-remove-button {
+  border: 1px solid rgba(211, 92, 80, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 111, 97, 0.1);
+  color: #d35c50;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  padding: 8px 12px;
+}
+
+.upload-remove-button:hover,
+.upload-remove-button:focus-visible {
+  background: rgba(255, 111, 97, 0.18);
+  outline: none;
+}
+
 .filter-chip-row {
   display: flex;
   flex-wrap: wrap;

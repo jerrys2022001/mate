@@ -2089,6 +2089,50 @@ function extractTextPreviewFromFile(file) {
   return file.buffer.toString("utf8").replace(/\s+/g, " ").trim().slice(0, 1800) || `Uploaded file ${file.originalName}`;
 }
 
+function normalizeUploadDuplicateName(value) {
+  return path.basename(String(value || "")).trim().toLowerCase();
+}
+
+function getUploadFileHash(file) {
+  return crypto.createHash("sha256").update(file.buffer || Buffer.alloc(0)).digest("hex");
+}
+
+function getUploadDuplicateKeys(name, size, mimeType, fileHash) {
+  const normalizedName = normalizeUploadDuplicateName(name);
+  const normalizedSize = Number(size) || 0;
+
+  if (!normalizedName || !normalizedSize) {
+    return [];
+  }
+
+  const keys = [
+    `name-size:${normalizedName}:${normalizedSize}`,
+    `name-size-type:${normalizedName}:${normalizedSize}:${String(mimeType || "").trim().toLowerCase()}`
+  ];
+
+  if (fileHash) {
+    keys.push(`sha256:${fileHash}`);
+  }
+
+  return keys;
+}
+
+function getKnowledgeUploadDuplicateKeySet(user) {
+  const keys = new Set();
+
+  getVisibleLocalKnowledgeDocuments(user).forEach((document) => {
+    if (!document.fileSize) {
+      return;
+    }
+
+    getUploadDuplicateKeys(document.originalFileName || document.name, document.fileSize, document.mimeType, document.fileHash).forEach((key) => {
+      keys.add(key);
+    });
+  });
+
+  return keys;
+}
+
 function writeKnowledgeNoteFile(note, user) {
   ensureDataDirectory();
   const fileName = `${getKnowledgeBaseNameForUser(user)}-${Date.now()}-${sanitizeFileBase(note.name)}.txt`;
@@ -2424,32 +2468,61 @@ async function createKnowledgeDocumentsFromFiles(files, user) {
     throw new Error("Choose at least one file to upload.");
   }
 
-  const preparedFiles = files
-    .filter((file) => file && file.size > 0)
-    .map((file) => {
-      const storedFile = writeUploadedKnowledgeFile(file, user);
-      return {
-        file,
-        storedFile,
-        document: createLocalKbDocument(
-          {
-            name: file.originalName,
-            type: inferKnowledgeTypeFromFile(file.originalName, file.mimeType),
-            summary: `${inferKnowledgeTypeFromFile(file.originalName, file.mimeType)} uploaded from your device. ${formatFileSize(file.size)} ready for indexing.`,
-            sourceText: extractTextPreviewFromFile(file)
-          },
-          {
-            status: "Saved to local KB store",
-            userId: user.id,
-            fileSize: file.size,
-            mimeType: file.mimeType,
-            storagePath: storedFile.relativePath
-          }
-        )
-      };
+  const existingUploadKeys = getKnowledgeUploadDuplicateKeySet(user);
+  const acceptedUploadKeys = new Set();
+  const skippedDuplicates = [];
+  const preparedFiles = [];
+
+  files.filter((file) => file && file.size > 0).forEach((file) => {
+    const fileHash = getUploadFileHash(file);
+    const duplicateKeys = getUploadDuplicateKeys(file.originalName, file.size, file.mimeType, fileHash);
+    const isDuplicate = duplicateKeys.some((key) => existingUploadKeys.has(key) || acceptedUploadKeys.has(key));
+
+    if (isDuplicate) {
+      skippedDuplicates.push(file.originalName);
+      return;
+    }
+
+    duplicateKeys.forEach((key) => {
+      existingUploadKeys.add(key);
+      acceptedUploadKeys.add(key);
     });
 
+    const storedFile = writeUploadedKnowledgeFile(file, user);
+    preparedFiles.push({
+      file,
+      storedFile,
+      document: createLocalKbDocument(
+        {
+          name: file.originalName,
+          type: inferKnowledgeTypeFromFile(file.originalName, file.mimeType),
+          summary: `${inferKnowledgeTypeFromFile(file.originalName, file.mimeType)} uploaded from your device. ${formatFileSize(file.size)} ready for indexing.`,
+          sourceText: extractTextPreviewFromFile(file)
+        },
+        {
+          status: "Saved to local KB store",
+          userId: user.id,
+          fileSize: file.size,
+          mimeType: file.mimeType,
+          fileHash,
+          originalFileName: file.originalName,
+          storagePath: storedFile.relativePath
+        }
+      )
+    });
+  });
+
   if (!preparedFiles.length) {
+    if (skippedDuplicates.length) {
+      return {
+        mode: canUseDeepTutorKnowledgeBase() ? "proxy" : "mock",
+        uploadedCount: 0,
+        skippedCount: skippedDuplicates.length,
+        skippedDuplicates,
+        documents: await listKnowledgeDocuments(user)
+      };
+    }
+
     throw new Error("Uploaded files were empty.");
   }
 
@@ -2459,6 +2532,8 @@ async function createKnowledgeDocumentsFromFiles(files, user) {
     return {
       mode: "mock",
       uploadedCount: preparedFiles.length,
+      skippedCount: skippedDuplicates.length,
+      skippedDuplicates,
       documents: await listKnowledgeDocuments(user)
     };
   }
@@ -2477,6 +2552,8 @@ async function createKnowledgeDocumentsFromFiles(files, user) {
     return {
       mode: "proxy",
       uploadedCount: preparedFiles.length,
+      skippedCount: skippedDuplicates.length,
+      skippedDuplicates,
       documents: await listKnowledgeDocuments(user)
     };
   } catch (error) {
@@ -2489,6 +2566,8 @@ async function createKnowledgeDocumentsFromFiles(files, user) {
     return {
       mode: "mock",
       uploadedCount: preparedFiles.length,
+      skippedCount: skippedDuplicates.length,
+      skippedDuplicates,
       documents: await listKnowledgeDocuments(user),
       warning: error.message
     };

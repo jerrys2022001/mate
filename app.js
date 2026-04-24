@@ -1891,13 +1891,15 @@
     return files.map((file, index) => ({
       id: `demo-upload-${Date.now()}-${index}`,
       name: file.name,
+      originalFileName: file.name,
       type: "Uploaded file",
       summary: `Uploaded from your device. ${formatBytes(file.size)} ready for indexing.`,
       status: "Saved",
       fileSize: file.size,
+      mimeType: file.type || "",
       tags: ["file", "upload"],
       sourceOrigin: "personal",
-      editable: false
+      editable: true
     }));
   }
 
@@ -3806,10 +3808,13 @@
       return;
     }
 
-    queue.innerHTML = files.map((file) => `
-      <li>
-        <strong>${escapeHtml(file.name)}</strong>
-        <span class="file-meta">${escapeHtml(file.type || "Local file")} - ${escapeHtml(formatBytes(file.size))}</span>
+    queue.innerHTML = files.map((file, index) => `
+      <li class="upload-queue-item">
+        <div class="upload-queue-copy">
+          <strong>${escapeHtml(file.name)}</strong>
+          <span class="file-meta">${escapeHtml(file.type || "Local file")} - ${escapeHtml(formatBytes(file.size))}</span>
+        </div>
+        <button class="upload-remove-button" type="button" data-upload-remove-index="${index}" aria-label="Remove ${escapeAttribute(file.name)}">Delete</button>
       </li>
     `).join("");
   }
@@ -5622,6 +5627,7 @@
     const fileInput = document.getElementById("kb-file-input");
     const filePicker = document.getElementById("kb-file-picker");
     const uploadButton = document.getElementById("kb-upload-submit");
+    const uploadQueue = document.getElementById("kb-upload-queue");
     const uploadStatus = document.getElementById("kb-upload-status");
     const uploadProgress = document.getElementById("kb-upload-progress");
     const uploadProgressFill = document.getElementById("kb-upload-progress-fill");
@@ -5662,6 +5668,107 @@
       uploadProgressFill.style.width = "0%";
       uploadProgressText.textContent = "0%";
       uploadProgressDetail.textContent = "Waiting for upload";
+    }
+
+    function normalizeUploadFileName(value) {
+      return String(value || "").split(/[\\/]/).pop().trim().toLowerCase();
+    }
+
+    function getUploadLooseKey(name, size) {
+      const normalizedName = normalizeUploadFileName(name);
+      const normalizedSize = Number(size) || 0;
+      return normalizedName && normalizedSize ? `${normalizedName}|${normalizedSize}` : "";
+    }
+
+    function getUploadStrictKey(name, size, mimeType) {
+      const looseKey = getUploadLooseKey(name, size);
+      return looseKey ? `${looseKey}|${String(mimeType || "").trim().toLowerCase()}` : "";
+    }
+
+    function getExistingUploadKeys() {
+      const looseKeys = new Set();
+      const strictKeys = new Set();
+
+      activeDocs.forEach((kbDocument) => {
+        const duplicateName = kbDocument.originalFileName || kbDocument.name;
+        const looseKey = getUploadLooseKey(duplicateName, kbDocument.fileSize);
+        const strictKey = getUploadStrictKey(duplicateName, kbDocument.fileSize, kbDocument.mimeType);
+
+        if (looseKey) {
+          looseKeys.add(looseKey);
+        }
+
+        if (strictKey) {
+          strictKeys.add(strictKey);
+        }
+      });
+
+      return { looseKeys, strictKeys };
+    }
+
+    function filterUniqueUploadFiles(fileList) {
+      const existingKeys = getExistingUploadKeys();
+      const queuedLooseKeys = new Set();
+      const queuedStrictKeys = new Set();
+      const files = [];
+      let duplicateCount = 0;
+
+      Array.from(fileList || []).filter((file) => file && file.size > 0).forEach((file) => {
+        const looseKey = getUploadLooseKey(file.name, file.size);
+        const strictKey = getUploadStrictKey(file.name, file.size, file.type);
+        const isDuplicate = (looseKey && (existingKeys.looseKeys.has(looseKey) || queuedLooseKeys.has(looseKey)))
+          || (strictKey && (existingKeys.strictKeys.has(strictKey) || queuedStrictKeys.has(strictKey)));
+
+        if (isDuplicate) {
+          duplicateCount += 1;
+          return;
+        }
+
+        if (looseKey) {
+          queuedLooseKeys.add(looseKey);
+        }
+
+        if (strictKey) {
+          queuedStrictKeys.add(strictKey);
+        }
+
+        files.push(file);
+      });
+
+      return { files, duplicateCount };
+    }
+
+    function refreshQueuedFileState(statusText, tone) {
+      renderUploadQueue(queuedFiles);
+
+      if (uploadButton) {
+        uploadButton.disabled = !queuedFiles.length;
+      }
+
+      if (statusText) {
+        updateUploadStatus(statusText, tone || (queuedFiles.length ? "is-file" : "is-demo"));
+      }
+
+      hideUploadProgress();
+    }
+
+    function buildQueuedFileStatus(fileCount, duplicateCount) {
+      const readyText = `${fileCount} file${fileCount === 1 ? "" : "s"} ready`;
+      return duplicateCount ? `${readyText}; ${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"} skipped` : readyText;
+    }
+
+    function buildUploadCompleteStatus(payload, fallbackCount) {
+      const uploadedCount = Number(payload.uploadedCount) || 0;
+      const skippedCount = Number(payload.skippedCount) || 0;
+      const effectiveUploadedCount = uploadedCount || (skippedCount ? 0 : fallbackCount);
+      const verb = payload.mode === "proxy" ? "synced" : payload.mode === "mock" ? "saved locally" : "saved";
+      const uploadText = effectiveUploadedCount
+        ? `${effectiveUploadedCount} file${effectiveUploadedCount === 1 ? "" : "s"} ${verb}`
+        : "No new files uploaded";
+
+      return skippedCount
+        ? `${uploadText}; ${skippedCount} duplicate${skippedCount === 1 ? "" : "s"} skipped`
+        : uploadText;
     }
 
     function updateFilterState(libraryCardCount, visibleDocCount) {
@@ -5705,21 +5812,24 @@
     }
 
     function setQueuedFiles(fileList) {
-      queuedFiles = Array.from(fileList || []).filter((file) => file && file.size > 0);
-      renderUploadQueue(queuedFiles);
+      const nextQueue = filterUniqueUploadFiles(fileList);
+      queuedFiles = nextQueue.files;
+      refreshQueuedFileState(
+        queuedFiles.length
+          ? buildQueuedFileStatus(queuedFiles.length, nextQueue.duplicateCount)
+          : nextQueue.duplicateCount
+            ? `${nextQueue.duplicateCount} duplicate${nextQueue.duplicateCount === 1 ? "" : "s"} skipped`
+            : "No files selected",
+        queuedFiles.length ? "is-file" : "is-demo"
+      );
 
-      if (uploadButton) {
-        uploadButton.disabled = !queuedFiles.length;
+      if (fileInput) {
+        fileInput.value = "";
       }
 
       if (!queuedFiles.length) {
-        updateUploadStatus("No files selected", "is-demo");
-        hideUploadProgress();
         return;
       }
-
-      updateUploadStatus(`${queuedFiles.length} file${queuedFiles.length > 1 ? "s" : ""} ready`, "is-file");
-      hideUploadProgress();
     }
 
     syncKnowledgeSurface();
@@ -5816,6 +5926,13 @@
             return;
           }
 
+          if (String(documentId).startsWith("demo-upload-")) {
+            activeDocs = activeDocs.filter((item) => item.id !== documentId);
+            syncKnowledgeSurface();
+            updateDocStatus("Document removed", "is-file");
+            return;
+          }
+
           button.disabled = true;
           updateDocStatus("Deleting document", "is-file");
 
@@ -5853,6 +5970,30 @@
 
       fileInput.addEventListener("change", function () {
         setQueuedFiles(fileInput.files);
+      });
+    }
+
+    if (uploadQueue) {
+      uploadQueue.addEventListener("click", function (event) {
+        const button = event.target.closest("[data-upload-remove-index]");
+        if (!button) {
+          return;
+        }
+
+        const index = Number(button.getAttribute("data-upload-remove-index"));
+        if (!Number.isInteger(index) || index < 0 || index >= queuedFiles.length) {
+          return;
+        }
+
+        queuedFiles = queuedFiles.filter((file, fileIndex) => fileIndex !== index);
+        refreshQueuedFileState(
+          queuedFiles.length ? `${queuedFiles.length} file${queuedFiles.length === 1 ? "" : "s"} ready` : "No files selected",
+          queuedFiles.length ? "is-file" : "is-demo"
+        );
+
+        if (fileInput) {
+          fileInput.value = "";
+        }
       });
     }
 
@@ -5922,15 +6063,8 @@
         activeDocs = payload.documents || activeDocs;
         syncKnowledgeSurface();
         setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : payload.mode === "mock" ? "Local store" : "Ready", payload.mode === "proxy" ? "is-live" : "is-demo");
-        setUploadProgress(100, payload.mode === "proxy" ? "Upload completed and synced" : payload.mode === "mock" ? "Upload saved locally" : "Upload saved");
-        updateUploadStatus(
-          payload.mode === "proxy"
-            ? `${payload.uploadedCount || queuedFiles.length} file${(payload.uploadedCount || queuedFiles.length) > 1 ? "s" : ""} synced`
-            : payload.mode === "mock"
-              ? `${payload.uploadedCount || queuedFiles.length} file${(payload.uploadedCount || queuedFiles.length) > 1 ? "s" : ""} saved locally`
-              : `${payload.uploadedCount || queuedFiles.length} file${(payload.uploadedCount || queuedFiles.length) > 1 ? "s" : ""} saved`,
-          payload.mode === "proxy" ? "is-live" : "is-demo"
-        );
+        setUploadProgress(100, payload.skippedCount ? "Upload checked; duplicates skipped" : payload.mode === "proxy" ? "Upload completed and synced" : payload.mode === "mock" ? "Upload saved locally" : "Upload saved");
+        updateUploadStatus(buildUploadCompleteStatus(payload, queuedFiles.length), payload.mode === "proxy" ? "is-live" : "is-demo");
         queuedFiles = [];
         renderUploadQueue([]);
         if (fileInput) {
