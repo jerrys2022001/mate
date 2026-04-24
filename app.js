@@ -1819,51 +1819,62 @@
       const loadingMessage = thread.lastElementChild;
       textarea.value = "";
       submitButton.disabled = true;
+      try {
+        const payload = await requestJsonStrict(
+          "/api/chat",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              scenario: currentChatScenario,
+              message: text,
+              goal: chatScenarios[currentChatScenario].goal,
+              sessionId: chatSessions[currentChatScenario] || null
+            })
+          }
+        );
 
-      const payload = await requestJson(
-        "/api/chat",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            scenario: currentChatScenario,
-            message: text,
-            goal: chatScenarios[currentChatScenario].goal,
-            sessionId: chatSessions[currentChatScenario] || null
-          })
-        },
-        function () {
-          return buildChatFallback(text, currentChatScenario);
+        if (payload.sessionId) {
+          chatSessions[currentChatScenario] = payload.sessionId;
+          persistChatSessions();
         }
-      );
 
-      if (payload.sessionId) {
-        chatSessions[currentChatScenario] = payload.sessionId;
-        persistChatSessions();
-      }
+        if (loadingMessage) {
+          loadingMessage.outerHTML = createMessageMarkup("assistant", payload.assistantLines || ["Mate returned an empty response."]);
+        }
 
-      if (loadingMessage) {
-        loadingMessage.outerHTML = createMessageMarkup("assistant", payload.assistantLines || ["Mate returned an empty response."]);
-      }
+        if (Array.isArray(payload.suggestions) && payload.suggestions.length) {
+          setHtml("chat-suggestions", payload.suggestions.map((item) => `<li>${escapeHtml(item)}</li>`).join(""));
+        }
 
-      if (Array.isArray(payload.suggestions) && payload.suggestions.length) {
-        setHtml("chat-suggestions", payload.suggestions.map((item) => `<li>${escapeHtml(item)}</li>`).join(""));
-      }
+        if (payload.routeLabel) {
+          setText("chat-route", payload.routeLabel);
+        }
 
-      if (payload.routeLabel) {
-        setText("chat-route", payload.routeLabel);
-      }
+        if (payload.engineLabel) {
+          setText("chat-engine", payload.engineLabel);
+        }
 
-      if (payload.engineLabel) {
-        setText("chat-engine", payload.engineLabel);
-      }
+        if (runtimeBadge) {
+          setBadge(runtimeBadge, payload.mode === "proxy" ? "DeepTutor live" : "Chat error", payload.mode === "proxy" ? "is-live" : "is-file");
+        }
+      } catch (error) {
+        if (loadingMessage) {
+          loadingMessage.outerHTML = createMessageMarkup("assistant", [
+            "Live chat is currently unavailable, so I am not going to fake a template response.",
+            error && error.message ? error.message : "Chat request failed.",
+            "Reconnect DeepTutor or refresh the runtime before sending another turn."
+          ]);
+        }
 
-      if (runtimeBadge) {
-        const tone = payload.mode === "proxy" ? "is-live" : payload.mode === "mock" ? "is-file" : "is-demo";
-        const label = payload.mode === "proxy" ? "DeepTutor live" : payload.mode === "mock" ? "BFF mock mode" : "Demo fallback";
-        setBadge(runtimeBadge, label, tone);
+        if (runtimeBadge) {
+          setBadge(runtimeBadge, "Chat unavailable", "is-file");
+        }
+
+        setText("chat-route", "POST /api/chat");
+        setText("chat-engine", "Mate writing coach");
       }
 
       submitButton.disabled = false;

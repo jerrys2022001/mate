@@ -1165,14 +1165,111 @@ function buildChatSuggestions(scenario) {
   return ["Improve thesis", "Fix grammar", "Upgrade vocabulary"];
 }
 
+function buildChatScenarioPrompt(scenario, payload) {
+  const goal = normalizeChatText(payload && payload.goal);
+
+  const sharedRules = [
+    "You are Mate, a practical English writing coach inside an English growth product.",
+    "Do not answer as a generic STEM tutor, study assistant, or product greeter.",
+    "Work on the learner's actual English writing task and deliver useful coaching, not meta promises.",
+    "When possible, give direct edits, rewrites, or concrete language improvements instead of only describing what you could do.",
+    "If the learner gives a short steering command like 'academic', 'more concise', or 'direct rewrite', apply it to the most recent draft or sentence already in the conversation.",
+    "If the learner has not provided enough text to rewrite or diagnose, ask one concise clarifying question instead of giving filler."
+  ];
+
+  const scenarioRules = {
+    essay: [
+      "Focus on essay structure, thesis clarity, paragraph logic, grammar, and vocabulary upgrades.",
+      "Default output should include a short diagnosis and a stronger rewrite when the learner pasted enough text."
+    ],
+    email: [
+      "Focus on business email and client-facing writing.",
+      "Prioritize tone control, clarity of request, concise wording, and a clear next step or CTA."
+    ],
+    grammar: [
+      "Act like a patient grammar teacher.",
+      "Explain the rule simply, show the corrected version, and add at least one extra example when helpful."
+    ],
+    upgrade: [
+      "Focus on sentence rewrites, stronger wording, rhythm, and tone shifts.",
+      "When useful, offer two or three upgraded versions with labels like academic, concise, or persuasive."
+    ]
+  };
+
+  const resolvedScenario = scenarioRules[scenario] ? scenario : "essay";
+  const promptLines = sharedRules.concat(scenarioRules[resolvedScenario]);
+
+  if (goal) {
+    promptLines.push(`Current product goal: ${goal}.`);
+  }
+
+  return promptLines.join(" ");
+}
+
+function buildChatScenarioPrimerHistory(scenario, payload) {
+  const systemInstruction = buildChatScenarioPrompt(scenario, payload);
+
+  return [
+    {
+      role: "user",
+      content: `Product instruction for this conversation: ${systemInstruction}`
+    },
+    {
+      role: "assistant",
+      content: "Understood. I will answer as Mate, an English writing coach, and give direct, concrete help on the learner's writing."
+    }
+  ];
+}
+
+async function loadDeepTutorChatHistory(sessionId) {
+  const normalizedSessionId = String(sessionId || "").trim();
+
+  if (!normalizedSessionId) {
+    return [];
+  }
+
+  try {
+    const payload = await fetchJson(
+      buildDeepTutorHttpUrl(resolvePathTemplate(`${deepTutorConfig.apiPrefix}/chat/sessions/{session_id}`, {
+        session_id: normalizedSessionId
+      })),
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json"
+        }
+      }
+    );
+
+    if (!payload || !Array.isArray(payload.messages)) {
+      return [];
+    }
+
+    return payload.messages
+      .map(function (item) {
+        return {
+          role: item && item.role === "assistant" ? "assistant" : "user",
+          content: normalizeChatText(item && item.content)
+        };
+      })
+      .filter(function (item) {
+        return item.content;
+      });
+  } catch (error) {
+    return [];
+  }
+}
+
 async function proxyChatToDeepTutor(payload, user) {
   const scenario = String(payload.scenario || "essay");
   const kbName = String(payload.kbName || getKnowledgeBaseNameForUser(user) || "").trim();
   const enableRag = payload.enableRag == null ? deepTutorConfig.enableRagByDefault && Boolean(kbName) : Boolean(payload.enableRag);
   const enableWebSearch = payload.enableWebSearch == null ? deepTutorConfig.enableWebSearch : Boolean(payload.enableWebSearch);
+  const history = buildChatScenarioPrimerHistory(scenario, payload).concat(await loadDeepTutorChatHistory(payload.sessionId));
   const wsPayload = {
     message: String(payload.message || ""),
     session_id: payload.sessionId || null,
+    history,
     kb_name: enableRag ? kbName : "",
     enable_rag: enableRag,
     enable_web_search: enableWebSearch
@@ -1213,7 +1310,7 @@ async function proxyChatToDeepTutor(payload, user) {
         mode: "proxy",
         backendLabel: "Mate BFF",
         routeLabel: `WS ${deepTutorConfig.chatWsPath}`,
-        engineLabel: "DeepTutor Chat",
+        engineLabel: "Mate writing coach",
         sessionId: collected.sessionId,
         sources: collected.sources,
         assistantLines: splitIntoParagraphs(collected.result || collected.stream, 3),
@@ -2154,12 +2251,26 @@ async function handleApi(req, res, pathname) {
         sendJson(res, 200, await proxyChatToDeepTutor(payload, authContext.user));
         return;
       } catch (error) {
-        sendJson(res, 200, buildChatMock(payload));
+        sendJson(res, 502, {
+          ok: false,
+          mode: "proxy-error",
+          backendLabel: "Mate BFF",
+          routeLabel: `WS ${deepTutorConfig.chatWsPath}`,
+          engineLabel: "Mate writing coach",
+          error: error.message || "DeepTutor chat failed."
+        });
         return;
       }
     }
 
-    sendJson(res, 200, buildChatMock(payload));
+    sendJson(res, 503, {
+      ok: false,
+      mode: "unavailable",
+      backendLabel: "Mate BFF",
+      routeLabel: "POST /api/chat",
+      engineLabel: "Mate writing coach",
+      error: "Live chat is unavailable because DeepTutor realtime mode is not connected."
+    });
     return;
   }
 
