@@ -1475,7 +1475,7 @@ function buildInfinitivePracticeQuestions(topic, count, difficulty) {
 }
 
 function buildQuizMock(payload) {
-  const requestedDifficulty = String((payload && payload.difficulty) || "upper-intermediate");
+  const requestedDifficulty = String((payload && payload.difficulty) || "intermediate");
   const requestedTopic = String((payload && (payload.topic || payload.prompt)) || "English writing practice");
   const requestedCount = resolvePracticeQuestionCount(requestedTopic, payload && payload.count);
   const questions = buildPracticeQuestions(requestedTopic, requestedCount, requestedDifficulty, payload && payload.questionType);
@@ -1819,7 +1819,7 @@ function extractPracticeQuestions(events) {
 function buildPracticeQuestions(topic, count, difficulty, questionType) {
   const normalizedTopic = String(topic || "English writing practice").trim();
   const requestedCount = resolvePracticeQuestionCount(normalizedTopic, count);
-  const normalizedDifficulty = String(difficulty || "upper-intermediate").trim();
+  const normalizedDifficulty = String(difficulty || "intermediate").trim();
   const normalizedType = String(questionType || "mixed").trim();
 
   if (isInfinitivePracticeTopic(normalizedTopic)) {
@@ -1948,7 +1948,7 @@ async function proxyQuizToDeepTutor(payload, user) {
       : isInfinitiveSet
       ? "Generate concrete junior-high English infinitive grammar exercises with answer keys and short Chinese explanations. Do not create generic rewrite prompts."
       : String(payload.preference || "Targeted practice for English learning"),
-    difficulty: String(payload.difficulty || "upper-intermediate"),
+    difficulty: String(payload.difficulty || "intermediate"),
     question_type: String(payload.questionType || "mixed") === "mixed" ? "auto" : String(payload.questionType || "auto")
   };
 

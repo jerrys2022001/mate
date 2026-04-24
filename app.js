@@ -529,7 +529,7 @@
     quiz: {
       eyebrow: "Quiz Builder",
       title: "Build practice from real mistakes.",
-      prompt: "Create 5 grammar questions focused on article usage and subject-verb agreement for an upper-intermediate learner.",
+      prompt: "Create 5 grammar questions focused on article usage and subject-verb agreement for an intermediate learner.",
       outputTitle: "Generated practice set",
       route: "POST /api/quiz",
       actionLabel: "Generate quiz set",
@@ -561,7 +561,7 @@
       label: "IELTS Band Lift",
       prompt: "Analyze this IELTS Task 2 prompt. Show the strongest position, two logic gaps in my draft, and a Band 7.5 thesis plus topic sentence plan.",
       helper: "Logic, structure, thesis.",
-      difficulty: "upper-intermediate",
+      difficulty: "intermediate",
       count: "5",
       focus: ["Clarify the thesis before rewriting", "Tighten paragraph logic and evidence links", "Turn weak ideas into score-ready topic sentences"]
     },
@@ -588,7 +588,7 @@
       label: "Email Practice",
       prompt: "Generate 5 business writing practice tasks for apology emails, timeline updates, follow-ups, and polite requests with short answer keys.",
       helper: "Drills for work email.",
-      difficulty: "upper-intermediate",
+      difficulty: "intermediate",
       count: "5",
       focus: ["Practice calm professional tone", "Generate reusable email openings and closings", "Reinforce clarity and next-step language"]
     }
@@ -2259,7 +2259,7 @@
 
   function buildQuizFallback(modeKey, payload) {
     const mode = quizModes[modeKey];
-    const requestedDifficulty = String((payload && payload.difficulty) || "upper-intermediate");
+    const requestedDifficulty = String((payload && payload.difficulty) || "intermediate");
     const requestedTopic = String((payload && (payload.topic || payload.prompt)) || mode.prompt);
     const requestedCount = resolvePracticeQuestionCount(requestedTopic, payload && payload.count);
     const isInfinitiveSet = isInfinitivePracticeTopic(requestedTopic);
