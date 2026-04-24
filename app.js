@@ -771,6 +771,12 @@
 
   function buildIconMarkup(iconName) {
     const icons = {
+      mic: [
+        '<path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z"></path>',
+        '<path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>',
+        '<path d="M12 18v4"></path>',
+        '<path d="M8 22h8"></path>'
+      ],
       volume: [
         '<path d="M5 9v6h4l5 4V5L9 9H5Z"></path>',
         '<path d="M18 9a5 5 0 0 1 0 6"></path>',
@@ -2223,6 +2229,365 @@
         explanation: "Practice the target pattern, then compare your answer with the model answer and explanation."
       };
     });
+  }
+
+  function initGlobalVoiceInputs() {
+    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const canListen = Boolean(SpeechRecognitionCtor);
+    const voiceIdleTimeoutMs = 60000;
+    const voiceSelector = [
+      "textarea",
+      "input:not([type])",
+      "input[type='text']",
+      "input[type='search']",
+      "input[type='email']",
+      "input[type='url']",
+      "input[type='tel']"
+    ].join(",");
+    const unsupportedInputTypes = new Set([
+      "button",
+      "checkbox",
+      "color",
+      "date",
+      "datetime-local",
+      "file",
+      "hidden",
+      "image",
+      "month",
+      "number",
+      "password",
+      "radio",
+      "range",
+      "reset",
+      "submit",
+      "time",
+      "week"
+    ]);
+    let activeField = null;
+    let activeButton = null;
+    let recognition = null;
+    let isListening = false;
+    let isRecognitionRunning = false;
+    let stopRequested = false;
+    let voiceBaseText = "";
+    let voiceFinalText = "";
+    let voiceInsertStart = 0;
+    let voiceInsertEnd = 0;
+    let voiceIdleTimer = null;
+    let voiceLastActivityAt = 0;
+    let scanQueued = false;
+
+    function isVoiceEligibleField(field) {
+      if (!field || field.dataset.voiceInputReady || field.dataset.voiceInputSkip === "true" || field.id === "chat-input") {
+        return false;
+      }
+
+      if (field.matches("textarea")) {
+        return true;
+      }
+
+      if (!field.matches("input")) {
+        return false;
+      }
+
+      const type = String(field.getAttribute("type") || "text").toLowerCase();
+      return !unsupportedInputTypes.has(type);
+    }
+
+    function setButtonState(button, state) {
+      if (!button) {
+        return;
+      }
+
+      button.classList.remove("is-listening", "is-unavailable");
+      button.setAttribute("aria-pressed", state === "listening" ? "true" : "false");
+
+      if (state === "listening") {
+        button.classList.add("is-listening");
+        button.title = "Stop voice input";
+        button.setAttribute("aria-label", "Stop voice input");
+        return;
+      }
+
+      if (!canListen) {
+        button.classList.add("is-unavailable");
+        button.disabled = true;
+        button.title = "Voice input is unavailable in this browser";
+        button.setAttribute("aria-label", "Voice input unavailable");
+        return;
+      }
+
+      button.disabled = false;
+      button.title = "Voice input";
+      button.setAttribute("aria-label", "Voice input");
+    }
+
+    function normalizeTranscriptForField(field, transcript) {
+      const raw = String(transcript || "").replace(/\s+/g, " ").trim();
+
+      if (!raw) {
+        return "";
+      }
+
+      if (field && String(field.type || "").toLowerCase() === "email") {
+        return raw
+          .toLowerCase()
+          .replace(/\s+at\s+/g, "@")
+          .replace(/\s+dot\s+/g, ".")
+          .replace(/\s+/g, "");
+      }
+
+      return raw;
+    }
+
+    function buildInsertedText(baseValue, start, end, transcript) {
+      const before = baseValue.slice(0, start);
+      const after = baseValue.slice(end);
+      const spacerBefore = before && transcript && !/\s$/.test(before) ? " " : "";
+      const spacerAfter = after && transcript && !/^\s/.test(after) ? " " : "";
+
+      return `${before}${spacerBefore}${transcript}${spacerAfter}${after}`;
+    }
+
+    function setFieldVoiceDraft(transcript) {
+      if (!activeField) {
+        return;
+      }
+
+      const spokenText = normalizeTranscriptForField(activeField, transcript);
+      activeField.value = buildInsertedText(voiceBaseText, voiceInsertStart, voiceInsertEnd, spokenText);
+      activeField.dispatchEvent(new Event("input", { bubbles: true }));
+      activeField.focus();
+
+      if (typeof activeField.setSelectionRange === "function") {
+        const cursorAt = buildInsertedText(voiceBaseText, voiceInsertStart, voiceInsertEnd, spokenText).length - voiceBaseText.slice(voiceInsertEnd).length;
+        activeField.setSelectionRange(cursorAt, cursorAt);
+      }
+    }
+
+    function clearVoiceIdleTimer() {
+      if (voiceIdleTimer) {
+        window.clearTimeout(voiceIdleTimer);
+        voiceIdleTimer = null;
+      }
+    }
+
+    function scheduleVoiceIdleTimer() {
+      clearVoiceIdleTimer();
+
+      if (!isListening || !voiceLastActivityAt) {
+        return;
+      }
+
+      const remainingMs = Math.max(1, voiceIdleTimeoutMs - (Date.now() - voiceLastActivityAt));
+      voiceIdleTimer = window.setTimeout(function () {
+        if (!isListening || !voiceLastActivityAt) {
+          return;
+        }
+
+        if (Date.now() - voiceLastActivityAt >= voiceIdleTimeoutMs) {
+          stopGlobalVoiceInput();
+          return;
+        }
+
+        scheduleVoiceIdleTimer();
+      }, remainingMs);
+    }
+
+    function markVoiceActivity() {
+      voiceLastActivityAt = Date.now();
+      scheduleVoiceIdleTimer();
+    }
+
+    function stopGlobalVoiceInput() {
+      stopRequested = true;
+      isListening = false;
+      voiceLastActivityAt = 0;
+      clearVoiceIdleTimer();
+
+      if (recognition && isRecognitionRunning) {
+        recognition.stop();
+      }
+
+      if (activeButton) {
+        setButtonState(activeButton, "ready");
+      }
+
+      activeField = null;
+      activeButton = null;
+    }
+
+    function startRecognitionEngine() {
+      const nextRecognition = ensureRecognition();
+
+      if (!nextRecognition || isRecognitionRunning || !isListening) {
+        return;
+      }
+
+      try {
+        nextRecognition.start();
+      } catch (error) {
+        if (error && error.name === "InvalidStateError") {
+          return;
+        }
+
+        stopGlobalVoiceInput();
+      }
+    }
+
+    function ensureRecognition() {
+      if (recognition || !canListen) {
+        return recognition;
+      }
+
+      recognition = new SpeechRecognitionCtor();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = navigator.language || "en-US";
+
+      recognition.addEventListener("start", function () {
+        isRecognitionRunning = true;
+        stopRequested = false;
+        setButtonState(activeButton, "listening");
+      });
+
+      recognition.addEventListener("result", function (event) {
+        let interimText = "";
+        let hasSpeechResult = false;
+
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+          const transcript = event.results[index][0] ? event.results[index][0].transcript : "";
+          hasSpeechResult = hasSpeechResult || Boolean(transcript.trim());
+
+          if (event.results[index].isFinal) {
+            voiceFinalText = `${voiceFinalText} ${transcript}`.trim();
+          } else {
+            interimText = `${interimText} ${transcript}`.trim();
+          }
+        }
+
+        if (hasSpeechResult) {
+          markVoiceActivity();
+        }
+
+        setFieldVoiceDraft(`${voiceFinalText} ${interimText}`);
+      });
+
+      recognition.addEventListener("error", function () {
+        stopGlobalVoiceInput();
+      });
+
+      recognition.addEventListener("end", function () {
+        isRecognitionRunning = false;
+
+        if (isListening && !stopRequested) {
+          window.setTimeout(startRecognitionEngine, 250);
+          return;
+        }
+
+        clearVoiceIdleTimer();
+        setButtonState(activeButton, "ready");
+        activeField = null;
+        activeButton = null;
+      });
+
+      return recognition;
+    }
+
+    function startGlobalVoiceInput(field, button) {
+      const nextRecognition = ensureRecognition();
+
+      if (!nextRecognition) {
+        setButtonState(button, "unavailable");
+        return;
+      }
+
+      if (isListening) {
+        stopGlobalVoiceInput();
+      }
+
+      activeField = field;
+      activeButton = button;
+      voiceBaseText = field.value || "";
+      voiceFinalText = "";
+      voiceInsertStart = typeof field.selectionStart === "number" ? field.selectionStart : voiceBaseText.length;
+      voiceInsertEnd = typeof field.selectionEnd === "number" ? field.selectionEnd : voiceInsertStart;
+      isListening = true;
+      stopRequested = false;
+      voiceLastActivityAt = Date.now();
+      setButtonState(button, "listening");
+      scheduleVoiceIdleTimer();
+      startRecognitionEngine();
+    }
+
+    function attachVoiceButton(field) {
+      if (!isVoiceEligibleField(field)) {
+        return;
+      }
+
+      const wrapper = document.createElement("span");
+      const button = document.createElement("button");
+      wrapper.className = "voice-input-shell";
+      button.type = "button";
+      button.className = "field-voice-button";
+      button.innerHTML = `${buildIconMarkup("mic")}<span class="sr-only">Voice input</span>`;
+      setButtonState(button, "ready");
+
+      field.parentNode.insertBefore(wrapper, field);
+      wrapper.appendChild(field);
+      wrapper.appendChild(button);
+      field.dataset.voiceInputReady = "true";
+
+      button.addEventListener("click", function () {
+        if (activeField === field && isListening) {
+          stopGlobalVoiceInput();
+          return;
+        }
+
+        startGlobalVoiceInput(field, button);
+      });
+    }
+
+    function scanVoiceFields(root) {
+      const scope = root && root.querySelectorAll ? root : document;
+      const fields = [];
+
+      if (root && root.matches && root.matches(voiceSelector)) {
+        fields.push(root);
+      }
+
+      scope.querySelectorAll(voiceSelector).forEach((field) => fields.push(field));
+      fields.forEach(attachVoiceButton);
+    }
+
+    function queueVoiceFieldScan(root) {
+      if (scanQueued) {
+        return;
+      }
+
+      scanQueued = true;
+      window.requestAnimationFrame(function () {
+        scanQueued = false;
+        scanVoiceFields(root || document);
+      });
+    }
+
+    scanVoiceFields(document);
+
+    if (window.MutationObserver) {
+      const observer = new MutationObserver(function (mutations) {
+        const hasNewNodes = mutations.some((mutation) => Array.from(mutation.addedNodes || []).some((node) => node.nodeType === 1));
+
+        if (hasNewNodes) {
+          queueVoiceFieldScan(document);
+        }
+      });
+
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+    }
   }
 
   function createMessageMarkup(role, content) {
@@ -3819,6 +4184,7 @@
     initChat();
     initKnowledgeBase();
     initQuiz();
+    initGlobalVoiceInputs();
     initDocumentExport();
     applyRuntimeSurfaceState();
   });
