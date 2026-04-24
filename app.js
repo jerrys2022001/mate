@@ -9,7 +9,7 @@
     apiBaseUrl: !isFileMode ? window.location.origin : "",
     mode: isFileMode ? "file" : "checking",
     proxyEnabled: false,
-    backendLabel: isFileMode ? "Local file preview" : "Mate BFF",
+    backendLabel: isFileMode ? "Mate" : "Mate BFF",
     configured: false,
     upstreamReachable: false,
     websocketClientAvailable: false,
@@ -159,7 +159,7 @@
       apiBaseUrl: "",
       mode: isFileMode ? "file" : "demo",
       proxyEnabled: false,
-      backendLabel: "Preview",
+      backendLabel: "Mate",
       configured: false,
       upstreamReachable: false,
       websocketClientAvailable: false,
@@ -179,7 +179,7 @@
 
   function buildApiUnavailableMessage() {
     if (isFileMode) {
-      return `Mate BFF was not detected for this file preview.${formatApiBaseSummary()} Start the local Node server or provide ?api=https://your-bff-origin.`;
+      return `Mate BFF was not detected for this local page.${formatApiBaseSummary()} Start the local Node server or provide ?api=https://your-bff-origin.`;
     }
 
     return `Mate BFF is unreachable from this page.${formatApiBaseSummary()} Deploy the Node BFF with this site or provide ?api=https://your-bff-origin.`;
@@ -782,14 +782,14 @@
 
     if (runtimeInfo.mode === "file") {
       return {
-        label: "Preview",
+        label: "Ready",
         tone: "is-file"
       };
     }
 
     if (!runtimeInfo.apiAvailable || runtimeInfo.mode === "demo") {
       return {
-        label: "Preview",
+        label: "Ready",
         tone: "is-demo"
       };
     }
@@ -802,7 +802,7 @@
     }
 
     return {
-      label: "Preview",
+      label: "Ready",
       tone: "is-file"
     };
   }
@@ -835,7 +835,7 @@
 
   function getChatRuntimeEngineLabel() {
     if (!runtimeInfo.apiAvailable) {
-      return "Preview";
+      return "Ready";
     }
 
     if (runtimeInfo.proxyEnabled) {
@@ -843,14 +843,14 @@
     }
 
     if (runtimeInfo.configured && runtimeInfo.websocketClientAvailable === false) {
-      return "Preview";
+      return "Ready";
     }
 
     if (runtimeInfo.configured) {
-      return "Preview";
+      return "Ready";
     }
 
-    return "Preview";
+    return "Ready";
   }
 
   function applyRuntimeSurfaceState() {
@@ -1493,7 +1493,7 @@
 
     return {
       mode: "demo",
-      backendLabel: "Preview",
+      backendLabel: "Mate",
       routeLabel: "POST /api/chat",
       engineLabel: "Demo coach response",
       suggestions: suggestions,
@@ -1542,7 +1542,7 @@
       name: file.name,
       type: "Uploaded file",
       summary: `Uploaded from your device. ${formatBytes(file.size)} ready for indexing.`,
-      status: "Saved in UI preview",
+      status: "Saved",
       fileSize: file.size,
       tags: ["file", "upload"],
       sourceOrigin: "personal",
@@ -1648,7 +1648,7 @@
     if (modeKey === "quiz") {
       return {
         mode: "demo",
-        backendLabel: "Preview",
+        backendLabel: "Mate",
         routeLabel: mode.route,
         outputTitle: mode.outputTitle,
         blocks: [
@@ -1676,7 +1676,7 @@
 
     return {
       mode: "demo",
-      backendLabel: "Preview",
+      backendLabel: "Mate",
       routeLabel: mode.route,
       outputTitle: mode.outputTitle,
       blocks: [
@@ -2488,7 +2488,7 @@
     ).then((payload) => {
       activeDocs = payload.documents || activeDocs;
       syncKnowledgeSurface();
-      setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : payload.mode === "mock" ? "Local store" : "Preview", payload.mode === "proxy" ? "is-live" : "is-demo");
+      setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : payload.mode === "mock" ? "Local store" : "Ready", payload.mode === "proxy" ? "is-live" : "is-demo");
     });
 
     if (feed) {
@@ -2664,14 +2664,14 @@
 
         activeDocs = payload.documents || activeDocs;
         syncKnowledgeSurface();
-        setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : payload.mode === "mock" ? "Local store" : "Preview", payload.mode === "proxy" ? "is-live" : "is-demo");
-        setUploadProgress(100, payload.mode === "proxy" ? "Upload completed and synced" : payload.mode === "mock" ? "Upload saved locally" : "Upload saved in preview");
+        setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : payload.mode === "mock" ? "Local store" : "Ready", payload.mode === "proxy" ? "is-live" : "is-demo");
+        setUploadProgress(100, payload.mode === "proxy" ? "Upload completed and synced" : payload.mode === "mock" ? "Upload saved locally" : "Upload saved");
         updateUploadStatus(
           payload.mode === "proxy"
             ? `${payload.uploadedCount || queuedFiles.length} file${(payload.uploadedCount || queuedFiles.length) > 1 ? "s" : ""} synced`
             : payload.mode === "mock"
               ? `${payload.uploadedCount || queuedFiles.length} file${(payload.uploadedCount || queuedFiles.length) > 1 ? "s" : ""} saved locally`
-              : `${payload.uploadedCount || queuedFiles.length} file${(payload.uploadedCount || queuedFiles.length) > 1 ? "s" : ""} saved in preview`,
+              : `${payload.uploadedCount || queuedFiles.length} file${(payload.uploadedCount || queuedFiles.length) > 1 ? "s" : ""} saved`,
           payload.mode === "proxy" ? "is-live" : "is-demo"
         );
         queuedFiles = [];
@@ -2727,7 +2727,7 @@
 
         activeDocs = payload.documents || activeDocs;
         syncKnowledgeSurface();
-        setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : "Preview", payload.mode === "proxy" ? "is-live" : "is-demo");
+        setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : "Ready", payload.mode === "proxy" ? "is-live" : "is-demo");
       });
     });
 
@@ -2782,7 +2782,7 @@
                   name: title,
                   type: type || "Custom note",
                   summary: summary || "Custom knowledge entry for Mate",
-                  status: "Saved in UI preview",
+                  status: "Saved",
                   tags: String(tagsField.value || "").split(",").map((tag) => tag.trim().toLowerCase()).filter(Boolean),
                   sourceOrigin: "personal",
                   editable: false
@@ -2828,7 +2828,7 @@
       const nextCards = currentKbFilter === "all" && Array.isArray(payload.cards) ? payload.cards : fallbackCards;
       renderKnowledgeCards(nextCards);
       updateFilterState(nextCards.length, visibleCount);
-      setBadge(runtimeBadge, payload.mode === "proxy" ? "KB search live" : "Preview", payload.mode === "proxy" ? "is-live" : "is-demo");
+      setBadge(runtimeBadge, payload.mode === "proxy" ? "KB search live" : "Ready", payload.mode === "proxy" ? "is-live" : "is-demo");
     });
   }
 
@@ -2927,7 +2927,7 @@
         renderQuizResult(payload);
         setBadge(
           runtimeBadge,
-          payload.mode === "proxy" ? "DeepTutor live" : "Preview",
+          payload.mode === "proxy" ? "DeepTutor live" : "Ready",
           payload.mode === "proxy" ? "is-live" : payload.mode === "mock" ? "is-file" : "is-demo"
         );
       } catch (error) {
