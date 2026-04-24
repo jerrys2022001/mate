@@ -86,6 +86,8 @@ const deepTutorConfig = createDeepTutorConfig();
 let kbDocuments = loadKbDocuments();
 let userRecords = loadUserRecords();
 let sessionRecords = loadSessionRecords();
+const mockChatSessions = new Map();
+const MOCK_CHAT_HISTORY_LIMIT = 12;
 
 function loadDotEnv(filePath) {
   if (!fs.existsSync(filePath)) {
@@ -884,9 +886,108 @@ function buildKnowledgeCards(query, documents) {
   });
 }
 
+function normalizeChatText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function containsCjk(value) {
+  return /[\u3400-\u9fff]/.test(String(value || ""));
+}
+
+function buildChatExcerpt(value, maxLength) {
+  const normalized = normalizeChatText(value);
+  return normalized ? truncate(normalized, maxLength || 110) : "";
+}
+
+function looksLikeRealtimeUpgradeRequest(value) {
+  const raw = String(value || "");
+  const normalized = raw.toLowerCase();
+
+  return (containsCjk(raw) && normalized.includes("ai") && (
+    /\u4e0a\u6e38/.test(raw)
+    || /\u5b9e\u65f6/.test(raw)
+    || /\u6a21\u677f/.test(raw)
+    || /\u56de\u590d/.test(raw)
+  ))
+    || normalized.includes("upstream")
+    || normalized.includes("real-time")
+    || normalized.includes("realtime")
+    || normalized.includes("live ai")
+    || normalized.includes("deeptutor")
+    || normalized.includes("mock")
+    || normalized.includes("proxy");
+}
+
+function looksLikeEmailRequest(value) {
+  const raw = String(value || "");
+  const normalized = raw.toLowerCase();
+
+  return normalized.includes("email")
+    || /\u90ae\u4ef6|\u5ba2\u6237|\u56de\u590d\u90ae\u4ef6|\u5546\u52a1\u90ae\u4ef6/.test(raw);
+}
+
+function looksLikeGrammarRequest(value) {
+  const raw = String(value || "");
+  const normalized = raw.toLowerCase();
+
+  return normalized.includes("grammar")
+    || normalized.includes("tense")
+    || /\u8bed\u6cd5|\u65f6\u6001|\u51a0\u8bcd|\u5355\u590d\u6570|\u53e5\u6cd5/.test(raw);
+}
+
+function looksLikeUpgradeRequest(value) {
+  const raw = String(value || "");
+  const normalized = raw.toLowerCase();
+
+  return normalized.includes("better")
+    || normalized.includes("rewrite")
+    || normalized.includes("polish")
+    || /\u6da6\u8272|\u6539\u5199|\u5347\u7ea7\u8868\u8fbe|\u66f4\u81ea\u7136|\u66f4\u5b66\u672f|\u66f4\u5730\u9053/.test(raw);
+}
+
+function looksLikeLongPaste(value) {
+  const normalized = normalizeChatText(value);
+  const sentenceCount = normalized.split(/[.!?]/).filter(Boolean).length;
+  const wordCount = normalized.split(/\s+/).filter(Boolean).length;
+
+  return normalized.length >= 220 || sentenceCount >= 4 || wordCount >= 45 || (containsCjk(value) && normalized.length >= 120);
+}
+
+function getMockChatSession(sessionId) {
+  const key = String(sessionId || `mock-${crypto.randomUUID()}`);
+  const history = mockChatSessions.get(key) || [];
+
+  if (!mockChatSessions.has(key)) {
+    mockChatSessions.set(key, history);
+  }
+
+  return {
+    sessionId: key,
+    history
+  };
+}
+
+function appendMockChatTurn(sessionId, role, content) {
+  const session = getMockChatSession(sessionId);
+  session.history.push({
+    role,
+    content: normalizeChatText(content),
+    createdAt: new Date().toISOString()
+  });
+
+  if (session.history.length > MOCK_CHAT_HISTORY_LIMIT) {
+    session.history.splice(0, session.history.length - MOCK_CHAT_HISTORY_LIMIT);
+  }
+
+  mockChatSessions.set(session.sessionId, session.history);
+  return session;
+}
+
 function buildChatMock(payload) {
-  const message = String(payload.message || "").toLowerCase();
+  const rawMessage = String(payload.message || "").trim();
   const scenario = String(payload.scenario || "essay");
+  const excerpt = buildChatExcerpt(rawMessage, 120);
+  const session = getMockChatSession(payload.sessionId);
   let assistantLines;
   let suggestions;
   let engineLabel = "Mate mock coach";
@@ -897,41 +998,62 @@ function buildChatMock(payload) {
       : "Node runtime lacks WebSocket, using mock";
   }
 
-  if (scenario === "email" || message.includes("email")) {
+  appendMockChatTurn(session.sessionId, "user", rawMessage);
+
+  if (looksLikeRealtimeUpgradeRequest(rawMessage)) {
     assistantLines = [
-      "I rewrote the draft in a more professional tone while keeping the message warm and clear.",
-      "Suggested line: 'Thank you for your patience. To keep quality high, I would like to propose a short three-day extension for the revised delivery.'",
-      "Next pass options: make it softer, more direct, or more executive-friendly."
+      "This chat is still in BFF mock mode, so it is not connected to the upstream realtime AI yet.",
+      "To switch over, DeepTutor must be reachable from DEEPTUTOR_BASE_URL and the current Node runtime must provide a WebSocket client.",
+      "Once /api/health reports proxyEnabled as true, this surface will stop using template replies and start using realtime responses."
+    ];
+    suggestions = ["Check /api/health", "Start DeepTutor", "Add WebSocket client"];
+  } else if (scenario === "email" || looksLikeEmailRequest(rawMessage)) {
+    assistantLines = [
+      `I can rewrite this message around: ${excerpt || "your email draft"}.`,
+      "First pass: make the ask explicit, trim apology loops, and end with one clear next step.",
+      "Next pass options: more polite, more concise, or more executive-friendly."
     ];
     suggestions = ["Add subject line", "Make it more concise", "Clarify next step"];
-  } else if (scenario === "grammar" || message.includes("grammar")) {
+  } else if (scenario === "grammar" || looksLikeGrammarRequest(rawMessage)) {
     assistantLines = [
-      "I would explain the grammar rule first, then show the corrected sentence and one extra example.",
-      "That makes the feedback feel like coaching instead of a black-box answer.",
-      "I can also turn this into a mini drill set for repetition."
+      `I would explain the grammar point inside: ${excerpt || "your sentence"}.`,
+      "Then I would show the corrected version, explain why it changes, and add one extra example.",
+      "If you want, I can turn the same point into a 3-question drill next."
     ];
     suggestions = ["Explain simply", "Show two examples", "Create mini practice"];
-  } else if (scenario === "upgrade" || message.includes("better")) {
+  } else if (scenario === "upgrade" || looksLikeUpgradeRequest(rawMessage)) {
     assistantLines = [
-      "I would keep the original meaning but raise the tone, precision, and sentence rhythm.",
-      "Mate can produce both an academic version and a polished workplace version from the same base sentence.",
-      "If you want, I can return three variants with different tones next."
+      `I can keep the meaning of ${excerpt || "your line"} and raise the tone.`,
+      "The usual improvements are stronger verbs, tighter rhythm, and fewer flat filler words.",
+      "Ask for academic, business, or natural spoken tone and I can steer the next pass."
     ];
     suggestions = ["Academic tone", "More concise", "More persuasive"];
+  } else if (looksLikeLongPaste(rawMessage)) {
+    assistantLines = [
+      "You pasted a full passage, so I should work on the actual text instead of returning the generic template.",
+      `The section I would focus on first is: ${excerpt || "the passage you pasted"}.`,
+      "Next step options: summarise the claim, extract the structure, or rewrite it into a clearer academic paragraph."
+    ];
+    suggestions = ["Summarise the claim", "Extract the structure", "Rewrite directly"];
   } else {
     assistantLines = [
-      "I would start by tightening the thesis and clarifying the position in the first two sentences.",
-      "Then I would remove grammar friction, improve sentence transitions, and upgrade topic vocabulary.",
-      "The next pass can convert this into a score-oriented IELTS style rewrite."
+      `I can work directly on: ${excerpt || "your last message"}.`,
+      "For an essay-style pass, I would tighten the position, make the paragraph logic more explicit, and cut repeated wording.",
+      "If you want, the next turn can be a direct rewrite, a band-style diagnosis, or a Chinese explanation."
     ];
-    suggestions = ["Improve thesis", "Fix grammar", "Upgrade vocabulary"];
+    suggestions = containsCjk(rawMessage)
+      ? ["Rewrite", "Line-by-line feedback", "Chinese explanation"]
+      : ["Improve thesis", "Fix grammar", "Upgrade vocabulary"];
   }
+
+  appendMockChatTurn(session.sessionId, "assistant", assistantLines.join(" "));
 
   return {
     mode: "mock",
     backendLabel: "Mate BFF",
     routeLabel: "POST /api/chat",
     engineLabel,
+    sessionId: session.sessionId,
     assistantLines,
     suggestions
   };

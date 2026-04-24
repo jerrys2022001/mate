@@ -5,7 +5,12 @@
     apiAvailable: !isFileMode,
     mode: isFileMode ? "file" : "checking",
     proxyEnabled: false,
-    backendLabel: isFileMode ? "Local file preview" : "Mate BFF"
+    backendLabel: isFileMode ? "Local file preview" : "Mate BFF",
+    configured: false,
+    upstreamReachable: false,
+    websocketClientAvailable: false,
+    endpoints: {},
+    proxyCapabilities: {}
   };
   let sessionInfo = {
     authenticated: false,
@@ -469,6 +474,108 @@
     }
   }
 
+  function getSurfaceRuntimeState(surfaceKey) {
+    const capabilities = runtimeInfo.proxyCapabilities || {};
+    const liveEnabled = Boolean(capabilities[surfaceKey]);
+
+    if (liveEnabled) {
+      return {
+        label: surfaceKey === "kb" ? "KB synced" : "DeepTutor live",
+        tone: "is-live"
+      };
+    }
+
+    if (runtimeInfo.mode === "file") {
+      return {
+        label: "Local preview",
+        tone: "is-file"
+      };
+    }
+
+    if (!runtimeInfo.apiAvailable || runtimeInfo.mode === "demo") {
+      return {
+        label: surfaceKey === "kb" ? "KB demo mode" : "UI fallback",
+        tone: "is-demo"
+      };
+    }
+
+    if (surfaceKey === "kb") {
+      return {
+        label: "KB local store",
+        tone: "is-file"
+      };
+    }
+
+    return {
+      label: "BFF mock mode",
+      tone: "is-file"
+    };
+  }
+
+  function getRuntimeRouteLabel(surfaceKey, fallbackLabel) {
+    const endpoints = runtimeInfo.endpoints || {};
+
+    if (!runtimeInfo.proxyEnabled) {
+      return fallbackLabel;
+    }
+
+    if (surfaceKey === "chat" && endpoints.chat) {
+      return `WS ${endpoints.chat}`;
+    }
+
+    if (surfaceKey === "deepSolve" && endpoints.deepSolve) {
+      return `WS ${endpoints.deepSolve}`;
+    }
+
+    if (surfaceKey === "quiz" && endpoints.quiz) {
+      return `WS ${endpoints.quiz}`;
+    }
+
+    if (surfaceKey === "kb" && endpoints.kbList) {
+      return `GET ${endpoints.kbList}`;
+    }
+
+    return fallbackLabel;
+  }
+
+  function getChatRuntimeEngineLabel() {
+    if (isFileMode || !runtimeInfo.apiAvailable) {
+      return "Mate UI fallback";
+    }
+
+    if (runtimeInfo.proxyEnabled) {
+      return "DeepTutor Chat";
+    }
+
+    if (runtimeInfo.configured && runtimeInfo.websocketClientAvailable === false) {
+      return "Node runtime lacks WebSocket, using mock";
+    }
+
+    if (runtimeInfo.configured) {
+      return "DeepTutor unavailable, using mock";
+    }
+
+    return "Mate mock coach";
+  }
+
+  function applyRuntimeSurfaceState() {
+    const chatBadgeState = getSurfaceRuntimeState("chat");
+    const kbBadgeState = getSurfaceRuntimeState("kb");
+    const quizBadgeState = getSurfaceRuntimeState(currentQuizMode === "quiz" ? "quiz" : "deepSolve");
+    const currentQuiz = quizModes[currentQuizMode] || quizModes.solve;
+
+    setBadge(document.getElementById("chat-runtime"), chatBadgeState.label, chatBadgeState.tone);
+    setBadge(document.getElementById("kb-runtime"), kbBadgeState.label, kbBadgeState.tone);
+    setBadge(document.getElementById("quiz-runtime"), quizBadgeState.label, quizBadgeState.tone);
+
+    setText("chat-engine", getChatRuntimeEngineLabel());
+    setText("chat-route", getRuntimeRouteLabel("chat", "POST /api/chat"));
+    setText(
+      "quiz-route-chip",
+      getRuntimeRouteLabel(currentQuizMode === "quiz" ? "quiz" : "deepSolve", currentQuiz.route)
+    );
+  }
+
   function getCurrentPagePath() {
     const pathname = window.location.pathname || "";
     return pathname.split("/").pop() || "index.html";
@@ -780,7 +887,12 @@
         apiAvailable: false,
         mode: "file",
         proxyEnabled: false,
-        backendLabel: "Local file preview"
+        backendLabel: "Local file preview",
+        configured: false,
+        upstreamReachable: false,
+        websocketClientAvailable: false,
+        endpoints: {},
+        proxyCapabilities: {}
       };
       return runtimeInfo;
     }
@@ -801,14 +913,24 @@
         apiAvailable: true,
         mode: payload.mode || "mock",
         proxyEnabled: Boolean(payload.proxyEnabled),
-        backendLabel: payload.backendLabel || "Mate BFF"
+        backendLabel: payload.backendLabel || "Mate BFF",
+        configured: Boolean(payload.configured),
+        upstreamReachable: Boolean(payload.upstreamReachable),
+        websocketClientAvailable: Boolean(payload.websocketClientAvailable),
+        endpoints: payload.endpoints && typeof payload.endpoints === "object" ? payload.endpoints : {},
+        proxyCapabilities: payload.proxyCapabilities && typeof payload.proxyCapabilities === "object" ? payload.proxyCapabilities : {}
       };
     } catch (error) {
       runtimeInfo = {
         apiAvailable: false,
         mode: "demo",
         proxyEnabled: false,
-        backendLabel: "Mate UI fallback"
+        backendLabel: "Mate UI fallback",
+        configured: false,
+        upstreamReachable: false,
+        websocketClientAvailable: false,
+        endpoints: {},
+        proxyCapabilities: {}
       };
     }
 
@@ -842,6 +964,10 @@
       } catch (error) {
         runtimeInfo.apiAvailable = false;
         runtimeInfo.mode = "demo";
+        runtimeInfo.proxyEnabled = false;
+        runtimeInfo.backendLabel = "Mate UI fallback";
+        runtimeInfo.upstreamReachable = false;
+        runtimeInfo.proxyCapabilities = {};
       }
     }
 
@@ -963,34 +1089,57 @@
 
   function buildChatFallback(message, scenarioKey) {
     const normalized = message.toLowerCase();
+    const compact = String(message || "").replace(/\s+/g, " ").trim();
+    const excerpt = compact ? truncate(compact, 110) : "";
+    const containsCjkText = /[\u3400-\u9fff]/.test(String(message || ""));
     const scenario = chatScenarios[scenarioKey] || chatScenarios.essay;
-    const suggestions = scenario.suggestions.slice(0, 3);
+    let suggestions = scenario.suggestions.slice(0, 3);
     let assistantLines;
 
-    if (normalized.includes("email") || scenarioKey === "email") {
+    if (((/[\u3400-\u9fff]/.test(String(message || "")) && normalized.includes("ai")) && (/\u4e0a\u6e38|\u5b9e\u65f6|\u6a21\u677f|\u56de\u590d/.test(String(message || "")))) || normalized.includes("upstream") || normalized.includes("real-time") || normalized.includes("realtime") || normalized.includes("deeptutor") || normalized.includes("mock") || normalized.includes("proxy")) {
       assistantLines = [
-        "Here is a cleaner business version with a calmer tone and a clearer next step.",
-        "Suggested rewrite: 'Thank you for your patience. I would like to share a brief update and propose a revised delivery date that keeps the project quality on track.'",
-        "You can also ask Mate to make this more polite, more concise, or more persuasive."
+        "This page has fallen back to the UI demo layer, so it is not talking to the upstream realtime AI right now.",
+        "To switch back, the BFF and DeepTutor both need to be reachable and /api/health needs to report proxyEnabled as true.",
+        "If you want, I can still work on this exact message instead of repeating the fixed template."
       ];
-    } else if (normalized.includes("grammar") || normalized.includes("tense") || scenarioKey === "grammar") {
+      suggestions = ["Check /api/health", "Restore upstream connection", "Continue with this message"];
+    } else if (normalized.includes("email") || scenarioKey === "email" || /\u90ae\u4ef6|\u5ba2\u6237|\u5546\u52a1\u90ae\u4ef6/.test(String(message || ""))) {
       assistantLines = [
-        "I would explain the rule first, then show a corrected sentence and one extra example.",
-        "This helps the learner understand the error instead of memorizing a one-off fix.",
-        "Next step: convert the explanation into a short practice drill for repetition."
+        `I can rewrite this message around: ${excerpt || "your email draft"}.`,
+        "First pass: make the ask explicit, trim apology loops, and end with one clear next step.",
+        "Next pass options: more polite, more concise, or more executive-friendly."
       ];
-    } else if (normalized.includes("upgrade") || normalized.includes("better") || scenarioKey === "upgrade") {
+      suggestions = ["Add subject line", "Make it more concise", "Clarify next step"];
+    } else if (normalized.includes("grammar") || normalized.includes("tense") || scenarioKey === "grammar" || /\u8bed\u6cd5|\u65f6\u6001|\u51a0\u8bcd|\u5355\u590d\u6570/.test(String(message || ""))) {
       assistantLines = [
-        "I would keep your meaning but raise the tone, precision, and sentence flow.",
-        "A stronger version can sound more academic, more concise, or more natural depending on the writing goal.",
-        "Ask for two alternatives if you want to compare direct business English with polished exam English."
+        `I would explain the grammar point inside: ${excerpt || "your sentence"}.`,
+        "Then I would show the corrected version, explain why it changes, and add one extra example.",
+        "Next step: turn the same point into a short drill for repetition."
       ];
+      suggestions = ["Explain simply", "Show two examples", "Create mini practice"];
+    } else if (normalized.includes("upgrade") || normalized.includes("better") || normalized.includes("rewrite") || normalized.includes("polish") || scenarioKey === "upgrade" || /\u6da6\u8272|\u6539\u5199|\u5347\u7ea7\u8868\u8fbe|\u66f4\u81ea\u7136|\u66f4\u5b66\u672f/.test(String(message || ""))) {
+      assistantLines = [
+        `I can keep the meaning of ${excerpt || "your line"} and raise the tone.`,
+        "The usual improvements are stronger verbs, tighter rhythm, and fewer flat filler words.",
+        "Ask for academic, business, or natural spoken tone and I can steer the next pass."
+      ];
+      suggestions = ["Academic tone", "More concise", "More persuasive"];
+    } else if (compact.length >= 220 || compact.split(/[.!?]/).filter(Boolean).length >= 4 || (containsCjkText && compact.length >= 120)) {
+      assistantLines = [
+        "You pasted a full passage, so I should work on the actual text instead of returning the generic template.",
+        `The section I would focus on first is: ${excerpt || "the passage you pasted"}.`,
+        "Next step options: summarise the claim, extract the structure, or rewrite it into a clearer academic paragraph."
+      ];
+      suggestions = ["Summarise the claim", "Extract the structure", "Rewrite directly"];
     } else {
       assistantLines = [
-        "I would first tighten the thesis so the essay has a clear position from the opening line.",
-        "Then I would fix grammar friction, upgrade topic vocabulary, and make the logic more explicit between sentences.",
-        "If you want, the next pass can turn this into a score-oriented rewrite with paragraph-by-paragraph feedback."
+        `I can work directly on: ${excerpt || "your last message"}.`,
+        "For an essay-style pass, I would tighten the position, make the paragraph logic more explicit, and cut repeated wording.",
+        "If you want, the next turn can be a direct rewrite, a band-style diagnosis, or a Chinese explanation."
       ];
+      suggestions = containsCjkText
+        ? ["Rewrite", "Line-by-line feedback", "Chinese explanation"]
+        : ["Improve thesis", "Fix grammar", "Upgrade vocabulary"];
     }
 
     return {
@@ -1308,9 +1457,10 @@
 
     currentChatScenario = key;
     setText("chat-scenario-title", scenario.title);
+    setText("chat-surface-chip", scenario.title);
     setText("chat-goal", scenario.goal);
-    setText("chat-route", scenario.route);
-    setText("chat-engine", scenario.engine);
+    setText("chat-route", getRuntimeRouteLabel("chat", scenario.route));
+    setText("chat-engine", getChatRuntimeEngineLabel() || scenario.engine);
     renderAnalysisList("chat-suggestions", scenario.suggestions);
     renderChatStarters(scenario.starters);
     renderDeliverables(scenario.deliverables);
@@ -1418,7 +1568,10 @@
 
   function renderQuizResult(payload) {
     setText("quiz-output-title", payload.outputTitle);
-    setText("quiz-route-chip", payload.routeLabel || quizModes[currentQuizMode].route);
+    setText(
+      "quiz-route-chip",
+      payload.routeLabel || getRuntimeRouteLabel(currentQuizMode === "quiz" ? "quiz" : "deepSolve", quizModes[currentQuizMode].route)
+    );
 
     const blocks = document.getElementById("quiz-output-blocks");
     const scores = document.getElementById("quiz-score-grid");
@@ -1475,10 +1628,11 @@
     currentQuizMode = modeKey;
     syncQuizModeTabs(modeKey);
     setText("quiz-eyebrow", mode.eyebrow);
+    setText("quiz-mode-chip", mode.eyebrow);
     setText("quiz-title", mode.title);
     setText("quiz-prompt", helperText);
     setText("quiz-run-label", mode.actionLabel);
-    setText("quiz-route-chip", mode.route);
+    setText("quiz-route-chip", getRuntimeRouteLabel(modeKey === "quiz" ? "quiz" : "deepSolve", mode.route));
     if (promptInput && (!options || !options.preservePrompt || !String(promptInput.value || "").trim())) {
       promptInput.value = nextPrompt;
     }
@@ -1508,24 +1662,7 @@
   }
 
   function updateRuntimeLabels() {
-    const label = runtimeInfo.proxyEnabled
-      ? "DeepTutor live"
-      : runtimeInfo.mode === "mock"
-        ? "BFF mock mode"
-        : runtimeInfo.mode === "file"
-          ? "Local preview"
-          : "UI fallback";
-    const tone = runtimeInfo.proxyEnabled
-      ? "is-live"
-      : runtimeInfo.mode === "file"
-        ? "is-file"
-        : "is-demo";
-
-    [
-      document.getElementById("chat-runtime"),
-      document.getElementById("kb-runtime"),
-      document.getElementById("quiz-runtime")
-    ].forEach((badge) => setBadge(badge, label, tone));
+    applyRuntimeSurfaceState();
   }
 
   function initAuth() {
@@ -1724,8 +1861,8 @@
       }
 
       if (runtimeBadge) {
-        const tone = payload.mode === "proxy" ? "is-live" : "is-demo";
-        const label = payload.mode === "proxy" ? "DeepTutor live" : "Demo fallback";
+        const tone = payload.mode === "proxy" ? "is-live" : payload.mode === "mock" ? "is-file" : "is-demo";
+        const label = payload.mode === "proxy" ? "DeepTutor live" : payload.mode === "mock" ? "BFF mock mode" : "Demo fallback";
         setBadge(runtimeBadge, label, tone);
       }
 
@@ -1829,7 +1966,8 @@
     syncKnowledgeSurface();
     renderUploadQueue([]);
     hideUploadProgress();
-    setBadge(runtimeBadge, runtimeInfo.apiAvailable ? "Mate KB" : "Local preview", runtimeInfo.apiAvailable ? "is-live" : "is-demo");
+    const kbRuntimeState = getSurfaceRuntimeState("kb");
+    setBadge(runtimeBadge, kbRuntimeState.label, kbRuntimeState.tone);
 
     requestJson(
       "/api/kb/documents",
@@ -2265,7 +2403,11 @@
       );
 
       renderQuizResult(payload);
-      setBadge(runtimeBadge, payload.mode === "proxy" ? "DeepTutor live" : "Demo fallback", payload.mode === "proxy" ? "is-live" : "is-demo");
+      setBadge(
+        runtimeBadge,
+        payload.mode === "proxy" ? "DeepTutor live" : payload.mode === "mock" ? "BFF mock mode" : "Demo fallback",
+        payload.mode === "proxy" ? "is-live" : payload.mode === "mock" ? "is-file" : "is-demo"
+      );
       runButton.disabled = false;
     });
   }
@@ -2285,6 +2427,6 @@
     initChat();
     initKnowledgeBase();
     initQuiz();
-    updateRuntimeLabels();
+    applyRuntimeSurfaceState();
   });
 })();

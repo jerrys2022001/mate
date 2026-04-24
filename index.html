@@ -12,7 +12,7 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body data-page="auth">
@@ -60,6 +60,27 @@
             <a class="secondary-button" href="chat.html">Open Study Chat</a>
           </div>
 
+          <ul class="hero-benefits reveal">
+            <li>Local login with session restore across the whole workspace</li>
+            <li>Study Chat, Knowledge Base, Deep Solve, and Quiz in one connected flow</li>
+            <li>Mock-safe AI surfaces even when the upstream DeepTutor service is offline</li>
+          </ul>
+
+          <div class="hero-metrics reveal">
+            <div>
+              <strong>4 work surfaces</strong>
+              <span>chat, sources, deep solve, and quiz in one product</span>
+            </div>
+            <div>
+              <strong>Account-based state</strong>
+              <span>local sessions, user-scoped files, and session restore</span>
+            </div>
+            <div>
+              <strong>Mock-safe runtime</strong>
+              <span>the UI stays usable when the live AI backend is unavailable</span>
+            </div>
+          </div>
+
           <div class="hero-chip-row">
             <button class="pill-button is-active" type="button" data-pain-key="ielts">IELTS / TOEFL / SAT</button>
             <button class="pill-button" type="button" data-pain-key="email">Business Email</button>
@@ -70,6 +91,7 @@
           <div class="hero-story-card hero-story-inline">
             <div class="story-badge" id="pain-badge">Exam Writing</div>
             <h2 id="pain-title">Turn messy essay drafts into score-ready writing.</h2>
+            <p id="pain-copy">Structure, grammar, rewrite.</p>
             <div class="story-output" id="pain-output">
               "Your introduction is clear, but the thesis is too broad. Here is a tighter version that sounds more academic."
             </div>
