@@ -2599,8 +2599,15 @@
     const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
     const canListen = Boolean(SpeechRecognitionCtor);
     const canSpeak = Boolean(window.speechSynthesis && window.SpeechSynthesisUtterance);
+    const voiceIdleTimeoutMs = 60000;
     let recognition = null;
     let isListening = false;
+    let isRecognitionRunning = false;
+    let voiceStopRequested = false;
+    let voiceStopStatusText = "";
+    let voiceStopStatusTone = "is-file";
+    let voiceIdleTimer = null;
+    let voiceLastActivityAt = 0;
     let voiceBaseText = "";
     let voiceFinalText = "";
 
@@ -2677,29 +2684,104 @@
       textarea.setSelectionRange(textarea.value.length, textarea.value.length);
     }
 
+    function clearVoiceIdleTimer() {
+      if (voiceIdleTimer) {
+        window.clearTimeout(voiceIdleTimer);
+        voiceIdleTimer = null;
+      }
+    }
+
+    function scheduleVoiceIdleTimer() {
+      clearVoiceIdleTimer();
+
+      if (!isListening || !voiceLastActivityAt) {
+        return;
+      }
+
+      const idleMs = Date.now() - voiceLastActivityAt;
+      const remainingMs = Math.max(1, voiceIdleTimeoutMs - idleMs);
+
+      voiceIdleTimer = window.setTimeout(function () {
+        if (!isListening || !voiceLastActivityAt) {
+          return;
+        }
+
+        if (Date.now() - voiceLastActivityAt >= voiceIdleTimeoutMs) {
+          stopVoiceInput("Stopped after 1 min silence", "is-demo");
+          return;
+        }
+
+        scheduleVoiceIdleTimer();
+      }, remainingMs);
+    }
+
+    function markVoiceActivity() {
+      voiceLastActivityAt = Date.now();
+      scheduleVoiceIdleTimer();
+    }
+
+    function stopVoiceInput(statusText, tone) {
+      voiceStopRequested = true;
+      voiceStopStatusText = statusText || (canSpeak ? "Read aloud ready" : "Voice input ready");
+      voiceStopStatusTone = tone || "is-file";
+      isListening = false;
+      voiceLastActivityAt = 0;
+      clearVoiceIdleTimer();
+
+      if (recognition && isRecognitionRunning) {
+        recognition.stop();
+      }
+
+      updateSpeechStatus(voiceStopStatusText, voiceStopStatusTone);
+      syncSpeechButtons();
+    }
+
+    function startRecognitionEngine() {
+      const nextRecognition = ensureRecognition();
+
+      if (!nextRecognition || isRecognitionRunning || !isListening) {
+        return;
+      }
+
+      try {
+        nextRecognition.start();
+      } catch (error) {
+        if (error && error.name === "InvalidStateError") {
+          return;
+        }
+
+        stopVoiceInput("Voice input unavailable", "is-demo");
+      }
+    }
+
     function ensureRecognition() {
       if (recognition || !canListen) {
         return recognition;
       }
 
       recognition = new SpeechRecognitionCtor();
-      recognition.continuous = false;
+      recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = navigator.language || "en-US";
 
       recognition.addEventListener("start", function () {
+        isRecognitionRunning = true;
         isListening = true;
-        voiceBaseText = textarea.value.trim();
-        voiceFinalText = "";
-        updateSpeechStatus("Listening", "is-live");
+        voiceStopRequested = false;
+        voiceStopStatusText = "";
+        voiceStopStatusTone = "is-file";
+        updateSpeechStatus("Listening - auto stops after 1 min silence", "is-live");
+        scheduleVoiceIdleTimer();
         syncSpeechButtons();
       });
 
       recognition.addEventListener("result", function (event) {
         let interimText = "";
+        let hasSpeechResult = false;
 
         for (let index = event.resultIndex; index < event.results.length; index += 1) {
           const transcript = event.results[index][0] ? event.results[index][0].transcript : "";
+          hasSpeechResult = hasSpeechResult || Boolean(transcript.trim());
 
           if (event.results[index].isFinal) {
             voiceFinalText = `${voiceFinalText} ${transcript}`.trim();
@@ -2708,16 +2790,41 @@
           }
         }
 
+        if (hasSpeechResult) {
+          markVoiceActivity();
+        }
+
         setTextareaVoiceDraft(`${voiceFinalText} ${interimText}`);
       });
 
-      recognition.addEventListener("error", function () {
-        updateSpeechStatus("Voice input unavailable", "is-demo");
+      recognition.addEventListener("error", function (event) {
+        if (event && ["audio-capture", "not-allowed", "service-not-allowed"].includes(event.error)) {
+          stopVoiceInput("Voice input unavailable", "is-demo");
+          return;
+        }
+
+        if (isListening) {
+          updateSpeechStatus("Voice input paused - retrying", "is-demo");
+        } else {
+          updateSpeechStatus("Voice input unavailable", "is-demo");
+        }
       });
 
       recognition.addEventListener("end", function () {
+        isRecognitionRunning = false;
+
+        if (isListening && !voiceStopRequested) {
+          updateSpeechStatus("Listening - waiting for speech", "is-live");
+          window.setTimeout(startRecognitionEngine, 250);
+          syncSpeechButtons();
+          return;
+        }
+
+        clearVoiceIdleTimer();
         isListening = false;
-        updateSpeechStatus(canSpeak ? "Read aloud ready" : "Voice input ready", "is-file");
+        updateSpeechStatus(voiceStopStatusText || (canSpeak ? "Read aloud ready" : "Voice input ready"), voiceStopStatusTone || "is-file");
+        voiceStopStatusText = "";
+        voiceStopStatusTone = "is-file";
         syncSpeechButtons();
       });
 
@@ -2767,15 +2874,14 @@
     }
 
     function stopVoiceTools() {
-      if (isListening && recognition) {
-        recognition.stop();
+      if (isListening) {
+        stopVoiceInput(canSpeak ? "Read aloud ready" : "Voice ready", "is-file");
       }
 
       if (canSpeak) {
         window.speechSynthesis.cancel();
       }
 
-      isListening = false;
       updateSpeechStatus(canSpeak ? "Read aloud ready" : "Voice ready", "is-file");
       syncSpeechButtons();
     }
@@ -2811,8 +2917,8 @@
 
     if (voiceInputButton) {
       voiceInputButton.addEventListener("click", function () {
-        if (isListening && recognition) {
-          recognition.stop();
+        if (isListening) {
+          stopVoiceInput("Voice input stopped", "is-file");
           return;
         }
 
@@ -2823,12 +2929,15 @@
           return;
         }
 
-        try {
-          nextRecognition.start();
-        } catch (error) {
-          updateSpeechStatus("Voice input unavailable", "is-demo");
-          syncSpeechButtons();
-        }
+        voiceBaseText = textarea.value.trim();
+        voiceFinalText = "";
+        isListening = true;
+        voiceStopRequested = false;
+        voiceLastActivityAt = Date.now();
+        updateSpeechStatus("Listening - auto stops after 1 min silence", "is-live");
+        scheduleVoiceIdleTimer();
+        startRecognitionEngine();
+        syncSpeechButtons();
       });
     }
 
