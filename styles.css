@@ -7232,6 +7232,9 @@ body[data-page="auth"] .final-cta {
 .quiz-bank-card {
   display: grid;
   gap: 16px;
+  margin-top: clamp(18px, 3vw, 32px);
+  padding-top: clamp(18px, 2.6vw, 28px);
+  border-top: 1px solid var(--line);
 }
 
 .quiz-bank-head {
