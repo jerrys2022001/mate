@@ -417,6 +417,7 @@
       sourceText: "Band 7 and above responses maintain a clear position, strong cohesion, varied vocabulary, and a high level of grammatical control.",
       tags: ["exam", "ielts", "rubric", "starter"],
       onlineName: "IELTS Writing Band Descriptors.pdf",
+      downloadName: "IELTS Writing Band Descriptors.pdf",
       sourceOrigin: "starter",
       sourceUrl: "https://ielts.org/-/media/pdfs/writing-band-descriptors-task-2.ashx"
     },
@@ -429,6 +430,7 @@
       sourceText: "Use a calm opener, state the update directly, explain the reason briefly, and end with a clear next step or request.",
       tags: ["business", "email", "tone", "starter"],
       onlineName: "Purdue OWL Sample Emails.html",
+      downloadName: "Purdue OWL Sample Emails.html",
       sourceOrigin: "starter",
       sourceUrl: "https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/business_writing_for_administrative_and_clerical_staff/sample_emails.html"
     },
@@ -441,6 +443,7 @@
       sourceText: "Strong essays define the position early, develop one main idea per paragraph, and connect examples back to the thesis.",
       tags: ["essay", "writing", "examples", "starter"],
       onlineName: "British Council IELTS Writing Practice.html",
+      downloadName: "British Council IELTS Writing Practice.html",
       sourceOrigin: "starter",
       sourceUrl: "https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-english-practice-tests/writing/academic"
     }
@@ -696,7 +699,7 @@
   }
 
   function getDocumentDownloadName(document) {
-    const rawName = String(document && document.name ? document.name : "mate-document.txt").trim();
+    const rawName = String(document && (document.downloadName || document.name) ? document.downloadName || document.name : "mate-document.txt").trim();
     return rawName || "mate-document.txt";
   }
 
@@ -707,7 +710,14 @@
   }
 
   function canExportDocumentLocally(document) {
-    return Boolean(document && (document.sourceText || document.summary || document.name));
+    return Boolean(
+      document
+      && !document.sourceUrl
+      && !document.storagePath
+      && !document.fileSize
+      && document.sourceOrigin !== "starter"
+      && (document.sourceText || document.summary || document.name)
+    );
   }
 
   function buildLocalDocumentExport(document) {
@@ -735,6 +745,24 @@
     window.setTimeout(function () {
       URL.revokeObjectURL(url);
     }, 1000);
+  }
+
+  function hasSourceDownloadUrl(document) {
+    return Boolean(document && document.sourceUrl && /^https?:\/\//i.test(String(document.sourceUrl)));
+  }
+
+  function downloadFromSourceUrl(document) {
+    const link = document.createElement("a");
+    link.href = document.sourceUrl;
+    link.download = getDocumentDownloadName(document);
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    return {
+      mode: "source"
+    };
   }
 
   function truncate(value, maxLength) {
@@ -1809,6 +1837,10 @@
     }
 
     if (apiError) {
+      if (hasSourceDownloadUrl(kbDocument)) {
+        return downloadFromSourceUrl(kbDocument);
+      }
+
       if (!canExportDocumentLocally(kbDocument)) {
         throw apiError;
       }
@@ -1841,6 +1873,10 @@
         // Keep the generic message for non-JSON download errors.
       }
       if (!canExportDocumentLocally(kbDocument)) {
+        if (hasSourceDownloadUrl(kbDocument)) {
+          return downloadFromSourceUrl(kbDocument);
+        }
+
         throw new Error(message);
       }
 
@@ -3834,6 +3870,7 @@
           ${group.documents.map((document) => {
             const canDownload = document.downloadable !== false && !String(document.id || "").startsWith("deeptutor:");
             const canDelete = canDeleteKnowledgeDocument(document);
+            const downloadLabel = canExportDocumentLocally(document) && !hasSourceDownloadUrl(document) ? "Export note" : "Download";
             return `
             <article class="doc-item">
               <div class="doc-top">
@@ -3853,7 +3890,7 @@
               <div class="doc-footer">
                 <span class="doc-origin">${escapeHtml(document.sourceOrigin || "personal")}</span>
                 <div class="doc-actions">
-                  ${canDownload ? `<button class="secondary-button doc-action-button" type="button" data-doc-action="download" data-doc-id="${escapeAttribute(document.id)}">Download</button>` : ""}
+                  ${canDownload ? `<button class="secondary-button doc-action-button" type="button" data-doc-action="download" data-doc-id="${escapeAttribute(document.id)}">${downloadLabel}</button>` : ""}
                   ${document.editable ? `
                     <button class="secondary-button doc-action-button" type="button" data-doc-action="rename" data-doc-id="${escapeAttribute(document.id)}">Rename</button>
                     <button class="secondary-button doc-action-button is-danger" type="button" data-doc-action="delete" data-doc-id="${escapeAttribute(document.id)}">Delete</button>
@@ -5756,6 +5793,38 @@
       return;
     }
 
+    function findSampleForDocument(document) {
+      if (!document) {
+        return null;
+      }
+
+      const documentUrl = normalizeKbSourceUrl(document.sourceUrl);
+      return kbSamples.find((sample) => {
+        return sample.id === document.id
+          || sample.id === document.sampleId
+          || (documentUrl && normalizeKbSourceUrl(sample.sourceUrl) === documentUrl);
+      }) || null;
+    }
+
+    function applyClientKnowledgeDefaults(document) {
+      const sample = findSampleForDocument(document);
+
+      if (!sample) {
+        return document;
+      }
+
+      return Object.assign({}, document, {
+        sourceUrl: document.sourceUrl || sample.sourceUrl || "",
+        downloadName: document.downloadName || sample.downloadName || sample.onlineName || sample.name
+      });
+    }
+
+    function setActiveDocuments(documents) {
+      if (Array.isArray(documents)) {
+        activeDocs = documents.map(applyClientKnowledgeDefaults);
+      }
+    }
+
     function updateUploadStatus(text, tone) {
       setBadge(uploadStatus, text, tone);
     }
@@ -6070,7 +6139,7 @@
           }
         });
 
-        activeDocs = payload.documents || activeDocs;
+        setActiveDocuments(payload.documents);
         syncKnowledgeSurface();
         updateDocStatus("Document removed", payload.mode === "proxy" ? "is-live" : "is-file");
       } catch (error) {
@@ -6124,7 +6193,7 @@
         };
       }
     ).then((payload) => {
-      activeDocs = payload.documents || activeDocs;
+      setActiveDocuments(payload.documents);
       syncKnowledgeSurface();
       setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : payload.mode === "mock" ? "Local store" : "Ready", payload.mode === "proxy" ? "is-live" : "is-demo");
     });
@@ -6150,7 +6219,10 @@
 
           try {
             const result = await downloadDocumentFile(targetDocument);
-            updateDocStatus(result && result.mode === "local" ? "Exported local note" : "Download ready", result && result.mode === "local" ? "is-file" : "is-live");
+            updateDocStatus(
+              result && result.mode === "local" ? "Exported local note" : result && result.mode === "source" ? "Opened source file" : "Download ready",
+              result && result.mode === "local" ? "is-file" : "is-live"
+            );
           } catch (error) {
             updateDocStatus(error.message || "Download failed", "is-demo");
           } finally {
@@ -6180,7 +6252,7 @@
               })
             });
 
-            activeDocs = payload.documents || activeDocs;
+            setActiveDocuments(payload.documents);
             syncKnowledgeSurface();
             updateDocStatus("Document renamed", payload.mode === "proxy" ? "is-live" : "is-file");
           } catch (error) {
@@ -6313,7 +6385,7 @@
           };
         }
 
-        activeDocs = payload.documents || activeDocs;
+        setActiveDocuments(payload.documents);
         syncKnowledgeSurface();
         setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : payload.mode === "mock" ? "Local store" : "Ready", payload.mode === "proxy" ? "is-live" : "is-demo");
         setUploadProgress(100, payload.skippedCount ? "Upload checked; duplicates skipped" : payload.mode === "proxy" ? "Upload completed and synced" : payload.mode === "mock" ? "Upload saved locally" : "Upload saved");
@@ -6363,6 +6435,7 @@
                 summary: sample.summary,
                 sourceText: sample.sourceText,
                 tags: sample.tags || [],
+                downloadName: sample.downloadName || sample.onlineName || sample.name,
                 sourceUrl: sample.sourceUrl || ""
               })
             },
@@ -6387,6 +6460,7 @@
                     status: "Queued for indexing",
                     sourceText: sample.sourceText,
                     sourceUrl: sample.sourceUrl || "",
+                    downloadName: sample.downloadName || sample.onlineName || sample.name,
                     tags: sample.tags || [],
                     sourceOrigin: "personal",
                     editable: false
@@ -6396,7 +6470,7 @@
             }
           );
 
-          activeDocs = payload.documents || activeDocs;
+          setActiveDocuments(payload.documents);
           syncKnowledgeSurface();
           updateDocStatus(payload.duplicate ? "Sample already in knowledge base" : "Sample added to knowledge base", payload.duplicate ? "is-file" : "is-live");
           setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : payload.duplicate ? "Already added" : "Ready", payload.mode === "proxy" ? "is-live" : "is-file");
@@ -6442,6 +6516,7 @@
                 sampleId: sample.id,
                 sourceUrl: sample.sourceUrl,
                 name: getOnlineSampleName(sample),
+                downloadName: sample.downloadName || getOnlineSampleName(sample),
                 type: sample.type,
                 summary: sample.summary,
                 sourceText: sample.sourceText,
@@ -6450,7 +6525,7 @@
             }
           );
 
-          activeDocs = payload.documents || activeDocs;
+          setActiveDocuments(payload.documents);
           syncKnowledgeSurface();
           updateDocStatus(payload.duplicate ? "Online source already in knowledge base" : "Online source added to knowledge base", payload.duplicate ? "is-file" : "is-live");
           setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : payload.duplicate ? "Already added" : "Ready", payload.mode === "proxy" ? "is-live" : "is-file");
@@ -6527,7 +6602,7 @@
           }
         );
 
-        activeDocs = payload.documents || activeDocs;
+        setActiveDocuments(payload.documents);
         syncKnowledgeSurface();
         setBadge(entryStatus, payload.mode === "proxy" ? "Saved to DeepTutor" : "Saved", payload.mode === "proxy" ? "is-live" : "is-demo");
         setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : "Local store", payload.mode === "proxy" ? "is-live" : "is-demo");

@@ -53,6 +53,21 @@ const mimeTypes = {
 
 loadDotEnv(path.join(ROOT_DIR, ".env"));
 
+const kbSeedSourceDefaults = {
+  rubric: {
+    sourceUrl: "https://ielts.org/-/media/pdfs/writing-band-descriptors-task-2.ashx",
+    downloadName: "IELTS Writing Band Descriptors.pdf"
+  },
+  emails: {
+    sourceUrl: "https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/business_writing_for_administrative_and_clerical_staff/sample_emails.html",
+    downloadName: "Purdue OWL Sample Emails.html"
+  },
+  "essay-bank": {
+    sourceUrl: "https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-english-practice-tests/writing/academic",
+    downloadName: "British Council IELTS Writing Practice.html"
+  }
+};
+
 const kbSeedDocuments = [
   {
     id: "rubric",
@@ -61,6 +76,8 @@ const kbSeedDocuments = [
     status: "Indexed and ready",
     summary: "Official scoring criteria for task response, coherence, lexical resource, and grammar.",
     sourceText: "Band descriptors for exam writing evaluation.",
+    sourceUrl: kbSeedSourceDefaults.rubric.sourceUrl,
+    downloadName: kbSeedSourceDefaults.rubric.downloadName,
     tags: ["exam", "ielts", "rubric", "starter"]
   },
   {
@@ -70,6 +87,8 @@ const kbSeedDocuments = [
     status: "Synced to KB",
     summary: "Approved phrasing patterns for client updates, scheduling, escalation, and follow-up emails.",
     sourceText: "Use concise, polite, business-friendly language with a clear next step.",
+    sourceUrl: kbSeedSourceDefaults.emails.sourceUrl,
+    downloadName: kbSeedSourceDefaults.emails.downloadName,
     tags: ["business", "email", "tone", "starter"]
   },
   {
@@ -79,6 +98,8 @@ const kbSeedDocuments = [
     status: "Chunked into examples",
     summary: "High-quality introductions, body paragraphs, and conclusion structures for common writing prompts.",
     sourceText: "Examples of strong introductions, body logic, and conclusions.",
+    sourceUrl: kbSeedSourceDefaults["essay-bank"].sourceUrl,
+    downloadName: kbSeedSourceDefaults["essay-bank"].downloadName,
     tags: ["essay", "examples", "writing", "starter"]
   }
 ];
@@ -150,8 +171,21 @@ function loadJsonArray(filePath, seedValue) {
   return seedValue.slice();
 }
 
+function applyKbSeedSourceDefaults(document) {
+  const defaults = document ? kbSeedSourceDefaults[document.id] || kbSeedSourceDefaults[document.sampleId] : null;
+
+  if (!document || !defaults) {
+    return document;
+  }
+
+  return Object.assign({}, document, {
+    sourceUrl: document.sourceUrl || defaults.sourceUrl,
+    downloadName: document.downloadName || defaults.downloadName
+  });
+}
+
 function loadKbDocuments() {
-  return loadJsonArray(KB_DATA_PATH, kbSeedDocuments);
+  return loadJsonArray(KB_DATA_PATH, kbSeedDocuments).map(applyKbSeedSourceDefaults);
 }
 
 function saveKbDocuments() {
@@ -2019,6 +2053,8 @@ function buildKnowledgeNotePayload(payload) {
   const sourceText = String(payload.sourceText || "").trim();
   const sampleId = String(payload.sampleId || "").trim();
   const sourceUrl = String(payload.sourceUrl || "").trim().slice(0, 2048);
+  const rawDownloadName = String(payload.downloadName || "").trim();
+  const downloadName = rawDownloadName ? sanitizeUploadFileName(rawDownloadName).slice(0, 180) : "";
   const tags = Array.isArray(payload.tags)
     ? payload.tags
     : String(payload.tags || "")
@@ -2033,6 +2069,7 @@ function buildKnowledgeNotePayload(payload) {
     sourceText,
     sampleId,
     sourceUrl,
+    downloadName,
     tags: Array.from(new Set(tags)).slice(0, 6)
   };
 }
@@ -2472,6 +2509,7 @@ function createLocalKbDocument(note, options) {
     sourceText: note.sourceText,
     sampleId: note.sampleId || null,
     sourceUrl: note.sourceUrl || null,
+    downloadName: note.downloadName || null,
     tags: Array.isArray(note.tags) ? note.tags.slice(0, 6) : [],
     createdAt: new Date().toISOString(),
     userId: options.userId || null,
@@ -2864,7 +2902,81 @@ function buildTextExportFileName(document) {
   return sanitizeUploadFileName(`${parsed.name || "mate-note"}.txt`);
 }
 
-function buildDownloadPayload(document, user) {
+function buildSourceDownloadFileName(document, response, sourceUrl, mimeType) {
+  if (document.downloadName) {
+    return sanitizeUploadFileName(document.downloadName);
+  }
+
+  const dispositionName = getFileNameFromContentDisposition(response.headers.get("content-disposition"));
+  if (dispositionName) {
+    return sanitizeUploadFileName(dispositionName);
+  }
+
+  const requestedName = String(document.name || "").trim();
+  if (requestedName && path.extname(requestedName)) {
+    return sanitizeUploadFileName(requestedName);
+  }
+
+  const pathnameName = path.basename(decodeURIComponent(sourceUrl.pathname || ""));
+  if (pathnameName && pathnameName !== "/" && pathnameName !== ".") {
+    const hasExt = Boolean(path.extname(pathnameName));
+    return sanitizeUploadFileName(hasExt ? pathnameName : `${pathnameName}${inferFileExtensionFromMimeType(mimeType)}`);
+  }
+
+  return sanitizeUploadFileName(`mate-source-${Date.now()}${inferFileExtensionFromMimeType(mimeType)}`);
+}
+
+async function fetchKnowledgeSourceDownload(document) {
+  const sourceUrl = parseOnlineImportUrl(document.sourceUrl);
+  const timeout = createTimeoutController(deepTutorConfig.requestTimeoutMs);
+
+  try {
+    const response = await fetch(sourceUrl.toString(), {
+      method: "GET",
+      redirect: "follow",
+      headers: {
+        Accept: "application/pdf,text/html,text/plain,text/markdown,text/csv,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,*/*"
+      },
+      signal: timeout.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(`Source file returned HTTP ${response.status}.`);
+    }
+
+    const contentLength = Number(response.headers.get("content-length") || 0);
+    if (contentLength > ONLINE_IMPORT_LIMIT_BYTES) {
+      throw new Error(`Source file is larger than ${formatFileSize(ONLINE_IMPORT_LIMIT_BYTES)}.`);
+    }
+
+    const mimeType = String(response.headers.get("content-type") || document.mimeType || "application/octet-stream").split(";")[0].trim() || "application/octet-stream";
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    if (!buffer.length) {
+      throw new Error("Source file was empty.");
+    }
+
+    if (buffer.length > ONLINE_IMPORT_LIMIT_BYTES) {
+      throw new Error(`Source file is larger than ${formatFileSize(ONLINE_IMPORT_LIMIT_BYTES)}.`);
+    }
+
+    return {
+      buffer,
+      fileName: buildSourceDownloadFileName(document, response, sourceUrl, mimeType),
+      mimeType
+    };
+  } catch (error) {
+    if (error && error.name === "AbortError") {
+      throw new Error("Source file download timed out.");
+    }
+
+    throw error;
+  } finally {
+    timeout.cancel();
+  }
+}
+
+async function buildDownloadPayload(document, user) {
   if (document.storagePath) {
     const absolutePath = resolveStoredWorkspacePath(document.storagePath);
 
@@ -2877,6 +2989,10 @@ function buildDownloadPayload(document, user) {
       fileName: buildDownloadFileName(document),
       mimeType: document.mimeType || "application/octet-stream"
     };
+  }
+
+  if (document.sourceUrl) {
+    return fetchKnowledgeSourceDownload(document);
   }
 
   const body = [
@@ -2896,7 +3012,7 @@ function buildDownloadPayload(document, user) {
   };
 }
 
-function downloadKnowledgeDocument(documentId, user) {
+async function downloadKnowledgeDocument(documentId, user) {
   const document = getDownloadableKnowledgeDocument(documentId, user);
 
   if (!document || String(document.id || "").startsWith("deeptutor:")) {
@@ -3258,7 +3374,7 @@ async function handleApi(req, res, pathname) {
 
   if (kbDocumentDownloadMatch && req.method === "GET") {
     try {
-      const download = downloadKnowledgeDocument(decodeURIComponent(kbDocumentDownloadMatch[1]), authContext.user);
+      const download = await downloadKnowledgeDocument(decodeURIComponent(kbDocumentDownloadMatch[1]), authContext.user);
       sendBinary(res, 200, download.buffer, {
         "Content-Disposition": `attachment; filename="${download.fileName}"`,
         "Content-Type": download.mimeType
