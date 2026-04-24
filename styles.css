@@ -6923,3 +6923,46 @@ label .voice-input-shell,
     gap: 16px;
   }
 }
+
+/* Homepage section density: use separators instead of large blank gaps. */
+body[data-page="auth"] .page {
+  gap: 0;
+}
+
+body[data-page="auth"] .hero.hero-auth {
+  padding-bottom: 36px;
+}
+
+body[data-page="auth"] .section-block {
+  padding-top: 38px;
+  padding-bottom: 42px;
+  border-top: 1px solid var(--line) !important;
+}
+
+body[data-page="auth"] .feature-split {
+  gap: clamp(32px, 5vw, 64px);
+}
+
+body[data-page="auth"] .feature-copy {
+  gap: 14px;
+}
+
+body[data-page="auth"] .feature-lead {
+  margin-top: -2px;
+}
+
+body[data-page="auth"] .workspace-block,
+body[data-page="auth"] .final-cta {
+  padding-top: 34px;
+}
+
+@media (max-width: 760px) {
+  body[data-page="auth"] .hero.hero-auth {
+    padding-bottom: 28px;
+  }
+
+  body[data-page="auth"] .section-block {
+    padding-top: 28px;
+    padding-bottom: 32px;
+  }
+}
