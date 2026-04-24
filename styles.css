@@ -6250,3 +6250,54 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+/* Workspace hero and priority ordering: show the interactive surface earlier on desktop. */
+@media (min-width: 1101px) {
+  body[data-page="chat"] .app-hero,
+  body[data-page="kb"] .app-hero,
+  body[data-page="quiz"] .app-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    padding-top: 10px;
+    padding-bottom: 8px;
+  }
+
+  body[data-page="chat"] .app-hero h1,
+  body[data-page="kb"] .app-hero h1,
+  body[data-page="quiz"] .app-hero h1 {
+    max-width: 13ch;
+    font-size: clamp(2.15rem, 3.5vw, 3.3rem);
+  }
+
+  body[data-page="chat"] .app-hero .hero-lead,
+  body[data-page="kb"] .app-hero .hero-lead,
+  body[data-page="quiz"] .app-hero .hero-lead {
+    max-width: 34rem;
+  }
+
+  body[data-page="chat"] .workspace-brief,
+  body[data-page="kb"] .workspace-brief,
+  body[data-page="quiz"] .workspace-brief {
+    gap: 14px;
+    padding-bottom: 18px;
+  }
+
+  body[data-page="chat"] .workspace-brief-card,
+  body[data-page="kb"] .workspace-brief-card,
+  body[data-page="quiz"] .workspace-brief-card {
+    gap: 8px;
+    padding: 18px;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-main > .kb-card:last-of-type {
+    order: 1;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-main > .dropzone {
+    order: 2;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-main > .kb-card:not(:last-of-type) {
+    order: 3;
+  }
+}
