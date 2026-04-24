@@ -439,21 +439,63 @@
   const kbCards = [
     {
       title: "Rubrics",
-      meta: "Band guides and score notes."
+      meta: "Band guides, scoring criteria, and quick-check note sets.",
+      filters: ["starter", "notes"]
     },
     {
       title: "Drafts",
-      meta: "Corrected essays and samples."
+      meta: "Corrected essays, model samples, and revision references.",
+      filters: ["starter", "files"]
     },
     {
       title: "Email Guides",
-      meta: "Tone and template files."
+      meta: "Tone guides, reusable templates, and professional phrasing.",
+      filters: ["starter", "notes"]
     },
     {
       title: "Class Notes",
-      meta: "Rules, phrases, reminders."
+      meta: "Rules, phrases, reminders, and saved coaching notes.",
+      filters: ["personal", "notes"]
+    },
+    {
+      title: "My uploads",
+      meta: "Personal documents and notes you added for reuse in chat and practice.",
+      filters: ["personal", "files"]
+    },
+    {
+      title: "Quick reference notes",
+      meta: "Short summaries that surface fast while you coach, write, or revise.",
+      filters: ["personal", "notes"]
     }
   ];
+
+  const kbFilterMeta = {
+    all: {
+      label: "All docs",
+      context: "Browse starter material, uploads, files, and notes in one compact view.",
+      sideTitle: "Recent files"
+    },
+    personal: {
+      label: "My uploads",
+      context: "Focus on the files and notes saved to your personal Mate workspace.",
+      sideTitle: "My upload details"
+    },
+    starter: {
+      label: "Starter docs",
+      context: "See bundled examples, guides, and reference packs ready for quick practice.",
+      sideTitle: "Starter doc details"
+    },
+    files: {
+      label: "Files",
+      context: "Show document uploads and synced assets that are ready to download or review.",
+      sideTitle: "File details"
+    },
+    notes: {
+      label: "Notes",
+      context: "Focus on lightweight notes, saved guidance, and reusable teaching snippets.",
+      sideTitle: "Note details"
+    }
+  };
 
   const quizModes = {
     solve: {
@@ -1459,14 +1501,20 @@
     };
   }
 
-  function buildKnowledgeCards(query, documents) {
+  function buildKnowledgeCards(query, documents, filterKey) {
     const normalized = query.trim().toLowerCase();
-    const documentCards = (documents || []).map((document) => ({
-      title: `${document.type}: ${document.name}`,
-      meta: `${document.summary || "Saved in Mate knowledge base."}${getDocumentTags(document).length ? ` Tags: ${getDocumentTags(document).join(", ")}` : ""}`
-    }));
+    const scopedFilter = filterKey || "all";
+    const starterCards = kbCards.filter((card) => (
+      scopedFilter === "all" || !Array.isArray(card.filters) || card.filters.includes(scopedFilter)
+    ));
+    const documentCards = (documents || [])
+      .filter((document) => matchesKbFilter(document, scopedFilter))
+      .map((document) => ({
+        title: `${document.type}: ${document.name}`,
+        meta: `${document.summary || "Saved in Mate knowledge base."}${getDocumentTags(document).length ? ` Tags: ${getDocumentTags(document).join(", ")}` : ""}`
+      }));
 
-    return kbCards.concat(documentCards).filter((card) => {
+    return starterCards.concat(documentCards).filter((card) => {
       if (!normalized) {
         return true;
       }
@@ -1506,16 +1554,12 @@
     return Array.isArray(document.tags) ? document.tags.slice(0, 6) : [];
   }
 
-  function buildFilterLabel(filterKey) {
-    const labels = {
-      all: "All docs",
-      personal: "My uploads",
-      starter: "Starter docs",
-      files: "Files",
-      notes: "Notes"
-    };
+  function getKbFilterMeta(filterKey) {
+    return kbFilterMeta[filterKey] || kbFilterMeta.all;
+  }
 
-    return labels[filterKey] || "All docs";
+  function buildFilterLabel(filterKey) {
+    return getKbFilterMeta(filterKey).label;
   }
 
   function isFileDocument(document) {
@@ -1877,6 +1921,23 @@
   function renderKnowledgeCards(cards) {
     const grid = document.getElementById("kb-source-grid");
     if (!grid) {
+      return;
+    }
+
+    if (!cards.length) {
+      const queryInput = document.getElementById("kb-search");
+      const query = queryInput ? queryInput.value.trim() : "";
+      const filterLabel = buildFilterLabel(currentKbFilter);
+      const helper = query
+        ? `No items in ${filterLabel} match "${query}" yet. Try a broader search or switch views.`
+        : `No items are visible in ${filterLabel} yet. Upload a file or add a note to fill this view.`;
+
+      grid.innerHTML = `
+        <article class="source-card source-card--empty">
+          <h3>No library matches yet</h3>
+          <p class="source-meta">${escapeHtml(helper)}</p>
+        </article>
+      `;
       return;
     }
 
@@ -2295,6 +2356,9 @@
     const runtimeBadge = document.getElementById("kb-runtime");
     const docStatus = document.getElementById("kb-doc-status");
     const filterStatus = document.getElementById("kb-filter-status");
+    const libraryCount = document.getElementById("kb-library-count");
+    const libraryContext = document.getElementById("kb-library-context");
+    const sideTitle = document.getElementById("kb-side-title");
     const entryForm = document.getElementById("kb-entry-form");
     const entryStatus = document.getElementById("kb-entry-status");
     const dropzone = document.getElementById("kb-dropzone");
@@ -2343,22 +2407,44 @@
       uploadProgressDetail.textContent = "Waiting for upload";
     }
 
-    function updateFilterState() {
+    function updateFilterState(libraryCardCount, visibleDocCount) {
+      const meta = getKbFilterMeta(currentKbFilter);
       filterButtons.forEach((button) => {
         button.classList.toggle("is-active", button.getAttribute("data-kb-filter") === currentKbFilter);
       });
 
       if (filterStatus) {
-        setBadge(filterStatus, buildFilterLabel(currentKbFilter), "is-file");
+        setBadge(
+          filterStatus,
+          visibleDocCount > 0 ? `${meta.label} (${visibleDocCount})` : meta.label,
+          visibleDocCount > 0 ? "is-file" : "is-demo"
+        );
+      }
+
+      if (libraryContext) {
+        libraryContext.textContent = meta.context;
+      }
+
+      if (libraryCount) {
+        setBadge(
+          libraryCount,
+          `${libraryCardCount} match${libraryCardCount === 1 ? "" : "es"}`,
+          libraryCardCount > 0 ? "is-file" : "is-demo"
+        );
+      }
+
+      if (sideTitle) {
+        sideTitle.textContent = meta.sideTitle;
       }
     }
 
     function syncKnowledgeSurface() {
-      renderDocuments(activeDocs);
-      renderKnowledgeCards(buildKnowledgeCards(search.value, activeDocs));
       const visibleCount = activeDocs.filter((document) => matchesKbFilter(document, currentKbFilter)).length;
+      const libraryCards = buildKnowledgeCards(search.value, activeDocs, currentKbFilter);
+      renderDocuments(activeDocs);
+      renderKnowledgeCards(libraryCards);
       updateDocStatus(`${visibleCount} visible / ${activeDocs.length} total`, "is-file");
-      updateFilterState();
+      updateFilterState(libraryCards.length, visibleCount);
     }
 
     function setQueuedFiles(fileList) {
@@ -2717,6 +2803,8 @@
 
     search.addEventListener("input", async function () {
       const query = search.value;
+      const fallbackCards = buildKnowledgeCards(query, activeDocs, currentKbFilter);
+      const visibleCount = activeDocs.filter((document) => matchesKbFilter(document, currentKbFilter)).length;
       const payload = await requestJson(
         "/api/kb/search",
         {
@@ -2725,18 +2813,21 @@
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            query: query
+            query: query,
+            filter: currentKbFilter
           })
         },
         function () {
           return {
             mode: "demo",
-            cards: buildKnowledgeCards(query, activeDocs)
+            cards: fallbackCards
           };
         }
       );
 
-      renderKnowledgeCards(payload.cards || buildKnowledgeCards(query, activeDocs));
+      const nextCards = currentKbFilter === "all" && Array.isArray(payload.cards) ? payload.cards : fallbackCards;
+      renderKnowledgeCards(nextCards);
+      updateFilterState(nextCards.length, visibleCount);
       setBadge(runtimeBadge, payload.mode === "proxy" ? "KB search live" : "Preview", payload.mode === "proxy" ? "is-live" : "is-demo");
     });
   }

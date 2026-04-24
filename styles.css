@@ -6331,3 +6331,211 @@ body[data-page="kb"] .workspace-link-row,
 body[data-page="quiz"] .workspace-link-row {
   gap: 10px;
 }
+
+body[data-page="kb"] .kb-library-summary {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+body[data-page="kb"] .kb-library-context {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.96rem;
+  line-height: 1.5;
+  max-width: 44ch;
+}
+
+body[data-page="kb"] .workspace-shell .source-card--empty {
+  grid-column: 1 / -1;
+}
+
+body[data-page="kb"] .workspace-shell .source-card h3,
+body[data-page="kb"] .workspace-shell .doc-body h4 {
+  overflow-wrap: anywhere;
+}
+
+/* Final workspace density pass: tighter first screens, scoped KB layouts, and sticky info rails. */
+@media (min-width: 1101px) {
+  body[data-page="chat"] .page,
+  body[data-page="kb"] .page,
+  body[data-page="quiz"] .page {
+    gap: 48px;
+  }
+
+  body[data-page="chat"] .app-hero,
+  body[data-page="kb"] .app-hero,
+  body[data-page="quiz"] .app-hero {
+    gap: 8px;
+    padding-top: 0;
+    padding-bottom: 2px;
+  }
+
+  body[data-page="chat"] .app-hero h1,
+  body[data-page="kb"] .app-hero h1,
+  body[data-page="quiz"] .app-hero h1 {
+    max-width: 16ch;
+    font-size: clamp(1.95rem, 3vw, 2.85rem);
+    line-height: 0.98;
+  }
+
+  body[data-page="chat"] .app-hero .hero-lead,
+  body[data-page="kb"] .app-hero .hero-lead,
+  body[data-page="quiz"] .app-hero .hero-lead {
+    max-width: 28rem;
+    margin-top: 2px;
+    font-size: 0.98rem;
+  }
+
+  body[data-page="chat"] .workspace-shell .chat-main,
+  body[data-page="kb"] .workspace-shell .kb-main,
+  body[data-page="quiz"] .workspace-shell .quiz-main,
+  body[data-page="chat"] .workspace-shell .utility-column,
+  body[data-page="kb"] .workspace-shell .kb-side,
+  body[data-page="quiz"] .workspace-shell .quiz-side {
+    gap: 16px;
+  }
+
+  body[data-page="chat"] .workspace-shell .chat-main > *,
+  body[data-page="kb"] .workspace-shell .kb-main > *,
+  body[data-page="quiz"] .workspace-shell .quiz-main > *,
+  body[data-page="chat"] .workspace-shell .utility-column > *,
+  body[data-page="kb"] .workspace-shell .kb-side > *,
+  body[data-page="quiz"] .workspace-shell .quiz-side > * {
+    padding-top: 20px;
+  }
+
+  body[data-page="chat"] .workspace-shell .chat-main,
+  body[data-page="kb"] .workspace-shell .kb-main,
+  body[data-page="quiz"] .workspace-shell .quiz-main {
+    padding-right: 30px;
+  }
+
+  body[data-page="chat"] .workspace-shell .utility-column,
+  body[data-page="kb"] .workspace-shell .kb-side,
+  body[data-page="quiz"] .workspace-shell .quiz-side {
+    padding-left: 22px;
+  }
+
+  body[data-page="chat"] .workspace-brief,
+  body[data-page="kb"] .workspace-brief,
+  body[data-page="quiz"] .workspace-brief {
+    gap: 12px;
+    padding-top: 4px;
+    padding-bottom: 12px;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-main > .kb-card--library {
+    order: 1;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-main > .dropzone {
+    order: 2;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-main > .kb-card--entry {
+    order: 3;
+    display: block;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-card--entry .kb-entry-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 18px;
+    margin-top: 14px;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-card--entry .kb-entry-form > .field-row,
+  body[data-page="kb"] .workspace-shell .kb-card--entry .kb-entry-form > .field-block:last-of-type,
+  body[data-page="kb"] .workspace-shell .kb-card--entry .kb-entry-form > .inline-actions {
+    grid-column: 1 / -1;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-card--entry .kb-entry-form > .field-row,
+  body[data-page="kb"] .workspace-shell .kb-card--entry .kb-entry-form > .inline-actions {
+    margin-top: 0;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-card--entry .field-row {
+    gap: 16px;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-card--entry input,
+  body[data-page="kb"] .workspace-shell .kb-card--entry select,
+  body[data-page="kb"] .workspace-shell .kb-card--entry textarea {
+    padding: 14px 16px;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-card--entry #kb-entry-text {
+    min-height: 184px;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-card--library {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(260px, 0.95fr);
+    grid-template-areas:
+      "head search"
+      "filters search"
+      "results results";
+    align-items: start;
+    column-gap: 22px;
+    row-gap: 12px;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-card--library .kb-library-head {
+    grid-area: head;
+    align-items: flex-start;
+    gap: 10px 16px;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-card--library > .filter-chip-row {
+    grid-area: filters;
+    margin-top: 0;
+    align-self: start;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-card--library > .kb-search {
+    grid-area: search;
+    margin-top: 0;
+    align-self: end;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-card--library > .source-grid {
+    grid-area: results;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 18px;
+    margin-top: 0;
+  }
+
+  body[data-page="chat"] .workspace-shell .utility-column .analysis-card,
+  body[data-page="kb"] .workspace-shell .kb-side .doc-list,
+  body[data-page="quiz"] .workspace-shell .quiz-side .output-card {
+    position: sticky;
+    top: 92px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    padding-right: 6px;
+  }
+
+  body[data-page="chat"] .workspace-shell #chat-input {
+    min-height: 196px;
+  }
+
+  body[data-page="quiz"] .workspace-shell #quiz-prompt-input {
+    min-height: 260px;
+  }
+}
+
+@media (max-width: 1100px) {
+  body[data-page="kb"] .workspace-shell .kb-card--entry .kb-entry-form {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-card--library .kb-library-head {
+    align-items: flex-start;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-card--library > .source-grid {
+    grid-template-columns: 1fr;
+  }
+}
