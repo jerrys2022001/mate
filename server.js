@@ -38,6 +38,9 @@ const STATIC_ROUTES = {
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".pdf": "application/pdf",
   ".gif": "image/gif",
   ".html": "text/html; charset=utf-8",
   ".ico": "image/x-icon",
@@ -56,15 +59,18 @@ loadDotEnv(path.join(ROOT_DIR, ".env"));
 const kbSeedSourceDefaults = {
   rubric: {
     sourceUrl: "https://ielts.org/-/media/pdfs/writing-band-descriptors-task-2.ashx",
-    downloadName: "IELTS Writing Band Descriptors.pdf"
+    downloadName: "IELTS Writing Band Descriptors.pdf",
+    downloadUrl: "assets/kb-starter/ielts-writing-band-descriptors.pdf"
   },
   emails: {
     sourceUrl: "https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/business_writing_for_administrative_and_clerical_staff/sample_emails.html",
-    downloadName: "Purdue OWL Sample Emails.html"
+    downloadName: "Business Email Tone Guide.docx",
+    downloadUrl: "assets/kb-starter/business-email-tone-guide.docx"
   },
   "essay-bank": {
     sourceUrl: "https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-english-practice-tests/writing/academic",
-    downloadName: "British Council IELTS Writing Practice.html"
+    downloadName: "Top Essays Collection.docx",
+    downloadUrl: "assets/kb-starter/top-essays-collection.docx"
   }
 };
 
@@ -78,6 +84,7 @@ const kbSeedDocuments = [
     sourceText: "Band descriptors for exam writing evaluation.",
     sourceUrl: kbSeedSourceDefaults.rubric.sourceUrl,
     downloadName: kbSeedSourceDefaults.rubric.downloadName,
+    downloadUrl: kbSeedSourceDefaults.rubric.downloadUrl,
     tags: ["exam", "ielts", "rubric", "starter"]
   },
   {
@@ -89,6 +96,7 @@ const kbSeedDocuments = [
     sourceText: "Use concise, polite, business-friendly language with a clear next step.",
     sourceUrl: kbSeedSourceDefaults.emails.sourceUrl,
     downloadName: kbSeedSourceDefaults.emails.downloadName,
+    downloadUrl: kbSeedSourceDefaults.emails.downloadUrl,
     tags: ["business", "email", "tone", "starter"]
   },
   {
@@ -100,6 +108,7 @@ const kbSeedDocuments = [
     sourceText: "Examples of strong introductions, body logic, and conclusions.",
     sourceUrl: kbSeedSourceDefaults["essay-bank"].sourceUrl,
     downloadName: kbSeedSourceDefaults["essay-bank"].downloadName,
+    downloadUrl: kbSeedSourceDefaults["essay-bank"].downloadUrl,
     tags: ["essay", "examples", "writing", "starter"]
   }
 ];
@@ -180,7 +189,8 @@ function applyKbSeedSourceDefaults(document) {
 
   return Object.assign({}, document, {
     sourceUrl: document.sourceUrl || defaults.sourceUrl,
-    downloadName: document.downloadName || defaults.downloadName
+    downloadName: document.downloadName || defaults.downloadName,
+    downloadUrl: document.downloadUrl || defaults.downloadUrl
   });
 }
 

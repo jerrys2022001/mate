@@ -418,6 +418,7 @@
       tags: ["exam", "ielts", "rubric", "starter"],
       onlineName: "IELTS Writing Band Descriptors.pdf",
       downloadName: "IELTS Writing Band Descriptors.pdf",
+      downloadUrl: "assets/kb-starter/ielts-writing-band-descriptors.pdf",
       sourceOrigin: "starter",
       sourceUrl: "https://ielts.org/-/media/pdfs/writing-band-descriptors-task-2.ashx"
     },
@@ -430,7 +431,8 @@
       sourceText: "Use a calm opener, state the update directly, explain the reason briefly, and end with a clear next step or request.",
       tags: ["business", "email", "tone", "starter"],
       onlineName: "Purdue OWL Sample Emails.html",
-      downloadName: "Purdue OWL Sample Emails.html",
+      downloadName: "Business Email Tone Guide.docx",
+      downloadUrl: "assets/kb-starter/business-email-tone-guide.docx",
       sourceOrigin: "starter",
       sourceUrl: "https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/business_writing_for_administrative_and_clerical_staff/sample_emails.html"
     },
@@ -443,7 +445,8 @@
       sourceText: "Strong essays define the position early, develop one main idea per paragraph, and connect examples back to the thesis.",
       tags: ["essay", "writing", "examples", "starter"],
       onlineName: "British Council IELTS Writing Practice.html",
-      downloadName: "British Council IELTS Writing Practice.html",
+      downloadName: "Top Essays Collection.docx",
+      downloadUrl: "assets/kb-starter/top-essays-collection.docx",
       sourceOrigin: "starter",
       sourceUrl: "https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-english-practice-tests/writing/academic"
     }
@@ -751,17 +754,20 @@
     return Boolean(document && document.sourceUrl && /^https?:\/\//i.test(String(document.sourceUrl)));
   }
 
+  function hasAssetDownloadUrl(document) {
+    return Boolean(document && document.downloadUrl && !/^https?:\/\//i.test(String(document.downloadUrl)));
+  }
+
   function shouldUseDirectSourceDownload(document) {
-    return Boolean(hasSourceDownloadUrl(document) && !document.storagePath && !document.fileSize);
+    return Boolean((hasAssetDownloadUrl(document) || hasSourceDownloadUrl(document)) && !document.storagePath && !document.fileSize);
   }
 
   function buildDirectSourceDownloadMarkup(document, label) {
+    const href = hasAssetDownloadUrl(document) ? document.downloadUrl : document.sourceUrl;
     return `
       <a
         class="secondary-button doc-action-button"
-        href="${escapeAttribute(document.sourceUrl)}"
-        target="_blank"
-        rel="noopener noreferrer"
+        href="${escapeAttribute(href)}"
         download="${escapeAttribute(getDocumentDownloadName(document))}"
       >${escapeHtml(label || "Download")}</a>
     `;
@@ -5836,6 +5842,7 @@
 
       return Object.assign({}, document, {
         sourceUrl: document.sourceUrl || sample.sourceUrl || "",
+        downloadUrl: document.downloadUrl || sample.downloadUrl || "",
         downloadName: document.downloadName || sample.downloadName || sample.onlineName || sample.name
       });
     }
@@ -6457,6 +6464,7 @@
                 sourceText: sample.sourceText,
                 tags: sample.tags || [],
                 downloadName: sample.downloadName || sample.onlineName || sample.name,
+                downloadUrl: sample.downloadUrl || "",
                 sourceUrl: sample.sourceUrl || ""
               })
             },
@@ -6482,6 +6490,7 @@
                     sourceText: sample.sourceText,
                     sourceUrl: sample.sourceUrl || "",
                     downloadName: sample.downloadName || sample.onlineName || sample.name,
+                    downloadUrl: sample.downloadUrl || "",
                     tags: sample.tags || [],
                     sourceOrigin: "personal",
                     editable: false
