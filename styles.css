@@ -7058,7 +7058,8 @@ body[data-page="kb"] .workspace-shell .doc-body h4 {
 /* Knowledge base rail rebalance: keep uploads in the main flow and move Library into the right rail. */
 @media (min-width: 1101px) {
   body[data-page="kb"] .kb-layout.workspace-layout {
-    grid-template-columns: minmax(0, 1fr) 372px;
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 0.78fr);
+    gap: clamp(24px, 4vw, 56px);
   }
 
   body[data-page="kb"] .workspace-shell .kb-main > .dropzone {
@@ -7080,7 +7081,9 @@ body[data-page="kb"] .workspace-shell .doc-body h4 {
     gap: 18px;
     max-height: calc(100vh - 120px);
     overflow-y: auto;
+    padding-left: clamp(16px, 2.6vw, 30px);
     padding-right: 6px;
+    border-left: 1px solid var(--line);
   }
 
   body[data-page="kb"] .workspace-shell .kb-side > .kb-card--library,
