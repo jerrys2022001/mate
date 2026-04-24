@@ -1838,10 +1838,10 @@
       assistantLines = [
         `I can work directly on: ${excerpt || "your last message"}.`,
         "For an essay-style pass, I would tighten the position, make the paragraph logic more explicit, and cut repeated wording.",
-        "If you want, the next turn can be a direct rewrite, a band-style diagnosis, or a Chinese explanation."
+        "If you want, the next turn can be a direct rewrite, a band-style diagnosis, or a plain-English explanation."
       ];
       suggestions = containsCjkText
-        ? ["Rewrite", "Line-by-line feedback", "Chinese explanation"]
+        ? ["Rewrite", "Line-by-line feedback", "Plain-English explanation"]
         : ["Improve thesis", "Fix grammar", "Upgrade vocabulary"];
     }
 
@@ -2031,34 +2031,34 @@
 
   function parsePracticeQuestionCount(value) {
     const compact = String(value || "").replace(/\s+/g, "");
-    const digitMatch = compact.match(/(\d{1,2})(?:题|道|个|questions?|items?)/i);
+    const digitMatch = compact.match(/(\d{1,2})(?:\u9898|\u9053|\u4e2a|questions?|items?)/i);
 
     if (digitMatch) {
       return clampPracticeQuestionCount(digitMatch[1], 5);
     }
 
-    const chineseMatch = compact.match(/([一二两三四五六七八九十]{1,3})(?:题|道|个)/);
+    const chineseMatch = compact.match(/([\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]{1,3})(?:\u9898|\u9053|\u4e2a)/);
 
     if (!chineseMatch) {
       return null;
     }
 
     const numerals = {
-      一: 1,
-      二: 2,
-      两: 2,
-      三: 3,
-      四: 4,
-      五: 5,
-      六: 6,
-      七: 7,
-      八: 8,
-      九: 9,
-      十: 10
+      "\u4e00": 1,
+      "\u4e8c": 2,
+      "\u4e24": 2,
+      "\u4e09": 3,
+      "\u56db": 4,
+      "\u4e94": 5,
+      "\u516d": 6,
+      "\u4e03": 7,
+      "\u516b": 8,
+      "\u4e5d": 9,
+      "\u5341": 10
     };
     const text = chineseMatch[1];
 
-    if (text === "十") {
+    if (text === "\u5341") {
       return 10;
     }
 
@@ -2066,12 +2066,12 @@
       return numerals[text] || null;
     }
 
-    if (text.startsWith("十")) {
+    if (text.startsWith("\u5341")) {
       return 10 + (numerals[text.slice(1)] || 0);
     }
 
-    if (text.includes("十")) {
-      const parts = text.split("十");
+    if (text.includes("\u5341")) {
+      const parts = text.split("\u5341");
       return (numerals[parts[0]] || 1) * 10 + (numerals[parts[1]] || 0);
     }
 
@@ -2089,7 +2089,7 @@
   }
 
   function isInfinitivePracticeTopic(topic) {
-    return /不定式|动词不定式|to\s+do|infinitive/i.test(String(topic || ""));
+    return /\u4e0d\u5b9a\u5f0f|\u52a8\u8bcd\u4e0d\u5b9a\u5f0f|to\s+do|infinitive/i.test(String(topic || ""));
   }
 
   function isVocabularyPracticeTopic(topic) {
@@ -2207,8 +2207,8 @@
   }
 
   function buildClientInfinitivePracticeQuestions(topic, count, difficulty) {
-    const concentration = String(topic || "").includes("初三")
-      ? "初三英语：动词不定式（to do）"
+    const concentration = String(topic || "").includes("\u521d\u4e09")
+      ? "Grade 9 English: infinitives (to do)"
       : "English grammar: infinitives (to do)";
     const bank = [
       {
@@ -2221,14 +2221,14 @@
           { key: "D", text: "learned" }
         ],
         correctAnswer: "B. to learn",
-        explanation: "It is + adjective + to do sth. 表示“做某事是……的”。"
+        explanation: "It is + adjective + to do sth. describes how it feels or how important it is to do something."
       },
       {
         type: "fill-in",
         question: "Fill in the blank with the correct form: My teacher asked me ___ (open) the window.",
         options: [],
         correctAnswer: "to open",
-        explanation: "ask sb. to do sth. 是固定结构，意思是“要求某人做某事”。"
+        explanation: "ask sb. to do sth. is a fixed pattern meaning to request someone to do something."
       },
       {
         type: "choice",
@@ -2240,14 +2240,14 @@
           { key: "D", text: "did" }
         ],
         correctAnswer: "B. to do",
-        explanation: "不定式可以作后置定语，修饰 homework，表示“要做的作业”。"
+        explanation: "An infinitive can work after a noun as a postmodifier, as in homework to do."
       },
       {
         type: "fill-in",
         question: "Fill in the blank: We went to the library ___ (borrow) some books.",
         options: [],
         correctAnswer: "to borrow",
-        explanation: "动词不定式可作目的状语，说明 went to the library 的目的。"
+        explanation: "The infinitive can show purpose; to borrow explains why they went to the library."
       },
       {
         type: "choice",
@@ -2259,14 +2259,14 @@
           { key: "D", text: "carried" }
         ],
         correctAnswer: "B. to carry",
-        explanation: "too + adjective + for sb. + to do sth. 表示“太……以至于某人不能做某事”。"
+        explanation: "too + adjective + for sb. + to do sth. means something is so adjective that someone cannot do it."
       },
       {
         type: "fill-in",
         question: "Fill in the blank: The teacher told us ___ (not be) late again.",
         options: [],
         correctAnswer: "not to be",
-        explanation: "tell sb. not to do sth. 表示“告诉某人不要做某事”。"
+        explanation: "tell sb. not to do sth. means to tell or ask someone not to do something."
       }
     ];
 
@@ -2308,7 +2308,7 @@
             text: isVocabularySet
               ? `${requestedCount} vocabulary questions requested for ${isCet4PracticeTopic(requestedTopic) ? "CET-4" : truncate(requestedTopic, 76)}. The set uses meaning, collocation, word form, and sentence-use tasks.`
               : isInfinitiveSet
-              ? `已生成 ${requestedCount} 道动词不定式练习题。先在页面作答，再展开答案和解析。`
+              ? `${requestedCount} infinitive practice questions generated. Answer on the page first, then open the model answers and explanations.`
               : `${requestedCount} items requested for ${truncate(requestedTopic, 76)}. Mate would blend correction, rewrite, and explanation-style questions.`
           },
           {
@@ -3132,7 +3132,7 @@
     }
 
     const tokens = rawPrompt
-      .split(/[\s,.;:!?，。；：！？、/\\|]+/)
+      .split(/[\s,.;:!?\uFF0C\u3002\uFF1B\uFF1A\uFF01\uFF1F\u3001/\\|]+/)
       .map((token) => token.trim())
       .filter((token) => token.length >= 3)
       .slice(0, 8);
@@ -4022,9 +4022,9 @@
             <strong>${questions.length} question${questions.length === 1 ? "" : "s"} ready</strong>
           </div>
           <div class="practice-exam-meta">
-            <span>限时：${limitMinutes}分钟</span>
-            <span>题量：${questions.length}题</span>
-            <span>总分：${totalScore}分</span>
+            <span>Time limit: ${limitMinutes} min</span>
+            <span>Questions: ${questions.length}</span>
+            <span>Total: ${totalScore} pts</span>
           </div>
         </div>
         <div class="practice-exam-layout">
@@ -4032,8 +4032,8 @@
             <div class="practice-question-toolbar">
               <span data-practice-progress>1/${questions.length}</span>
               <div>
-                <button class="practice-nav-button" type="button" data-practice-prev>上一题</button>
-                <button class="practice-nav-button" type="button" data-practice-next>下一题</button>
+                <button class="practice-nav-button" type="button" data-practice-prev>Previous</button>
+                <button class="practice-nav-button" type="button" data-practice-next>Next</button>
               </div>
             </div>
             <div class="practice-question-stage">
@@ -4042,16 +4042,16 @@
           </div>
           <aside class="practice-answer-card" aria-label="Answer card">
             <div class="practice-answer-card-top">
-              <strong>答题卡</strong>
-              <span data-practice-completion>完成0道 / 共${questions.length}道</span>
+              <strong>Answer Card</strong>
+              <span data-practice-completion>Completed 0 / ${questions.length}</span>
             </div>
             ${buildPracticeAnswerGroups(questions)}
           </aside>
         </div>
         <div class="practice-submit-bar">
           <span class="practice-timer" data-practice-timer>${formatPracticeTimer(limitMinutes * 60)}</span>
-          <span class="practice-submit-status" data-practice-submit-status>完成后点击交卷查看答题情况。</span>
-          <button class="practice-submit-button" type="button" data-practice-submit>交卷</button>
+          <span class="practice-submit-status" data-practice-submit-status>Submit when you are ready to review your answers.</span>
+          <button class="practice-submit-button" type="button" data-practice-submit>Submit</button>
         </div>
       </section>
     `;
@@ -4083,10 +4083,10 @@
       <article class="practice-question-card${index === 0 ? " is-active" : ""}" data-practice-question-index="${index}" data-practice-type="${escapeAttribute(typeLabel)}" data-practice-score="${score}">
         <div class="practice-question-top">
           <span class="status-chip is-file">Q${number}</span>
-          <span>[${escapeHtml(typeLabel)}]（${score}分）</span>
+          <span>[${escapeHtml(typeLabel)}] (${score} pts)</span>
         </div>
         ${question.concentration ? `<p class="practice-focus">${escapeHtml(question.concentration)}</p>` : ""}
-        <h4>（ ）${escapeHtml(question.question || "")}</h4>
+        <h4>( ) ${escapeHtml(question.question || "")}</h4>
         ${optionMarkup}
         ${options.length ? "" : `
           <label class="practice-answer-box">
@@ -4112,28 +4112,28 @@
     const options = Array.isArray(question && question.options) ? question.options : [];
 
     if (type.includes("multi")) {
-      return "多选题";
+      return "Multiple choice";
     }
 
     if (type.includes("judge") || type.includes("true") || type.includes("false")) {
-      return "判断题";
+      return "True / False";
     }
 
     if (options.length) {
-      return "单选题";
+      return "Single choice";
     }
 
-    return "简答题";
+    return "Short answer";
   }
 
   function getPracticeQuestionScore(question) {
     const typeLabel = getPracticeQuestionTypeLabel(question);
 
-    if (typeLabel === "多选题") {
+    if (typeLabel === "Multiple choice") {
       return 3;
     }
 
-    if (typeLabel === "简答题") {
+    if (typeLabel === "Short answer") {
       return 5;
     }
 
@@ -4166,7 +4166,7 @@
       <div class="practice-answer-group">
         <div class="practice-answer-group-title">
           <span>☆ [${escapeHtml(group.label)}]</span>
-          <small>每题${group.score}分</small>
+          <small>${group.score} pts each</small>
         </div>
         <div class="practice-answer-grid">
           ${group.questions.map((item) => `
@@ -4227,7 +4227,7 @@
       });
 
       if (completion) {
-        completion.textContent = `完成${answeredCount}道 / 共${questions.length}道`;
+        completion.textContent = `Completed ${answeredCount} / ${questions.length}`;
       }
     }
 
@@ -4244,9 +4244,9 @@
 
       const activeQuestion = questions[activeIndex];
       if (progress && activeQuestion) {
-        const typeLabel = activeQuestion.getAttribute("data-practice-type") || "单选题";
+        const typeLabel = activeQuestion.getAttribute("data-practice-type") || "Single choice";
         const score = activeQuestion.getAttribute("data-practice-score") || "2";
-        progress.textContent = `${activeIndex + 1}/${questions.length} [${typeLabel}]（${score}分）`;
+        progress.textContent = `${activeIndex + 1}/${questions.length} [${typeLabel}] (${score} pts)`;
       }
 
       if (prevButton) {
@@ -4286,8 +4286,8 @@
         const unansweredCount = questions.length - answeredCount;
         if (status) {
           status.textContent = unansweredCount
-            ? `已交卷：完成${answeredCount}道，剩余${unansweredCount}道未答。`
-            : `已交卷：${questions.length}道全部完成。`;
+            ? `Submitted: ${answeredCount} answered, ${unansweredCount} unanswered.`
+            : `Submitted: all ${questions.length} questions completed.`;
         }
       }
     });
@@ -4304,7 +4304,7 @@
         if (remainingSeconds <= 0) {
           clearPracticeTimer();
           if (status) {
-            status.textContent = "时间到，请检查答题卡后交卷。";
+            status.textContent = "Time is up. Check the answer card, then submit.";
           }
         }
       }, 1000);
@@ -4327,12 +4327,12 @@
           </div>
           <div class="practice-exam-meta">
             <label class="practice-meta-control">
-              <span>${"\u9650\u65f6"}</span>
+              <span>Time limit</span>
               <input type="number" min="1" max="999" step="1" value="${limitMinutes}" data-practice-limit-minutes>
-              <span>${"\u5206\u949f"}</span>
+              <span>min</span>
             </label>
-            <span>${"\u9898\u91cf"}: ${questions.length}${"\u9898"}</span>
-            <span data-practice-total-score>${"\u603b\u5206"}: ${totalScore}${"\u5206"}</span>
+            <span>Questions: ${questions.length}</span>
+            <span data-practice-total-score>Total: ${totalScore} pts</span>
           </div>
         </div>
         <div class="practice-exam-layout">
@@ -4340,8 +4340,8 @@
             <div class="practice-question-toolbar">
               <span data-practice-progress>1/${questions.length}</span>
               <div>
-                <button class="practice-nav-button" type="button" data-practice-prev>${"\u4e0a\u4e00\u9898"}</button>
-                <button class="practice-nav-button" type="button" data-practice-next>${"\u4e0b\u4e00\u9898"}</button>
+                <button class="practice-nav-button" type="button" data-practice-prev>Previous</button>
+                <button class="practice-nav-button" type="button" data-practice-next>Next</button>
               </div>
             </div>
             <div class="practice-question-stage">
@@ -4350,8 +4350,8 @@
           </div>
           <aside class="practice-answer-card" aria-label="Answer card">
             <div class="practice-answer-card-top">
-              <strong>${"\u7b54\u9898\u5361"}</strong>
-              <span data-practice-completion>${"\u5b8c\u6210"}0${"\u9053"} / ${"\u5171"}${questions.length}${"\u9053"}</span>
+              <strong>Answer Card</strong>
+              <span data-practice-completion>Completed 0 / ${questions.length}</span>
             </div>
             <div class="practice-score-summary" data-practice-score-summary hidden></div>
             <div class="practice-question-results" data-practice-question-results hidden></div>
@@ -4360,10 +4360,10 @@
         </div>
         <div class="practice-submit-bar">
           <span class="practice-timer" data-practice-timer>${formatPracticeTimer(limitMinutes * 60)}</span>
-          <button class="practice-start-button" type="button" data-practice-start>${"\u5f00\u59cb"}</button>
-          <span class="practice-submit-status" data-practice-submit-status>${"\u70b9\u51fb\u5f00\u59cb\u540e\u8ba1\u65f6\uff0c\u4ea4\u5377\u540e\u67e5\u770b\u5bf9\u9519\u548c\u5f97\u5206\u3002"}</span>
-          <button class="practice-export-button" type="button" data-practice-export>${"\u5bfc\u51fa\u7ec3\u4e60"}</button>
-          <button class="practice-submit-button" type="button" data-practice-submit>${"\u4ea4\u5377"}</button>
+          <button class="practice-start-button" type="button" data-practice-start>Start</button>
+          <span class="practice-submit-status" data-practice-submit-status>Start the timer, then submit to see accuracy and score.</span>
+          <button class="practice-export-button" type="button" data-practice-export>Export practice</button>
+          <button class="practice-submit-button" type="button" data-practice-submit>Submit</button>
         </div>
       </section>
     `;
@@ -4396,7 +4396,7 @@
       <article class="practice-question-card${index === 0 ? " is-active" : ""}" data-practice-question-index="${index}" data-practice-number="${number}" data-practice-type="${escapeAttribute(typeLabel)}" data-practice-score="${score}" data-practice-correct-answer="${escapeAttribute(answer)}">
         <div class="practice-question-top">
           <span class="status-chip is-file">Q${number}</span>
-          <span data-practice-question-score-label>[${escapeHtml(typeLabel)}] (${score}${"\u5206"})</span>
+          <span data-practice-question-score-label>[${escapeHtml(typeLabel)}] (${score} pts)</span>
         </div>
         ${question.concentration ? `<p class="practice-focus">${escapeHtml(question.concentration)}</p>` : ""}
         <h4>${questionPrefix}${escapeHtml(question.question || "")}</h4>
@@ -4425,28 +4425,28 @@
     const options = Array.isArray(question && question.options) ? question.options : [];
 
     if (type.includes("multi")) {
-      return "\u591a\u9009\u9898";
+      return "Multiple choice";
     }
 
     if (type.includes("judge") || type.includes("true") || type.includes("false")) {
-      return "\u5224\u65ad\u9898";
+      return "True / False";
     }
 
     if (options.length) {
-      return "\u5355\u9009\u9898";
+      return "Single choice";
     }
 
-    return "\u7b80\u7b54\u9898";
+    return "Short answer";
   }
 
   function getPracticeWindowQuestionScore(question) {
     const typeLabel = getPracticeWindowQuestionTypeLabel(question);
 
-    if (typeLabel === "\u591a\u9009\u9898") {
+    if (typeLabel === "Multiple choice") {
       return 3;
     }
 
-    if (typeLabel === "\u7b80\u7b54\u9898") {
+    if (typeLabel === "Short answer") {
       return 5;
     }
 
@@ -4480,9 +4480,9 @@
         <div class="practice-answer-group-title">
           <span>* [${escapeHtml(group.label)}]</span>
           <label class="practice-score-control">
-            <span>${"\u6bcf\u9898"}</span>
+            <span>Points</span>
             <input type="number" min="0" max="100" step="1" value="${group.score}" data-practice-type-score="${escapeAttribute(group.label)}">
-            <span>${"\u5206"}</span>
+            <span>each</span>
           </label>
         </div>
         <div class="practice-answer-grid">
@@ -4554,7 +4554,7 @@
         .toLowerCase()
         .replace(/^[a-f][\.\)]\s*/i, "")
         .replace(/[“”"']/g, "")
-        .replace(/[.,;:!?，。；：！？]/g, "")
+        .replace(/[.,;:!?\uFF0C\u3002\uFF1B\uFF1A\uFF01\uFF1F]/g, "")
         .replace(/\s+/g, " ")
         .trim();
     }
@@ -4640,13 +4640,13 @@
             question.setAttribute("data-practice-score", String(score));
 
             if (label) {
-              label.textContent = `[${typeLabel}] (${score}\u5206)`;
+              label.textContent = `[${typeLabel}] (${score} pts)`;
             }
           });
       });
 
       if (totalScoreNode) {
-        totalScoreNode.textContent = `\u603b\u5206: ${getTotalScore()}\u5206`;
+        totalScoreNode.textContent = `Total: ${getTotalScore()} pts`;
       }
 
       setActiveQuestion(activeIndex);
@@ -4668,15 +4668,15 @@
         const result = results[targetIndex];
         button.classList.toggle("is-correct", Boolean(result && result.correct));
         button.classList.toggle("is-wrong", Boolean(result && !result.correct));
-        button.setAttribute("title", result && result.correct ? `Q${result.number} \u6b63\u786e` : `Q${result ? result.number : targetIndex + 1} \u9519\u8bef`);
+        button.setAttribute("title", result && result.correct ? `Q${result.number} correct` : `Q${result ? result.number : targetIndex + 1} wrong`);
       });
 
       if (scoreSummary) {
         scoreSummary.hidden = false;
         scoreSummary.innerHTML = `
-          <strong>${"\u6b63\u786e\u7387"}: ${accuracy}%</strong>
-          <span>${"\u5f97\u5206"}: ${earnedScore}/${totalScore}${"\u5206"}</span>
-          <span>${"\u6b63\u786e"}: ${correctCount}/${questions.length}${"\u9898"}</span>
+          <strong>Accuracy: ${accuracy}%</strong>
+          <span>Score: ${earnedScore}/${totalScore} pts</span>
+          <span>Correct: ${correctCount}/${questions.length}</span>
         `;
       }
 
@@ -4685,14 +4685,14 @@
         resultList.innerHTML = results.map((result) => `
           <button class="practice-result-row${result.correct ? " is-correct" : " is-wrong"}" type="button" data-practice-jump="${result.index}">
             <span>Q${escapeHtml(result.number)}</span>
-            <strong>${result.correct ? "\u6b63\u786e" : "\u9519\u8bef"}</strong>
-            <em>${result.earned}/${result.score}${"\u5206"}</em>
+            <strong>${result.correct ? "Correct" : "Wrong"}</strong>
+            <em>${result.earned}/${result.score} pts</em>
           </button>
         `).join("");
       }
 
       if (status) {
-        status.textContent = `\u5df2\u4ea4\u5377\uff1a\u6b63\u786e\u7387 ${accuracy}%\uff0c\u5f97\u5206 ${earnedScore}/${totalScore}\u5206\u3002`;
+        status.textContent = `Submitted: accuracy ${accuracy}%, score ${earnedScore}/${totalScore} pts.`;
       }
     }
 
@@ -4711,7 +4711,7 @@
       });
 
       if (completion) {
-        completion.textContent = `\u5b8c\u6210${answeredCount}\u9053 / \u5171${questions.length}\u9053`;
+        completion.textContent = `Completed ${answeredCount} / ${questions.length}`;
       }
 
       if (submitted) {
@@ -4732,9 +4732,9 @@
 
       const activeQuestion = questions[activeIndex];
       if (progress && activeQuestion) {
-        const typeLabel = activeQuestion.getAttribute("data-practice-type") || "\u5355\u9009\u9898";
+        const typeLabel = activeQuestion.getAttribute("data-practice-type") || "Single choice";
         const score = activeQuestion.getAttribute("data-practice-score") || "2";
-        progress.textContent = `${activeIndex + 1}/${questions.length} [${typeLabel}] (${score}\u5206)`;
+        progress.textContent = `${activeIndex + 1}/${questions.length} [${typeLabel}] (${score} pts)`;
       }
 
       if (prevButton) {
@@ -4781,15 +4781,15 @@
           if (remainingSeconds <= 0) {
             clearPracticeTimer();
             if (status) {
-              status.textContent = "\u65f6\u95f4\u5230\uff0c\u8bf7\u68c0\u67e5\u7b54\u9898\u5361\u540e\u4ea4\u5377\u3002";
+              status.textContent = "Time is up. Check the answer card, then submit.";
             }
           }
         }, 1000);
 
         start.disabled = true;
-        start.textContent = "\u8ba1\u65f6\u4e2d";
+        start.textContent = "Running";
         if (status) {
-          status.textContent = "\u5df2\u5f00\u59cb\u8ba1\u65f6\uff0c\u5b8c\u6210\u540e\u70b9\u51fb\u4ea4\u5377\u3002";
+          status.textContent = "Timer started. Submit when finished.";
         }
         return;
       }
@@ -4807,7 +4807,7 @@
         exam.classList.add("is-submitted");
         if (startButton) {
           startButton.disabled = true;
-          startButton.textContent = "\u5df2\u505c\u6b62";
+          startButton.textContent = "Stopped";
         }
       }
     });
@@ -4830,25 +4830,25 @@
 
         return `
           <section class="question">
-            <h2>Q${escapeHtml(result.number)} [${escapeHtml(result.type)}] ${result.correct ? "\u6b63\u786e" : "\u9519\u8bef"} (${result.earned}/${result.score}${"\u5206"})</h2>
-            <p><strong>${"\u9898\u76ee"}:</strong> ${escapeHtml(prompt)}</p>
+            <h2>Q${escapeHtml(result.number)} [${escapeHtml(result.type)}] ${result.correct ? "Correct" : "Wrong"} (${result.earned}/${result.score} pts)</h2>
+            <p><strong>Prompt:</strong> ${escapeHtml(prompt)}</p>
             ${options.length ? `
-              <p><strong>${"\u9009\u9879"}:</strong></p>
+              <p><strong>Options:</strong></p>
               <ul>${options.map((option) => `<li>${escapeHtml(option)}</li>`).join("")}</ul>
             ` : ""}
             <table>
               <tbody>
                 <tr>
-                  <th>${"\u6211\u7684\u7b54\u6848"}</th>
-                  <td>${escapeHtml(result.userAnswer || "\u672a\u4f5c\u7b54")}</td>
+                  <th>My answer</th>
+                  <td>${escapeHtml(result.userAnswer || "No answer")}</td>
                 </tr>
                 <tr>
-                  <th>${"\u6807\u51c6\u7b54\u6848"}</th>
-                  <td>${escapeHtml(result.correctAnswer || "\u65e0")}</td>
+                  <th>Model answer</th>
+                  <td>${escapeHtml(result.correctAnswer || "None")}</td>
                 </tr>
                 <tr>
-                  <th>${"\u89e3\u6790"}</th>
-                  <td>${escapeHtml(explanation || "\u65e0")}</td>
+                  <th>Explanation</th>
+                  <td>${escapeHtml(explanation || "None")}</td>
                 </tr>
               </tbody>
             </table>
@@ -4881,11 +4881,11 @@
             <p class="meta">Exported from Mate on ${escapeHtml(getExportDateStamp())}</p>
             <table class="summary">
               <tbody>
-                <tr><th>${"\u9898\u91cf"}</th><td>${questions.length}${"\u9898"}</td></tr>
-                <tr><th>${"\u9650\u65f6"}</th><td>${escapeHtml(timeLimit)}${"\u5206\u949f"}</td></tr>
-                <tr><th>${"\u5f97\u5206"}</th><td>${earnedScore}/${totalScore}${"\u5206"}</td></tr>
-                <tr><th>${"\u6b63\u786e\u7387"}</th><td>${accuracy}%</td></tr>
-                <tr><th>${"\u6b63\u786e\u9898\u6570"}</th><td>${correctCount}/${questions.length}${"\u9898"}</td></tr>
+                <tr><th>Questions</th><td>${questions.length}</td></tr>
+                <tr><th>Time limit</th><td>${escapeHtml(timeLimit)} min</td></tr>
+                <tr><th>Score</th><td>${earnedScore}/${totalScore} pts</td></tr>
+                <tr><th>Accuracy</th><td>${accuracy}%</td></tr>
+                <tr><th>Correct answers</th><td>${correctCount}/${questions.length}</td></tr>
               </tbody>
             </table>
             ${questionRows}

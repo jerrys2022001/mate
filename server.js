@@ -1117,10 +1117,10 @@ function buildChatMock(payload) {
     assistantLines = [
       `I can work directly on: ${excerpt || "your last message"}.`,
       "For an essay-style pass, I would tighten the position, make the paragraph logic more explicit, and cut repeated wording.",
-      "If you want, the next turn can be a direct rewrite, a band-style diagnosis, or a Chinese explanation."
+      "If you want, the next turn can be a direct rewrite, a band-style diagnosis, or a plain-English explanation."
     ];
     suggestions = containsCjk(rawMessage)
-      ? ["Rewrite", "Line-by-line feedback", "Chinese explanation"]
+      ? ["Rewrite", "Line-by-line feedback", "Plain-English explanation"]
       : ["Improve thesis", "Fix grammar", "Upgrade vocabulary"];
   }
 
@@ -1179,34 +1179,34 @@ function clampPracticeQuestionCount(value, fallback) {
 function parseChinesePracticeCount(value) {
   const raw = String(value || "").trim();
   const compact = raw.replace(/\s+/g, "");
-  const digitMatch = compact.match(/(\d{1,2})(?:题|道|个|questions?|items?)/i);
+  const digitMatch = compact.match(/(\d{1,2})(?:\u9898|\u9053|\u4e2a|questions?|items?)/i);
 
   if (digitMatch) {
     return clampPracticeQuestionCount(digitMatch[1], 5);
   }
 
-  const chineseMatch = compact.match(/([一二两三四五六七八九十]{1,3})(?:题|道|个)/);
+  const chineseMatch = compact.match(/([\u4e00\u4e8c\u4e24\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]{1,3})(?:\u9898|\u9053|\u4e2a)/);
 
   if (!chineseMatch) {
     return null;
   }
 
   const numerals = {
-    一: 1,
-    二: 2,
-    两: 2,
-    三: 3,
-    四: 4,
-    五: 5,
-    六: 6,
-    七: 7,
-    八: 8,
-    九: 9,
-    十: 10
+    "\u4e00": 1,
+    "\u4e8c": 2,
+    "\u4e24": 2,
+    "\u4e09": 3,
+    "\u56db": 4,
+    "\u4e94": 5,
+    "\u516d": 6,
+    "\u4e03": 7,
+    "\u516b": 8,
+    "\u4e5d": 9,
+    "\u5341": 10
   };
   const text = chineseMatch[1];
 
-  if (text === "十") {
+  if (text === "\u5341") {
     return 10;
   }
 
@@ -1214,12 +1214,12 @@ function parseChinesePracticeCount(value) {
     return numerals[text] || null;
   }
 
-  if (text.startsWith("十")) {
+  if (text.startsWith("\u5341")) {
     return 10 + (numerals[text.slice(1)] || 0);
   }
 
-  if (text.includes("十")) {
-    const [tens, ones] = text.split("十");
+  if (text.includes("\u5341")) {
+    const [tens, ones] = text.split("\u5341");
     return (numerals[tens] || 1) * 10 + (numerals[ones] || 0);
   }
 
@@ -1237,7 +1237,7 @@ function resolvePracticeQuestionCount(topic, fallbackCount) {
 }
 
 function isInfinitivePracticeTopic(topic) {
-  return /不定式|动词不定式|to\s+do|infinitive/i.test(String(topic || ""));
+  return /\u4e0d\u5b9a\u5f0f|\u52a8\u8bcd\u4e0d\u5b9a\u5f0f|to\s+do|infinitive/i.test(String(topic || ""));
 }
 
 function isVocabularyPracticeTopic(topic) {
@@ -1355,8 +1355,8 @@ function buildVocabularyPracticeQuestions(topic, count, difficulty) {
 }
 
 function buildInfinitivePracticeQuestions(topic, count, difficulty) {
-  const concentration = String(topic || "").includes("初三")
-    ? "初三英语：动词不定式（to do）"
+  const concentration = String(topic || "").includes("\u521d\u4e09")
+    ? "Grade 9 English: infinitives (to do)"
     : "English grammar: infinitives (to do)";
   const bank = [
     {
@@ -1369,14 +1369,14 @@ function buildInfinitivePracticeQuestions(topic, count, difficulty) {
         { key: "D", text: "learned" }
       ],
       correctAnswer: "B. to learn",
-      explanation: "It is + adjective + to do sth. 表示“做某事是……的”。"
+      explanation: "It is + adjective + to do sth. describes how it feels or how important it is to do something."
     },
     {
       type: "fill-in",
       question: "Fill in the blank with the correct form: My teacher asked me ___ (open) the window.",
       options: [],
       correctAnswer: "to open",
-      explanation: "ask sb. to do sth. 是固定结构，意思是“要求某人做某事”。"
+      explanation: "ask sb. to do sth. is a fixed pattern meaning to request someone to do something."
     },
     {
       type: "choice",
@@ -1388,14 +1388,14 @@ function buildInfinitivePracticeQuestions(topic, count, difficulty) {
         { key: "D", text: "did" }
       ],
       correctAnswer: "B. to do",
-      explanation: "不定式可以作后置定语，修饰 homework，表示“要做的作业”。"
+      explanation: "An infinitive can work after a noun as a postmodifier, as in homework to do."
     },
     {
       type: "fill-in",
       question: "Fill in the blank: We went to the library ___ (borrow) some books.",
       options: [],
       correctAnswer: "to borrow",
-      explanation: "动词不定式可作目的状语，说明 went to the library 的目的。"
+      explanation: "The infinitive can show purpose; to borrow explains why they went to the library."
     },
     {
       type: "choice",
@@ -1407,14 +1407,14 @@ function buildInfinitivePracticeQuestions(topic, count, difficulty) {
         { key: "D", text: "carried" }
       ],
       correctAnswer: "B. to carry",
-      explanation: "too + adjective + for sb. + to do sth. 表示“太……以至于某人不能做某事”。"
+      explanation: "too + adjective + for sb. + to do sth. means something is so adjective that someone cannot do it."
     },
     {
       type: "fill-in",
       question: "Fill in the blank: I am happy ___ (meet) you again.",
       options: [],
       correctAnswer: "to meet",
-      explanation: "be + adjective + to do sth. 用来表达原因或感受。"
+      explanation: "be + adjective + to do sth. can express the reason for a feeling or reaction."
     },
     {
       type: "choice",
@@ -1426,14 +1426,14 @@ function buildInfinitivePracticeQuestions(topic, count, difficulty) {
         { key: "D", text: "He wants went home now." }
       ],
       correctAnswer: "B. He wants to go home now.",
-      explanation: "want to do sth. 是固定结构，want 后面常接动词不定式。"
+      explanation: "want to do sth. is a fixed pattern; want is commonly followed by an infinitive."
     },
     {
       type: "fill-in",
       question: "Fill in the blank: It takes me twenty minutes ___ (walk) to school.",
       options: [],
       correctAnswer: "to walk",
-      explanation: "It takes sb. some time to do sth. 表示“某人花多少时间做某事”。"
+      explanation: "It takes sb. some time to do sth. describes how much time someone needs to do something."
     },
     {
       type: "choice",
@@ -1445,14 +1445,14 @@ function buildInfinitivePracticeQuestions(topic, count, difficulty) {
         { key: "D", text: "done" }
       ],
       correctAnswer: "B. to do",
-      explanation: "疑问词 + to do 可作宾语，what to do 意思是“该做什么”。"
+      explanation: "A question word + to do can act as an object; what to do means what action to take."
     },
     {
       type: "fill-in",
       question: "Fill in the blank: The teacher told us ___ (not be) late again.",
       options: [],
       correctAnswer: "not to be",
-      explanation: "tell sb. not to do sth. 表示“告诉某人不要做某事”。"
+      explanation: "tell sb. not to do sth. means to tell or ask someone not to do something."
     }
   ];
 
@@ -1493,7 +1493,7 @@ function buildQuizMock(payload) {
         text: isVocabularySet
           ? `${requestedCount} vocabulary questions generated for ${isCet4PracticeTopic(requestedTopic) ? "CET-4" : truncate(requestedTopic, 88)} with meaning, collocation, word form, and sentence-use tasks.`
           : isInfinitiveSet
-          ? `已生成 ${requestedCount} 道动词不定式练习题。先在页面作答，再展开答案和解析。`
+          ? `${requestedCount} infinitive practice questions generated. Answer on the page first, then open the model answers and explanations.`
           : `${requestedCount} items generated around ${truncate(requestedTopic, 88)} with a mix of correction, rewrite, and explanation prompts.`
       },
       {
@@ -1942,11 +1942,11 @@ async function proxyQuizToDeepTutor(payload, user) {
   const isInfinitiveSet = isInfinitivePracticeTopic(topicText);
   const isVocabularySet = isVocabularyPracticeTopic(topicText);
   const requirement = {
-    knowledge_point: isInfinitiveSet ? "初三英语动词不定式（to do）" : topicText,
+    knowledge_point: isInfinitiveSet ? "Grade 9 English infinitives (to do)" : topicText,
     preference: isVocabularySet
       ? "Generate targeted vocabulary exercises with meaning, collocation, word-form, and sentence-use tasks. Do not create generic rewrite prompts."
       : isInfinitiveSet
-      ? "Generate concrete junior-high English infinitive grammar exercises with answer keys and short Chinese explanations. Do not create generic rewrite prompts."
+      ? "Generate concrete junior-high English infinitive grammar exercises with answer keys and short English explanations. Do not create generic rewrite prompts."
       : String(payload.preference || "Targeted practice for English learning"),
     difficulty: String(payload.difficulty || "intermediate"),
     question_type: String(payload.questionType || "mixed") === "mixed" ? "auto" : String(payload.questionType || "auto")
