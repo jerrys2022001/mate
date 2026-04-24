@@ -1156,11 +1156,204 @@ function buildDeepSolveMock(payload) {
   };
 }
 
+function clampPracticeQuestionCount(value, fallback) {
+  const fallbackNumber = Number.isFinite(Number(fallback)) ? Number(fallback) : 5;
+  const numericValue = Number(value);
+  const resolvedValue = Number.isFinite(numericValue) ? numericValue : fallbackNumber;
+
+  return Math.max(1, Math.min(20, Math.round(resolvedValue)));
+}
+
+function parseChinesePracticeCount(value) {
+  const raw = String(value || "").trim();
+  const compact = raw.replace(/\s+/g, "");
+  const digitMatch = compact.match(/(\d{1,2})(?:题|道|个|questions?|items?)/i);
+
+  if (digitMatch) {
+    return clampPracticeQuestionCount(digitMatch[1], 5);
+  }
+
+  const chineseMatch = compact.match(/([一二两三四五六七八九十]{1,3})(?:题|道|个)/);
+
+  if (!chineseMatch) {
+    return null;
+  }
+
+  const numerals = {
+    一: 1,
+    二: 2,
+    两: 2,
+    三: 3,
+    四: 4,
+    五: 5,
+    六: 6,
+    七: 7,
+    八: 8,
+    九: 9,
+    十: 10
+  };
+  const text = chineseMatch[1];
+
+  if (text === "十") {
+    return 10;
+  }
+
+  if (text.length === 1) {
+    return numerals[text] || null;
+  }
+
+  if (text.startsWith("十")) {
+    return 10 + (numerals[text.slice(1)] || 0);
+  }
+
+  if (text.includes("十")) {
+    const [tens, ones] = text.split("十");
+    return (numerals[tens] || 1) * 10 + (numerals[ones] || 0);
+  }
+
+  return null;
+}
+
+function resolvePracticeQuestionCount(topic, fallbackCount) {
+  const parsedCount = parseChinesePracticeCount(topic);
+
+  if (parsedCount) {
+    return clampPracticeQuestionCount(parsedCount, fallbackCount);
+  }
+
+  return clampPracticeQuestionCount(fallbackCount, 5);
+}
+
+function isInfinitivePracticeTopic(topic) {
+  return /不定式|动词不定式|to\s+do|infinitive/i.test(String(topic || ""));
+}
+
+function buildInfinitivePracticeQuestions(topic, count, difficulty) {
+  const concentration = String(topic || "").includes("初三")
+    ? "初三英语：动词不定式（to do）"
+    : "English grammar: infinitives (to do)";
+  const bank = [
+    {
+      type: "choice",
+      question: "Choose the correct answer: It is important ___ English every day.",
+      options: [
+        { key: "A", text: "learn" },
+        { key: "B", text: "to learn" },
+        { key: "C", text: "learning" },
+        { key: "D", text: "learned" }
+      ],
+      correctAnswer: "B. to learn",
+      explanation: "It is + adjective + to do sth. 表示“做某事是……的”。"
+    },
+    {
+      type: "fill-in",
+      question: "Fill in the blank with the correct form: My teacher asked me ___ (open) the window.",
+      options: [],
+      correctAnswer: "to open",
+      explanation: "ask sb. to do sth. 是固定结构，意思是“要求某人做某事”。"
+    },
+    {
+      type: "choice",
+      question: "Choose the correct answer: She has a lot of homework ___ tonight.",
+      options: [
+        { key: "A", text: "do" },
+        { key: "B", text: "to do" },
+        { key: "C", text: "doing" },
+        { key: "D", text: "did" }
+      ],
+      correctAnswer: "B. to do",
+      explanation: "不定式可以作后置定语，修饰 homework，表示“要做的作业”。"
+    },
+    {
+      type: "fill-in",
+      question: "Fill in the blank: We went to the library ___ (borrow) some books.",
+      options: [],
+      correctAnswer: "to borrow",
+      explanation: "动词不定式可作目的状语，说明 went to the library 的目的。"
+    },
+    {
+      type: "choice",
+      question: "Choose the correct answer: The box is too heavy for the boy ___.",
+      options: [
+        { key: "A", text: "carry" },
+        { key: "B", text: "to carry" },
+        { key: "C", text: "carrying" },
+        { key: "D", text: "carried" }
+      ],
+      correctAnswer: "B. to carry",
+      explanation: "too + adjective + for sb. + to do sth. 表示“太……以至于某人不能做某事”。"
+    },
+    {
+      type: "fill-in",
+      question: "Fill in the blank: I am happy ___ (meet) you again.",
+      options: [],
+      correctAnswer: "to meet",
+      explanation: "be + adjective + to do sth. 用来表达原因或感受。"
+    },
+    {
+      type: "choice",
+      question: "Choose the sentence with the correct infinitive pattern.",
+      options: [
+        { key: "A", text: "He wants going home now." },
+        { key: "B", text: "He wants to go home now." },
+        { key: "C", text: "He wants go home now." },
+        { key: "D", text: "He wants went home now." }
+      ],
+      correctAnswer: "B. He wants to go home now.",
+      explanation: "want to do sth. 是固定结构，want 后面常接动词不定式。"
+    },
+    {
+      type: "fill-in",
+      question: "Fill in the blank: It takes me twenty minutes ___ (walk) to school.",
+      options: [],
+      correctAnswer: "to walk",
+      explanation: "It takes sb. some time to do sth. 表示“某人花多少时间做某事”。"
+    },
+    {
+      type: "choice",
+      question: "Choose the correct answer: I don't know what ___ next.",
+      options: [
+        { key: "A", text: "do" },
+        { key: "B", text: "to do" },
+        { key: "C", text: "doing" },
+        { key: "D", text: "done" }
+      ],
+      correctAnswer: "B. to do",
+      explanation: "疑问词 + to do 可作宾语，what to do 意思是“该做什么”。"
+    },
+    {
+      type: "fill-in",
+      question: "Fill in the blank: The teacher told us ___ (not be) late again.",
+      options: [],
+      correctAnswer: "not to be",
+      explanation: "tell sb. not to do sth. 表示“告诉某人不要做某事”。"
+    }
+  ];
+
+  return Array.from({ length: count }).map((_, index) => {
+    const source = bank[index % bank.length];
+    const number = index + 1;
+
+    return {
+      id: `infinitive-practice-${number}`,
+      number,
+      type: source.type,
+      difficulty,
+      concentration,
+      question: source.question,
+      options: source.options,
+      correctAnswer: source.correctAnswer,
+      explanation: source.explanation
+    };
+  });
+}
+
 function buildQuizMock(payload) {
-  const requestedCount = Math.max(1, Number((payload && payload.count) || 5));
   const requestedDifficulty = String((payload && payload.difficulty) || "upper-intermediate");
   const requestedTopic = String((payload && (payload.topic || payload.prompt)) || "English writing practice");
+  const requestedCount = resolvePracticeQuestionCount(requestedTopic, payload && payload.count);
   const questions = buildPracticeQuestions(requestedTopic, requestedCount, requestedDifficulty, payload && payload.questionType);
+  const isInfinitiveSet = isInfinitivePracticeTopic(requestedTopic);
 
   return {
     mode: "mock",
@@ -1169,12 +1362,16 @@ function buildQuizMock(payload) {
     outputTitle: "Generated practice set",
     blocks: [
       {
-        heading: "Question mix",
-        text: `${requestedCount} items generated around ${truncate(requestedTopic, 88)} with a mix of correction, rewrite, and explanation prompts.`
+        heading: isInfinitiveSet ? "Grammar drill" : "Question mix",
+        text: isInfinitiveSet
+          ? `已生成 ${requestedCount} 道动词不定式练习题。先在页面作答，再展开答案和解析。`
+          : `${requestedCount} items generated around ${truncate(requestedTopic, 88)} with a mix of correction, rewrite, and explanation prompts.`
       },
       {
         heading: "Difficulty control",
-        text: `The set is tuned for ${requestedDifficulty} learners and uses realistic work, exam, and campus scenarios so the practice feels relevant rather than generic.`
+        text: isInfinitiveSet
+          ? `The set is tuned for ${requestedDifficulty} learners and uses junior-high grammar patterns instead of generic rewrite prompts.`
+          : `The set is tuned for ${requestedDifficulty} learners and uses realistic work, exam, and campus scenarios so the practice feels relevant rather than generic.`
       },
       {
         heading: "Feedback design",
@@ -1474,10 +1671,14 @@ function extractPracticeQuestions(events) {
 }
 
 function buildPracticeQuestions(topic, count, difficulty, questionType) {
-  const requestedCount = Math.max(1, Number(count || 5));
   const normalizedTopic = String(topic || "English writing practice").trim();
+  const requestedCount = resolvePracticeQuestionCount(normalizedTopic, count);
   const normalizedDifficulty = String(difficulty || "upper-intermediate").trim();
   const normalizedType = String(questionType || "mixed").trim();
+
+  if (isInfinitivePracticeTopic(normalizedTopic)) {
+    return buildInfinitivePracticeQuestions(normalizedTopic, requestedCount, normalizedDifficulty);
+  }
 
   return Array.from({ length: requestedCount }).map((_, index) => {
     const number = index + 1;
@@ -1586,10 +1787,14 @@ async function proxyQuizToDeepTutor(payload, user) {
     ? deepTutorConfig.enableRagByDefault && Boolean(requestedKbName)
     : Boolean(payload.enableRag);
   const kbName = enableRag ? String(requestedKbName || getKnowledgeBaseNameForUser(user) || "").trim() : "";
-  const count = Number(payload.count || 5);
+  const topicText = String(payload.topic || payload.prompt || "English writing practice");
+  const count = resolvePracticeQuestionCount(topicText, payload.count);
+  const isInfinitiveSet = isInfinitivePracticeTopic(topicText);
   const requirement = {
-    knowledge_point: String(payload.topic || payload.prompt || "English writing practice"),
-    preference: String(payload.preference || "Targeted practice for English learning"),
+    knowledge_point: isInfinitiveSet ? "初三英语动词不定式（to do）" : topicText,
+    preference: isInfinitiveSet
+      ? "Generate concrete junior-high English infinitive grammar exercises with answer keys and short Chinese explanations. Do not create generic rewrite prompts."
+      : String(payload.preference || "Targeted practice for English learning"),
     difficulty: String(payload.difficulty || "upper-intermediate"),
     question_type: String(payload.questionType || "mixed") === "mixed" ? "auto" : String(payload.questionType || "auto")
   };
