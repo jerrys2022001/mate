@@ -54,31 +54,28 @@
         <h1>Keep your writing sources in one place.</h1>
         <p class="hero-lead">Upload. Save. Search.</p>
         <div class="hero-actions">
-          <span class="status-chip" id="kb-runtime">Checking BFF</span>
+          <span class="status-chip" id="kb-runtime">Checking</span>
         </div>
       </div>
     </section>
 
     <section class="workspace-brief">
       <article class="workspace-brief-card reveal">
-        <span class="small-label">Library Status</span>
-        <strong>Personal and starter knowledge</strong>
+        <span class="small-label">Library</span>
+        <strong>Knowledge</strong>
         <span class="status-chip is-file" id="kb-doc-status">3 visible / 3 total</span>
-        <p>Counts update as you upload, rename, delete, and filter documents.</p>
       </article>
       <article class="workspace-brief-card reveal">
-        <span class="small-label">Current Filter</span>
-        <strong>Focus view</strong>
+        <span class="small-label">Filter</span>
+        <strong>Focus</strong>
         <span class="status-chip is-file" id="kb-filter-status">All docs</span>
-        <p>Stay oriented while switching between starter docs, personal uploads, files, and notes.</p>
       </article>
       <article class="workspace-brief-card reveal">
-        <span class="small-label">Use It Next</span>
+        <span class="small-label">Next</span>
         <div class="workspace-link-row">
           <a class="secondary-button" href="chat.html">Open Study Chat</a>
           <a class="secondary-button" href="quiz.html">Open Practice</a>
         </div>
-        <p>Move directly from saved source material into coaching or targeted practice.</p>
       </article>
     </section>
 
@@ -124,7 +121,7 @@
             </div>
           </article>
 
-          <article class="kb-card reveal">
+          <article class="kb-card kb-card--entry reveal">
             <h3>Save a note</h3>
             <form class="kb-entry-form" id="kb-entry-form">
               <div class="field-row">
@@ -166,9 +163,13 @@
             </form>
           </article>
 
-          <article class="kb-card reveal">
+          <article class="kb-card kb-card--library reveal">
             <div class="kb-library-head">
-              <h3>Library</h3>
+              <div class="kb-library-summary">
+                <h3>Library</h3>
+                <p class="kb-library-context" id="kb-library-context">Browse starter material, uploads, files, and notes in one view.</p>
+              </div>
+              <span class="status-chip is-file" id="kb-library-count">0 matches</span>
             </div>
             <div class="filter-chip-row" id="kb-filter-row">
               <button class="quick-chip is-active" type="button" data-kb-filter="all">All docs</button>
@@ -187,7 +188,7 @@
         <aside class="kb-side">
           <article class="doc-list reveal">
             <div class="doc-list-head">
-              <h3>Recent files</h3>
+              <h3 id="kb-side-title">Recent files</h3>
             </div>
             <ul class="doc-feed" id="kb-doc-feed"></ul>
           </article>

@@ -6301,3 +6301,33 @@ textarea {
     order: 3;
   }
 }
+
+/* Lean copy pass: keep top workspace panels compact after removing helper text. */
+.hero-story-inline {
+  padding: 18px 22px;
+}
+
+.hero-story-inline h2 {
+  margin-top: 10px;
+}
+
+body[data-page="chat"] .workspace-brief,
+body[data-page="kb"] .workspace-brief,
+body[data-page="quiz"] .workspace-brief {
+  padding-bottom: 14px;
+}
+
+body[data-page="chat"] .workspace-brief-card,
+body[data-page="kb"] .workspace-brief-card,
+body[data-page="quiz"] .workspace-brief-card {
+  align-content: start;
+  gap: 8px;
+  min-height: 0;
+  padding: 16px 18px;
+}
+
+body[data-page="chat"] .workspace-link-row,
+body[data-page="kb"] .workspace-link-row,
+body[data-page="quiz"] .workspace-link-row {
+  gap: 10px;
+}
