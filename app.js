@@ -2517,6 +2517,367 @@
     return parseQuestionBankText(trimmed, fileName, fileMeta);
   }
 
+  function readFileAsArrayBuffer(file) {
+    if (file && typeof file.arrayBuffer === "function") {
+      return file.arrayBuffer();
+    }
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => resolve(reader.result));
+      reader.addEventListener("error", () => reject(reader.error || new Error("File read failed")));
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  function bytesToBinaryString(bytes) {
+    const parts = [];
+    const chunkSize = 0x8000;
+
+    for (let index = 0; index < bytes.length; index += chunkSize) {
+      parts.push(String.fromCharCode.apply(null, bytes.subarray(index, index + chunkSize)));
+    }
+
+    return parts.join("");
+  }
+
+  function binaryStringToBytes(value) {
+    const bytes = new Uint8Array(value.length);
+
+    for (let index = 0; index < value.length; index += 1) {
+      bytes[index] = value.charCodeAt(index) & 0xff;
+    }
+
+    return bytes;
+  }
+
+  async function decompressBytes(bytes, formats) {
+    const DecompressionStreamCtor = globalThis.DecompressionStream;
+
+    if (!DecompressionStreamCtor) {
+      throw new Error("This browser cannot extract compressed Word or PDF text.");
+    }
+
+    let lastError = null;
+
+    for (const format of formats) {
+      try {
+        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStreamCtor(format));
+        return new Uint8Array(await new Response(stream).arrayBuffer());
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError || new Error("Compressed document text could not be extracted.");
+  }
+
+  function decodeXmlEntities(value) {
+    return String(value || "")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&")
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'");
+  }
+
+  function findZipEndOfCentralDirectory(bytes) {
+    const minOffset = Math.max(0, bytes.length - 65558);
+
+    for (let offset = bytes.length - 22; offset >= minOffset; offset -= 1) {
+      if (
+        bytes[offset] === 0x50 &&
+        bytes[offset + 1] === 0x4b &&
+        bytes[offset + 2] === 0x05 &&
+        bytes[offset + 3] === 0x06
+      ) {
+        return offset;
+      }
+    }
+
+    return -1;
+  }
+
+  function readZipEntries(bytes) {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const decoder = new TextDecoder("utf-8");
+    const eocdOffset = findZipEndOfCentralDirectory(bytes);
+
+    if (eocdOffset < 0) {
+      throw new Error("This Word file could not be opened as a DOCX archive.");
+    }
+
+    const entryCount = view.getUint16(eocdOffset + 10, true);
+    let cursor = view.getUint32(eocdOffset + 16, true);
+    const entries = [];
+
+    for (let index = 0; index < entryCount; index += 1) {
+      if (view.getUint32(cursor, true) !== 0x02014b50) {
+        break;
+      }
+
+      const method = view.getUint16(cursor + 10, true);
+      const compressedSize = view.getUint32(cursor + 20, true);
+      const fileNameLength = view.getUint16(cursor + 28, true);
+      const extraLength = view.getUint16(cursor + 30, true);
+      const commentLength = view.getUint16(cursor + 32, true);
+      const localHeaderOffset = view.getUint32(cursor + 42, true);
+      const nameBytes = bytes.slice(cursor + 46, cursor + 46 + fileNameLength);
+      const name = decoder.decode(nameBytes).replace(/\\/g, "/");
+      const localNameLength = view.getUint16(localHeaderOffset + 26, true);
+      const localExtraLength = view.getUint16(localHeaderOffset + 28, true);
+
+      entries.push({
+        name,
+        method,
+        compressedSize,
+        dataStart: localHeaderOffset + 30 + localNameLength + localExtraLength
+      });
+
+      cursor += 46 + fileNameLength + extraLength + commentLength;
+    }
+
+    return entries;
+  }
+
+  async function extractZipEntryBytes(zipBytes, entry) {
+    const compressed = zipBytes.slice(entry.dataStart, entry.dataStart + entry.compressedSize);
+
+    if (entry.method === 0) {
+      return compressed;
+    }
+
+    if (entry.method === 8) {
+      return decompressBytes(compressed, ["deflate-raw", "deflate"]);
+    }
+
+    throw new Error(`Unsupported DOCX compression method: ${entry.method}`);
+  }
+
+  function extractWordXmlText(xml) {
+    return decodeXmlEntities(String(xml || "")
+      .replace(/<w:tab\b[^>]*\/>/g, "\t")
+      .replace(/<w:br\b[^>]*\/>/g, "\n")
+      .replace(/<\/w:p>/g, "\n")
+      .replace(/<[^>]+>/g, ""))
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
+  async function extractDocxText(file) {
+    const bytes = new Uint8Array(await readFileAsArrayBuffer(file));
+    const entries = readZipEntries(bytes)
+      .filter((entry) => /^word\/(?:document|header\d*|footer\d*|footnotes|endnotes)\.xml$/i.test(entry.name))
+      .sort((a, b) => (a.name === "word/document.xml" ? -1 : b.name === "word/document.xml" ? 1 : a.name.localeCompare(b.name)));
+    const decoder = new TextDecoder("utf-8");
+    const parts = [];
+
+    for (const entry of entries) {
+      const entryBytes = await extractZipEntryBytes(bytes, entry);
+      const text = extractWordXmlText(decoder.decode(entryBytes));
+
+      if (text) {
+        parts.push(text);
+      }
+    }
+
+    const extractedText = parts.join("\n\n").trim();
+
+    if (!extractedText) {
+      throw new Error("No readable text was found in this Word file.");
+    }
+
+    return extractedText;
+  }
+
+  function trimPdfStreamBytes(bytes) {
+    let start = 0;
+    let end = bytes.length;
+
+    if (bytes[0] === 13 && bytes[1] === 10) {
+      start = 2;
+    } else if (bytes[0] === 10 || bytes[0] === 13) {
+      start = 1;
+    }
+
+    if (end > start && bytes[end - 2] === 13 && bytes[end - 1] === 10) {
+      end -= 2;
+    } else if (end > start && (bytes[end - 1] === 10 || bytes[end - 1] === 13)) {
+      end -= 1;
+    }
+
+    return bytes.slice(start, end);
+  }
+
+  function decodePdfLiteralString(value) {
+    const source = String(value || "");
+    let result = "";
+
+    for (let index = 1; index < source.length - 1; index += 1) {
+      const char = source[index];
+
+      if (char !== "\\") {
+        result += char;
+        continue;
+      }
+
+      const next = source[index + 1];
+
+      if (next === "n") result += "\n";
+      else if (next === "r") result += "\r";
+      else if (next === "t") result += "\t";
+      else if (next === "b") result += "\b";
+      else if (next === "f") result += "\f";
+      else if (next === "(" || next === ")" || next === "\\") result += next;
+      else if (/[0-7]/.test(next || "")) {
+        const octal = source.slice(index + 1, index + 4).match(/^[0-7]{1,3}/);
+        result += String.fromCharCode(parseInt(octal[0], 8));
+        index += octal[0].length - 1;
+      }
+
+      index += 1;
+    }
+
+    return result;
+  }
+
+  function decodePdfHexString(value) {
+    const hex = String(value || "").replace(/[^0-9a-f]/gi, "");
+    const padded = hex.length % 2 ? `${hex}0` : hex;
+    const bytes = new Uint8Array(padded.length / 2);
+
+    for (let index = 0; index < padded.length; index += 2) {
+      bytes[index / 2] = parseInt(padded.slice(index, index + 2), 16);
+    }
+
+    if (bytes[0] === 0xfe && bytes[1] === 0xff) {
+      return decodeUtf16Be(bytes.slice(2));
+    }
+
+    if (bytes[0] === 0xff && bytes[1] === 0xfe) {
+      return new TextDecoder("utf-16le").decode(bytes.slice(2));
+    }
+
+    return new TextDecoder("latin1").decode(bytes);
+  }
+
+  function decodeUtf16Be(bytes) {
+    let result = "";
+
+    for (let index = 0; index + 1 < bytes.length; index += 2) {
+      result += String.fromCharCode((bytes[index] << 8) | bytes[index + 1]);
+    }
+
+    return result;
+  }
+
+  function extractTextFromPdfContent(content) {
+    const textParts = [];
+    const literalTjPattern = /\((?:\\.|[^\\()])*\)\s*Tj/g;
+    const hexTjPattern = /<([0-9a-fA-F\s]+)>\s*Tj/g;
+    const arrayPattern = /\[([\s\S]*?)\]\s*TJ/g;
+    let match;
+
+    while ((match = literalTjPattern.exec(content))) {
+      textParts.push(decodePdfLiteralString(match[0].replace(/\s*Tj$/, "")));
+    }
+
+    while ((match = hexTjPattern.exec(content))) {
+      textParts.push(decodePdfHexString(match[1]));
+    }
+
+    while ((match = arrayPattern.exec(content))) {
+      const arrayText = match[1];
+      const arrayStringPattern = /\((?:\\.|[^\\()])*\)|<([0-9a-fA-F\s]+)>/g;
+      const row = [];
+      let arrayMatch;
+
+      while ((arrayMatch = arrayStringPattern.exec(arrayText))) {
+        row.push(arrayMatch[0].startsWith("(")
+          ? decodePdfLiteralString(arrayMatch[0])
+          : decodePdfHexString(arrayMatch[1] || arrayMatch[0]));
+      }
+
+      if (row.length) {
+        textParts.push(row.join(""));
+      }
+    }
+
+    return textParts
+      .join("\n")
+      .replace(/\u0000/g, "")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
+  async function extractPdfText(file) {
+    const bytes = new Uint8Array(await readFileAsArrayBuffer(file));
+    const binary = bytesToBinaryString(bytes);
+    const streamPattern = /<<([\s\S]*?)>>\s*stream\r?\n?([\s\S]*?)\r?\nendstream/g;
+    const textParts = [];
+    let match;
+
+    while ((match = streamPattern.exec(binary))) {
+      const dictionary = match[1] || "";
+      const streamBytes = trimPdfStreamBytes(binaryStringToBytes(match[2] || ""));
+      let contentBytes = streamBytes;
+
+      if (/\/FlateDecode\b/.test(dictionary)) {
+        try {
+          contentBytes = await decompressBytes(streamBytes, ["deflate", "deflate-raw"]);
+        } catch (error) {
+          continue;
+        }
+      }
+
+      const extracted = extractTextFromPdfContent(bytesToBinaryString(contentBytes));
+
+      if (extracted) {
+        textParts.push(extracted);
+      }
+    }
+
+    const fallbackText = extractTextFromPdfContent(binary);
+    if (fallbackText) {
+      textParts.push(fallbackText);
+    }
+
+    const extractedText = Array.from(new Set(textParts))
+      .join("\n\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+    if (!extractedText) {
+      throw new Error("No readable text was found in this PDF. Scanned image PDFs need OCR before import.");
+    }
+
+    return extractedText;
+  }
+
+  async function readLocalQuestionBankText(file) {
+    const lowerName = String(file && file.name || "").toLowerCase();
+    const mimeType = String(file && file.type || "").toLowerCase();
+    const isLegacyWord = lowerName.endsWith(".doc") || mimeType === "application/msword";
+    const isWord = lowerName.endsWith(".docx") || mimeType.includes("wordprocessingml.document");
+    const isPdf = lowerName.endsWith(".pdf") || mimeType === "application/pdf";
+
+    if (isLegacyWord) {
+      throw new Error("Legacy .doc files are not supported. Save the file as .docx and upload again.");
+    }
+
+    if (isWord) {
+      return extractDocxText(file);
+    }
+
+    if (isPdf) {
+      return extractPdfText(file);
+    }
+
+    return readLocalTextFile(file);
+  }
+
   function readLocalTextFile(file) {
     if (file && typeof file.text === "function") {
       return file.text();
@@ -5284,7 +5645,7 @@
       }
 
       try {
-        const text = await readLocalTextFile(file);
+        const text = await readLocalQuestionBankText(file);
         const bank = parsePracticeQuestionBankFile(text, file.name, file);
 
         if (!bank.questions.length) {
