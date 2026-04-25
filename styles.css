@@ -6869,6 +6869,50 @@ body[data-page="kb"] .kb-library-context {
   max-width: 44ch;
 }
 
+body[data-page="kb"] .library-filter-groups {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.54);
+}
+
+body[data-page="kb"] .library-filter-group {
+  display: grid;
+  gap: 7px;
+}
+
+body[data-page="kb"] .library-filter-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+body[data-page="kb"] .library-filter-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+body[data-page="kb"] .library-filter-group--source .library-filter-buttons {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+body[data-page="kb"] .library-filter-groups .quick-chip {
+  justify-content: center;
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 8px;
+  border-radius: 12px;
+  font-size: 0.84rem;
+}
+
 body[data-page="kb"] .workspace-shell .source-card--empty {
   grid-column: 1 / -1;
 }
@@ -7750,5 +7794,24 @@ body[data-page="auth"] .final-cta {
 @media (max-width: 620px) {
   .workflow-map {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 1101px) {
+  body[data-page="kb"] .workspace-shell .kb-side > .kb-card--library > .library-filter-groups {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 760px) {
+  body[data-page="kb"] .library-filter-groups {
+    overflow: visible;
+    white-space: normal;
+    padding-bottom: 10px;
+  }
+
+  body[data-page="kb"] .library-filter-groups > * {
+    min-width: 0;
   }
 }

@@ -484,28 +484,28 @@
 
   const kbFilterMeta = {
     all: {
-      label: "All docs",
-      context: "Browse starter material, uploads, files, and notes in one compact view.",
+      label: "All",
+      context: "All saved sources ready to review or download.",
       sideTitle: "Recent files"
     },
     personal: {
-      label: "My uploads",
-      context: "Focus on the files and notes saved to your personal Mate workspace.",
+      label: "Uploads",
+      context: "Your uploaded files and saved notes.",
       sideTitle: "My upload details"
     },
     starter: {
-      label: "Starter docs",
-      context: "See bundled examples, guides, and reference packs ready for quick practice.",
+      label: "Starter",
+      context: "Built-in rubrics, guides, and examples.",
       sideTitle: "Starter doc details"
     },
     files: {
       label: "Files",
-      context: "Show document uploads and synced assets that are ready to download or review.",
+      context: "Uploaded documents and synced assets.",
       sideTitle: "File details"
     },
     notes: {
       label: "Notes",
-      context: "Focus on lightweight notes, saved guidance, and reusable teaching snippets.",
+      context: "Saved guidance and reusable notes.",
       sideTitle: "Note details"
     }
   };

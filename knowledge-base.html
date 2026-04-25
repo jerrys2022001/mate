@@ -156,16 +156,26 @@
             <div class="kb-library-head">
               <div class="kb-library-summary">
                 <h3>Library</h3>
-                <p class="kb-library-context" id="kb-library-context">Browse starter material, uploads, files, and notes in one view.</p>
+                <p class="kb-library-context" id="kb-library-context">Find sources by type or origin.</p>
               </div>
               <span class="status-chip is-file" id="kb-library-count">0 matches</span>
             </div>
-            <div class="filter-chip-row" id="kb-filter-row">
-              <button class="quick-chip is-active" type="button" data-kb-filter="all">All docs</button>
-              <button class="quick-chip" type="button" data-kb-filter="personal">My uploads</button>
-              <button class="quick-chip" type="button" data-kb-filter="starter">Starter docs</button>
-              <button class="quick-chip" type="button" data-kb-filter="files">Files</button>
-              <button class="quick-chip" type="button" data-kb-filter="notes">Notes</button>
+            <div class="filter-chip-row library-filter-groups" id="kb-filter-row" aria-label="Library filters">
+              <div class="library-filter-group library-filter-group--show">
+                <span class="library-filter-label">Show</span>
+                <div class="library-filter-buttons">
+                  <button class="quick-chip is-active" type="button" data-kb-filter="all">All</button>
+                  <button class="quick-chip" type="button" data-kb-filter="files">Files</button>
+                  <button class="quick-chip" type="button" data-kb-filter="notes">Notes</button>
+                </div>
+              </div>
+              <div class="library-filter-group library-filter-group--source">
+                <span class="library-filter-label">Source</span>
+                <div class="library-filter-buttons">
+                  <button class="quick-chip" type="button" data-kb-filter="personal">Uploads</button>
+                  <button class="quick-chip" type="button" data-kb-filter="starter">Starter</button>
+                </div>
+              </div>
             </div>
             <div class="kb-search">
               <input id="kb-search" type="search" placeholder="Search by topic, source type, or use case">
