@@ -418,7 +418,6 @@
       tags: ["exam", "ielts", "rubric", "starter"],
       onlineName: "IELTS Writing Band Descriptors.pdf",
       downloadName: "IELTS Writing Band Descriptors.pdf",
-      downloadUrl: "assets/kb-starter/ielts-writing-band-descriptors.pdf",
       sourceOrigin: "starter",
       sourceUrl: "https://ielts.org/-/media/pdfs/writing-band-descriptors-task-2.ashx"
     },
@@ -432,7 +431,6 @@
       tags: ["business", "email", "tone", "starter"],
       onlineName: "Purdue OWL Sample Emails.html",
       downloadName: "Business Email Tone Guide.docx",
-      downloadUrl: "assets/kb-starter/business-email-tone-guide.docx",
       sourceOrigin: "starter",
       sourceUrl: "https://owl.purdue.edu/owl/subject_specific_writing/professional_technical_writing/business_writing_for_administrative_and_clerical_staff/sample_emails.html"
     },
@@ -446,7 +444,6 @@
       tags: ["essay", "writing", "examples", "starter"],
       onlineName: "British Council IELTS Writing Practice.html",
       downloadName: "Top Essays Collection.docx",
-      downloadUrl: "assets/kb-starter/top-essays-collection.docx",
       sourceOrigin: "starter",
       sourceUrl: "https://takeielts.britishcouncil.org/take-ielts/prepare/free-ielts-english-practice-tests/writing/academic"
     }
@@ -754,37 +751,8 @@
     return Boolean(document && document.sourceUrl && /^https?:\/\//i.test(String(document.sourceUrl)));
   }
 
-  function hasAssetDownloadUrl(document) {
-    return Boolean(document && document.downloadUrl && !/^https?:\/\//i.test(String(document.downloadUrl)));
-  }
-
-  function shouldUseDirectSourceDownload(document) {
-    return Boolean((hasAssetDownloadUrl(document) || hasSourceDownloadUrl(document)) && !document.storagePath && !document.fileSize);
-  }
-
-  function buildDirectSourceDownloadMarkup(document, label) {
-    const href = hasAssetDownloadUrl(document) ? document.downloadUrl : document.sourceUrl;
-    return `
-      <a
-        class="secondary-button doc-action-button"
-        href="${escapeAttribute(href)}"
-        download="${escapeAttribute(getDocumentDownloadName(document))}"
-      >${escapeHtml(label || "Download")}</a>
-    `;
-  }
-
-  function downloadFromSourceUrl(document) {
-    const link = document.createElement("a");
-    link.href = document.sourceUrl;
-    link.download = getDocumentDownloadName(document);
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    return {
-      mode: "source"
-    };
+  function hasStoredDownloadFile(document) {
+    return Boolean(document && (document.storagePath || document.fileSize));
   }
 
   function truncate(value, maxLength) {
@@ -1859,10 +1827,6 @@
     }
 
     if (apiError) {
-      if (hasSourceDownloadUrl(kbDocument)) {
-        return downloadFromSourceUrl(kbDocument);
-      }
-
       if (!canExportDocumentLocally(kbDocument)) {
         throw apiError;
       }
@@ -1895,10 +1859,6 @@
         // Keep the generic message for non-JSON download errors.
       }
       if (!canExportDocumentLocally(kbDocument)) {
-        if (hasSourceDownloadUrl(kbDocument)) {
-          return downloadFromSourceUrl(kbDocument);
-        }
-
         throw new Error(message);
       }
 
@@ -3890,14 +3850,10 @@
         </div>
         <div class="doc-group-list">
           ${group.documents.map((document) => {
-            const canDownload = document.downloadable !== false && !String(document.id || "").startsWith("deeptutor:");
+            const canDownload = document.downloadable !== false && !String(document.id || "").startsWith("deeptutor:") && hasStoredDownloadFile(document);
             const canDelete = canDeleteKnowledgeDocument(document);
             const downloadLabel = canExportDocumentLocally(document) && !hasSourceDownloadUrl(document) ? "Export note" : "Download";
-            const downloadAction = canDownload
-              ? shouldUseDirectSourceDownload(document)
-                ? buildDirectSourceDownloadMarkup(document, downloadLabel)
-                : `<button class="secondary-button doc-action-button" type="button" data-doc-action="download" data-doc-id="${escapeAttribute(document.id)}">${escapeHtml(downloadLabel)}</button>`
-              : "";
+            const downloadAction = canDownload ? `<button class="secondary-button doc-action-button" type="button" data-doc-action="download" data-doc-id="${escapeAttribute(document.id)}">${escapeHtml(downloadLabel)}</button>` : "";
             return `
             <article class="doc-item">
               <div class="doc-top">
@@ -5842,7 +5798,6 @@
 
       return Object.assign({}, document, {
         sourceUrl: document.sourceUrl || sample.sourceUrl || "",
-        downloadUrl: document.downloadUrl || sample.downloadUrl || "",
         downloadName: document.downloadName || sample.downloadName || sample.onlineName || sample.name
       });
     }
@@ -6478,7 +6433,6 @@
                 sourceText: sample.sourceText,
                 tags: sample.tags || [],
                 downloadName: sample.downloadName || sample.onlineName || sample.name,
-                downloadUrl: sample.downloadUrl || "",
                 sourceUrl: sample.sourceUrl || ""
               })
             },
@@ -6504,7 +6458,6 @@
                     sourceText: sample.sourceText,
                     sourceUrl: sample.sourceUrl || "",
                     downloadName: sample.downloadName || sample.onlineName || sample.name,
-                    downloadUrl: sample.downloadUrl || "",
                     tags: sample.tags || [],
                     sourceOrigin: "personal",
                     editable: false
