@@ -5857,8 +5857,22 @@
       setBadge(uploadStatus, text, tone);
     }
 
+    function compactKnowledgeStatus(text) {
+      const message = String(text || "").trim();
+
+      if (!message) {
+        return "Ready";
+      }
+
+      if (/Mate BFF|BFF is unreachable|BFF was not detected|your-bff-origin|Failed to fetch|NetworkError|api=|checked:/i.test(message)) {
+        return "Connection unavailable";
+      }
+
+      return message.length > 72 ? `${message.slice(0, 69).trim()}...` : message;
+    }
+
     function updateDocStatus(text, tone) {
-      setBadge(docStatus, text, tone);
+      setBadge(docStatus, compactKnowledgeStatus(text), tone);
     }
 
     function normalizeKbSampleValue(value) {
@@ -6560,8 +6574,11 @@
           updateDocStatus(payload.duplicate ? "Online source already in knowledge base" : "Online source added to knowledge base", payload.duplicate ? "is-file" : "is-live");
           setBadge(runtimeBadge, payload.mode === "proxy" ? "KB synced" : payload.duplicate ? "Already added" : "Ready", payload.mode === "proxy" ? "is-live" : "is-file");
         } catch (error) {
-          updateDocStatus(error.message || "Online import failed", "is-demo");
-          setBadge(runtimeBadge, "Online import failed", "is-demo");
+          if (window.console && typeof window.console.warn === "function") {
+            window.console.warn("Online import failed", error);
+          }
+          updateDocStatus("Online import unavailable", "is-demo");
+          setBadge(runtimeBadge, "Connection unavailable", "is-demo");
         } finally {
           pendingOnlineAdds.delete(id);
           syncOnlineAddButtons();
