@@ -7296,15 +7296,16 @@ body[data-page="kb"] .workspace-shell .doc-body h4 {
 
 /* Study Chat voice controls. */
 .workspace-shell #chat-composer .composer-top {
-  align-items: flex-start;
+  align-items: center;
 }
 
 .composer-control-row {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  flex-wrap: nowrap;
   justify-content: flex-end;
-  gap: 8px;
-  min-width: min(100%, 560px);
+  gap: 6px;
+  min-width: 0;
 }
 
 .speech-tool-button,
@@ -7334,6 +7335,14 @@ body[data-page="kb"] .workspace-shell .doc-body h4 {
   gap: 8px;
 }
 
+.composer-control-row .speech-tool-button {
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+  border-radius: 999px;
+}
+
 .button-icon {
   width: 17px;
   height: 17px;
@@ -7361,6 +7370,38 @@ body[data-page="kb"] .workspace-shell .doc-body h4 {
 .message-speak-button:disabled {
   cursor: not-allowed;
   opacity: 0.48;
+}
+
+.chat-input-shell {
+  position: relative;
+  display: block;
+}
+
+.chat-input-shell #chat-input {
+  padding-right: 64px;
+}
+
+.chat-input-shell .chat-voice-button {
+  top: 14px;
+  right: 14px;
+  width: 42px;
+  height: 42px;
+}
+
+.composer-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.workspace-shell #chat-composer .composer-send-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  min-width: 156px;
 }
 
 .workspace-shell #chat-speech-status {
@@ -7454,12 +7495,17 @@ label .voice-input-shell,
 
 @media (max-width: 760px) {
   .composer-control-row {
-    justify-content: stretch;
+    flex-wrap: wrap;
+    justify-content: flex-start;
     width: 100%;
   }
 
-  .composer-control-row > *,
-  .workspace-shell #chat-composer .primary-button {
+  .composer-bottom-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .workspace-shell #chat-composer .composer-send-button {
     width: 100%;
   }
 }

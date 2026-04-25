@@ -95,25 +95,16 @@
                   accept=".txt,.md,.markdown,.docx,.pdf,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   hidden
                 >
-                <button class="speech-tool-button" id="chat-import-draft" type="button">
+                <button class="speech-tool-button" id="chat-import-draft" type="button" aria-label="Import draft" title="Import draft">
                   <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path>
                     <path d="M14 2v6h6"></path>
                     <path d="M12 18v-6"></path>
                     <path d="M9 15l3 3 3-3"></path>
                   </svg>
-                  <span>Import draft</span>
+                  <span class="sr-only">Import draft</span>
                 </button>
-                <button class="speech-tool-button" id="chat-voice-input" type="button" aria-pressed="false">
-                  <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
-                    <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z"></path>
-                    <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
-                    <path d="M12 18v4"></path>
-                    <path d="M8 22h8"></path>
-                  </svg>
-                  <span>Voice input</span>
-                </button>
-                <button class="speech-tool-button" id="chat-read-selection" type="button" disabled>
+                <button class="speech-tool-button" id="chat-read-selection" type="button" disabled aria-label="Read selected" title="Read selected">
                   <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
                     <path d="M4 6h10"></path>
                     <path d="M4 12h8"></path>
@@ -122,34 +113,47 @@
                     <path d="M19 11v2"></path>
                     <path d="M22 10v4"></path>
                   </svg>
-                  <span>Read selected</span>
+                  <span class="sr-only">Read selected</span>
                 </button>
-                <button class="speech-tool-button" id="chat-read-latest" type="button">
+                <button class="speech-tool-button" id="chat-read-latest" type="button" aria-label="Read latest" title="Read latest">
                   <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
                     <path d="M5 9v6h4l5 4V5L9 9H5Z"></path>
                     <path d="M18 9a5 5 0 0 1 0 6"></path>
                     <path d="M20.5 6.5a9 9 0 0 1 0 11"></path>
                   </svg>
-                  <span>Read latest</span>
+                  <span class="sr-only">Read latest</span>
                 </button>
-                <button class="speech-tool-button" id="chat-stop-speech" type="button" disabled>
+                <button class="speech-tool-button" id="chat-stop-speech" type="button" disabled aria-label="Stop voice" title="Stop voice">
                   <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
                     <path d="M8 8h8v8H8Z"></path>
                     <path d="M4 4h16v16H4Z"></path>
                   </svg>
-                  <span>Stop voice</span>
-                </button>
-                <button class="primary-button" type="submit">
-                  <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
-                    <path d="m22 2-7 20-4-9-9-4 20-7Z"></path>
-                    <path d="M22 2 11 13"></path>
-                  </svg>
-                  <span>Send to Mate</span>
+                  <span class="sr-only">Stop voice</span>
                 </button>
               </div>
             </div>
-            <textarea id="chat-input" placeholder="Paste text here, or import TXT / DOCX / text PDF drafts..."></textarea>
-            <span class="status-chip is-file" id="chat-speech-status">Voice ready</span>
+            <div class="chat-input-shell">
+              <textarea id="chat-input" placeholder="Paste text here, or import TXT / DOCX / text PDF drafts..."></textarea>
+              <button class="chat-voice-button field-voice-button" id="chat-voice-input" type="button" aria-pressed="false" aria-label="Voice input" title="Voice input">
+                <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z"></path>
+                  <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+                  <path d="M12 18v4"></path>
+                  <path d="M8 22h8"></path>
+                </svg>
+                <span class="sr-only">Voice input</span>
+              </button>
+            </div>
+            <div class="composer-bottom-row">
+              <span class="status-chip is-file" id="chat-speech-status">Voice ready</span>
+              <button class="primary-button composer-send-button" type="submit">
+                <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="m22 2-7 20-4-9-9-4 20-7Z"></path>
+                  <path d="M22 2 11 13"></path>
+                </svg>
+                <span>Send to Mate</span>
+              </button>
+            </div>
           </form>
 
           <article class="analysis-card reveal">
