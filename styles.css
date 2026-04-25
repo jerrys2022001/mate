@@ -6018,7 +6018,7 @@ textarea {
   max-height: min(62vh, 680px);
   overflow-y: auto;
   padding-right: 6px;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
 }
 
 .workspace-shell .chat-card {
@@ -7254,7 +7254,7 @@ body[data-page="kb"] .workspace-shell .doc-body h4 {
     max-height: var(--kb-main-height);
     overflow-x: hidden;
     overflow-y: auto;
-    overscroll-behavior: contain;
+    overscroll-behavior: auto;
     padding-right: 8px;
     scrollbar-gutter: stable;
   }
@@ -7874,5 +7874,63 @@ body[data-page="auth"] .final-cta {
 
   body[data-page="kb"] .library-filter-groups > * {
     min-width: 0;
+  }
+}
+
+/* Scroll safety: keep page-level wheel and touch scrolling available on every viewport. */
+html,
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+.workspace-shell,
+.workspace-layout {
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .workspace-shell,
+  .workspace-layout {
+    overflow: visible;
+  }
+
+  .workspace-shell .utility-column,
+  .workspace-shell .kb-side,
+  .workspace-shell .quiz-side,
+  .workspace-shell .chat-card,
+  .workspace-shell .chat-thread,
+  .workspace-shell .utility-column .analysis-card,
+  .workspace-shell .kb-side.is-height-bound,
+  .workspace-shell .kb-side .doc-list,
+  .workspace-shell .quiz-side .output-card {
+    position: static !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overscroll-behavior: auto;
+    scrollbar-gutter: auto;
+  }
+
+  .workspace-shell .utility-column,
+  .workspace-shell .kb-side,
+  .workspace-shell .quiz-side {
+    border-left: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .chat-input-shell #chat-input {
+    padding-right: 58px;
+  }
+
+  .chat-input-shell .chat-voice-button {
+    top: 12px;
+    right: 12px;
+    width: 38px;
+    height: 38px;
   }
 }

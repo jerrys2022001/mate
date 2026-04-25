@@ -7386,6 +7386,53 @@
     });
   }
 
+  function enablePageScrollAtPanelEdges(panel) {
+    if (!panel || panel.dataset.scrollChainReady === "true") {
+      return;
+    }
+
+    panel.dataset.scrollChainReady = "true";
+    panel.addEventListener("wheel", function (event) {
+      if (event.ctrlKey || Math.abs(event.deltaY) < Math.abs(event.deltaX)) {
+        return;
+      }
+
+      const canScroll = panel.scrollHeight > panel.clientHeight + 1;
+
+      if (!canScroll) {
+        return;
+      }
+
+      const atTop = panel.scrollTop <= 0;
+      const atBottom = panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 1;
+      const shouldHandOffToPage = (event.deltaY < 0 && atTop) || (event.deltaY > 0 && atBottom);
+
+      if (!shouldHandOffToPage) {
+        return;
+      }
+
+      const deltaUnit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
+      event.preventDefault();
+      window.scrollBy({
+        top: event.deltaY * deltaUnit,
+        left: 0,
+        behavior: "auto"
+      });
+    }, { passive: false });
+  }
+
+  function initScrollChaining() {
+    [
+      'body[data-page="chat"] .workspace-shell .chat-thread',
+      'body[data-page="chat"] .workspace-shell .utility-column .analysis-card',
+      'body[data-page="kb"] .workspace-shell .kb-side',
+      'body[data-page="kb"] .workspace-shell .kb-side .doc-list',
+      'body[data-page="quiz"] .workspace-shell .quiz-side .output-card'
+    ].forEach(function (selector) {
+      document.querySelectorAll(selector).forEach(enablePageScrollAtPanelEdges);
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", async function () {
     await bootstrapRuntime();
     await restoreSession();
@@ -7401,6 +7448,7 @@
     initChat();
     initKnowledgeBase();
     initQuiz();
+    initScrollChaining();
     initGlobalVoiceInputs();
     initDocumentExport();
     applyRuntimeSurfaceState();
