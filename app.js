@@ -5755,6 +5755,8 @@
     const libraryCount = document.getElementById("kb-library-count");
     const libraryContext = document.getElementById("kb-library-context");
     const sideTitle = document.getElementById("kb-side-title");
+    const kbMain = document.querySelector(".kb-main");
+    const kbSide = document.querySelector(".kb-side");
     const entryForm = document.getElementById("kb-entry-form");
     const entryStatus = document.getElementById("kb-entry-status");
     const dropzone = document.getElementById("kb-dropzone");
@@ -5774,6 +5776,41 @@
 
     if (!feed || !search) {
       return;
+    }
+
+    let railMeasureFrame = 0;
+    const desktopRailQuery = window.matchMedia ? window.matchMedia("(min-width: 1101px)") : null;
+    let railResizeObserver = null;
+
+    function syncKnowledgeRailHeight() {
+      if (!kbMain || !kbSide) {
+        return;
+      }
+
+      if (railMeasureFrame) {
+        window.cancelAnimationFrame(railMeasureFrame);
+      }
+
+      railMeasureFrame = window.requestAnimationFrame(function () {
+        railMeasureFrame = 0;
+
+        if (desktopRailQuery && !desktopRailQuery.matches) {
+          kbSide.classList.remove("is-height-bound");
+          kbSide.style.removeProperty("--kb-main-height");
+          return;
+        }
+
+        const mainHeight = Math.ceil(kbMain.getBoundingClientRect().height);
+
+        if (mainHeight <= 0) {
+          kbSide.classList.remove("is-height-bound");
+          kbSide.style.removeProperty("--kb-main-height");
+          return;
+        }
+
+        kbSide.style.setProperty("--kb-main-height", `${mainHeight}px`);
+        kbSide.classList.add("is-height-bound");
+      });
     }
 
     function findSampleForDocument(document) {
@@ -6101,6 +6138,7 @@
       updateFilterState(libraryCards.length, visibleCount);
       syncSampleAddButtons();
       syncOnlineAddButtons();
+      syncKnowledgeRailHeight();
     }
 
     async function deleteKnowledgeDocumentFromUi(documentId, button) {
@@ -6172,6 +6210,25 @@
     syncKnowledgeSurface();
     renderUploadQueue([]);
     hideUploadProgress();
+    if (kbMain && kbSide) {
+      if ("ResizeObserver" in window) {
+        railResizeObserver = new ResizeObserver(syncKnowledgeRailHeight);
+        railResizeObserver.observe(kbMain);
+      }
+
+      window.addEventListener("resize", syncKnowledgeRailHeight);
+
+      if (desktopRailQuery) {
+        if (typeof desktopRailQuery.addEventListener === "function") {
+          desktopRailQuery.addEventListener("change", syncKnowledgeRailHeight);
+        } else if (typeof desktopRailQuery.addListener === "function") {
+          desktopRailQuery.addListener(syncKnowledgeRailHeight);
+        }
+      }
+
+      syncKnowledgeRailHeight();
+    }
+
     const kbRuntimeState = getSurfaceRuntimeState("kb");
     setBadge(runtimeBadge, kbRuntimeState.label, kbRuntimeState.tone);
 
@@ -6639,6 +6696,7 @@
       renderKnowledgeCards(nextCards);
       updateFilterState(nextCards.length, visibleCount);
       setBadge(runtimeBadge, payload.mode === "proxy" ? "KB search live" : "Ready", payload.mode === "proxy" ? "is-live" : "is-demo");
+      syncKnowledgeRailHeight();
     });
   }
 

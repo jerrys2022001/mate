@@ -7250,6 +7250,21 @@ body[data-page="kb"] .workspace-shell .doc-body h4 {
     padding-right: 0;
   }
 
+  body[data-page="kb"] .workspace-shell .kb-side.is-height-bound {
+    max-height: var(--kb-main-height);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 8px;
+    scrollbar-gutter: stable;
+  }
+
+  body[data-page="kb"] .workspace-shell .kb-side.is-height-bound > .kb-card--library > .source-grid,
+  body[data-page="kb"] .workspace-shell .kb-side.is-height-bound > .doc-list {
+    max-height: none;
+    overflow: visible;
+  }
+
   body[data-page="kb"] .workspace-shell .kb-card--entry .kb-entry-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px 18px;
